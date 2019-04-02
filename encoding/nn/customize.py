@@ -19,7 +19,7 @@ from torch.autograd import Variable
 
 torch_ver = torch.__version__[:3]
 
-__all__ = ['SegmentationLosses', 'PyramidPooling', 'JPU', 'Mean']
+__all__ = ['SegmentationLosses', 'PyramidPooling', 'JPU', 'Mean', 'JFPU']
 
 class SegmentationLosses(CrossEntropyLoss):
     """2D Cross Entropy Loss with Auxilary Loss"""
@@ -148,6 +148,79 @@ class SeparableConv2d(nn.Module):
         x = self.bn(x)
         x = self.pointwise(x)
         return x
+
+class JFPU(nn.Module):
+    def __init__(self, in_channels, width=256, norm_layer=None, up_kwargs=None):
+        super(JFPU, self).__init__()
+        self.up_kwargs = up_kwargs
+
+        self.conv5 = nn.Sequential(
+            nn.Conv2d(in_channels[-1], width, 3, padding=1, bias=False),
+            norm_layer(width),
+            nn.ReLU(inplace=True))
+        self.conv4 = nn.Sequential(
+            nn.Conv2d(in_channels[-2], width, 3, padding=1, bias=False),
+            norm_layer(width),
+            nn.ReLU(inplace=True))
+        self.conv3 = nn.Sequential(
+            nn.Conv2d(in_channels[-3], width, 3, padding=1, bias=False),
+            norm_layer(width),
+            nn.ReLU(inplace=True))
+        self.gap = nn.Sequential(nn.AdaptiveAvgPool2d(1),
+                                 nn.Conv2d(in_channels, width, 1, bias=False),
+                                 norm_layer(width),
+                                 nn.ReLU(inplace=True))
+        self.conv3p = nn.Sequential(
+            nn.Conv2d(in_channels[-1], width, 3, padding=1, bias=False),
+            norm_layer(width),
+            nn.ReLU(inplace=True))
+        self.conv2p = nn.Sequential(
+            nn.Conv2d(in_channels[-2], width, 3, padding=1, bias=False),
+            norm_layer(width),
+            nn.ReLU(inplace=True))
+        self.conv1p = nn.Sequential(
+            nn.Conv2d(in_channels[-3], width, 3, padding=1, bias=False),
+            norm_layer(width),
+            nn.ReLU(inplace=True))
+
+        self.dilation1 = nn.Sequential(SeparableConv2d(3*width, width, kernel_size=3, padding=1, dilation=1, bias=False),
+                                       norm_layer(width),
+                                       nn.ReLU(inplace=True))
+        self.dilation2 = nn.Sequential(SeparableConv2d(3*width, width, kernel_size=3, padding=2, dilation=2, bias=False),
+                                       norm_layer(width),
+                                       nn.ReLU(inplace=True))
+        self.dilation3 = nn.Sequential(SeparableConv2d(3*width, width, kernel_size=3, padding=4, dilation=4, bias=False),
+                                       norm_layer(width),
+                                       nn.ReLU(inplace=True))
+        self.dilation4 = nn.Sequential(SeparableConv2d(3*width, width, kernel_size=3, padding=8, dilation=8, bias=False),
+                                       norm_layer(width),
+                                       nn.ReLU(inplace=True))
+
+    def forward(self, *inputs):
+        feats = [self.gap(inputs[-1]), self.conv5(inputs[-1]), self.conv4(inputs[-2]), self.conv3(inputs[-3])]
+
+        _, _, h, w = feats[-1].size()
+        _, _, h2, w2= feats[-2].size()
+        _, _, h3, w3 = feats[-3].size()
+        _, _, h4, w4 = feats[-4].size()
+
+        feats[-3] = F.upsample(feats[-4], (h3, w3), **self.up_kwargs)+feats[-3]
+        ft3p = self.conv3p(feats[-3])
+        feats[-2] = F.upsample(feats[-3], (h3, w3), **self.up_kwargs) + feats[-2]
+        ft2p = self.conv2p(feats[-2])
+        feats[-1] = F.upsample(feats[-2], (h3, w3), **self.up_kwargs) + feats[-1]
+        ft1p = self.conv1p(feats[-1])
+
+        ft3p = F.upsample(ft3p, (h, w), **self.up_kwargs)
+        ft2p = F.upsample(ft2p, (h, w), **self.up_kwargs)
+        ft4p = F.upsample(feats[-4], (h, w), **self.up_kwargs)
+        featsp = [ft4p, ft3p, ft2p, ft1p]
+
+
+        feat = torch.cat(featsp, dim=1)
+        feat = torch.cat([self.dilation1(feat), self.dilation2(feat), self.dilation3(feat), self.dilation4(feat)], dim=1)
+
+        return inputs[0], inputs[1], inputs[2], feat
 
 
 class JPU(nn.Module):
