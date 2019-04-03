@@ -167,7 +167,7 @@ class JFPU(nn.Module):
             norm_layer(width),
             nn.ReLU(inplace=True))
         self.gap = nn.Sequential(nn.AdaptiveAvgPool2d(1),
-                                 nn.Conv2d(in_channels, width, 1, bias=False),
+                                 nn.Conv2d(in_channels[-1], width, 1, bias=False),
                                  norm_layer(width),
                                  nn.ReLU(inplace=True))
         self.conv3p = nn.Sequential(
