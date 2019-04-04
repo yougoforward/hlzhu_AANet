@@ -24,7 +24,7 @@ class Options():
                             False, help='employ FPN')
         parser.add_argument('--dataset', type=str, default='ade20k',
                             help='dataset name (default: pascal12)')
-        parser.add_argument('--workers', type=int, default=2,
+        parser.add_argument('--workers', type=int, default=0,
                             metavar='N', help='dataloader threads')
         parser.add_argument('--base-size', type=int, default=520,
                             help='base image size')
