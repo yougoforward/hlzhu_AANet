@@ -1,6 +1,6 @@
 Metadata-Version: 1.0
 Name: fast-fcn
-Version: 0.5.1+d82ae16
+Version: 0.5.1+a8cc98a
 Summary: PyTorch Encoding Package
 Home-page: https://github.com/wuhuikai/FastFCN
 Author: Huikai Wu
