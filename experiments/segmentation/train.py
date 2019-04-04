@@ -42,7 +42,7 @@ class Trainer():
         # dataloader
         kwargs = {'num_workers': args.workers, 'pin_memory': True} \
             if args.cuda else {}
-        self.trainloader = data.DataLofader(trainset, batch_size=args.batch_size,
+        self.trainloader = data.DataLoader(trainset, batch_size=args.batch_size,
                                            drop_last=True, shuffle=True, **kwargs)
         self.valloader = data.DataLoader(testset, batch_size=args.batch_size,
                                          drop_last=False, shuffle=False, **kwargs)
@@ -123,7 +123,7 @@ class Trainer():
                 'optimizer': self.optimizer.state_dict(),
                 'best_pred': self.best_pred,
             }, self.args, is_best)
-            
+
 
     def validation(self, epoch):
         # Fast test during the training
