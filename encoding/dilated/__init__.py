@@ -1,2 +1,3 @@
 """Dilated ResNet and DenseNet"""
-from .resnet import *
+from .mg_resnet import *
+# from .resnet import *
