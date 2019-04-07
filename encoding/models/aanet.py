@@ -328,7 +328,7 @@ class guided_SE_CAM_Module(nn.Module):
             norm_layer(out_dim), nn.ReLU(True),
             nn.Dropout2d(0.1)
         )
-        self.se = SE_Module()
+        self.se = SE_Module(in_dim)
 
     def forward(self, x):
         """

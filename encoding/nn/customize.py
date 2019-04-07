@@ -204,11 +204,11 @@ class JFPU(nn.Module):
         _, _, h3, w3 = feats[-3].size()
         _, _, h4, w4 = feats[-4].size()
 
-        feats[-3] = F.upsample(feats[-4], (h3, w3), **self.up_kwargs)+feats[-3]
+        feats[-3] = F.upsample(feats[-4], (h3, w3), **self.up_kwargs) + feats[-3]
         ft3p = self.conv3p(feats[-3])
-        feats[-2] = F.upsample(feats[-3], (h3, w3), **self.up_kwargs) + feats[-2]
+        feats[-2] = F.upsample(feats[-3], (h2, w2), **self.up_kwargs) + feats[-2]
         ft2p = self.conv2p(feats[-2])
-        feats[-1] = F.upsample(feats[-2], (h3, w3), **self.up_kwargs) + feats[-1]
+        feats[-1] = F.upsample(feats[-2], (h, w), **self.up_kwargs) + feats[-1]
         ft1p = self.conv1p(feats[-1])
 
         ft3p = F.upsample(ft3p, (h, w), **self.up_kwargs)
