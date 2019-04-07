@@ -150,7 +150,7 @@ class SeparableConv2d(nn.Module):
         return x
 
 class JFPU(nn.Module):
-    def __init__(self, in_channels, width=256, norm_layer=None, up_kwargs=None):
+    def __init__(self, in_channels, width=512, norm_layer=None, up_kwargs=None):
         super(JFPU, self).__init__()
         self.up_kwargs = up_kwargs
 
@@ -183,16 +183,16 @@ class JFPU(nn.Module):
             norm_layer(width),
             nn.ReLU(inplace=True))
 
-        self.dilation1 = nn.Sequential(SeparableConv2d(3*width, width, kernel_size=3, padding=1, dilation=1, bias=False),
+        self.dilation1 = nn.Sequential(SeparableConv2d(4*width, width, kernel_size=3, padding=1, dilation=1, bias=False),
                                        norm_layer(width),
                                        nn.ReLU(inplace=True))
-        self.dilation2 = nn.Sequential(SeparableConv2d(3*width, width, kernel_size=3, padding=2, dilation=2, bias=False),
+        self.dilation2 = nn.Sequential(SeparableConv2d(4*width, width, kernel_size=3, padding=2, dilation=2, bias=False),
                                        norm_layer(width),
                                        nn.ReLU(inplace=True))
-        self.dilation3 = nn.Sequential(SeparableConv2d(3*width, width, kernel_size=3, padding=4, dilation=4, bias=False),
+        self.dilation3 = nn.Sequential(SeparableConv2d(4*width, width, kernel_size=3, padding=4, dilation=4, bias=False),
                                        norm_layer(width),
                                        nn.ReLU(inplace=True))
-        self.dilation4 = nn.Sequential(SeparableConv2d(3*width, width, kernel_size=3, padding=8, dilation=8, bias=False),
+        self.dilation4 = nn.Sequential(SeparableConv2d(4*width, width, kernel_size=3, padding=8, dilation=8, bias=False),
                                        norm_layer(width),
                                        nn.ReLU(inplace=True))
 
