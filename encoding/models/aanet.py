@@ -301,13 +301,13 @@ class guided_CAM_Module(nn.Module):
     
 class SE_Module(nn.Module):
     """ Channel attention module"""
-    def __init__(self, in_dim):
+    def __init__(self, in_dim, out_dim):
         super(SE_Module, self).__init__()
         self.se = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)),
                              nn.Conv2d(in_dim, in_dim // 16, kernel_size=1, padding=0, dilation=1,
                                     bias=True),
                              nn.ReLU(),
-                             nn.Conv2d(in_dim // 16, in_dim, kernel_size=1, padding=0, dilation=1,
+                             nn.Conv2d(in_dim // 16, out_dim, kernel_size=1, padding=0, dilation=1,
                                     bias=True),
                              nn.Sigmoid()
                              )
@@ -328,7 +328,7 @@ class guided_SE_CAM_Module(nn.Module):
             norm_layer(out_dim), nn.ReLU(True),
             nn.Dropout2d(0.1)
         )
-        self.se = SE_Module(in_dim)
+        self.se = SE_Module(in_dim, out_dim)
 
     def forward(self, x):
         """
@@ -357,7 +357,7 @@ class SE_CAM_Module(nn.Module):
         self.gamma = nn.Parameter(torch.zeros(1))
         self.softmax  = nn.Softmax(dim=-1)
 
-        self.se = SE_Module(in_dim)
+        self.se = SE_Module(in_dim, in_dim)
 
     def forward(self,x):
         """
