@@ -171,15 +171,15 @@ class JFPU(nn.Module):
                                  norm_layer(width),
                                  nn.ReLU(inplace=True))
         self.conv3p = nn.Sequential(
-            nn.Conv2d(in_channels[-1], width, 3, padding=1, bias=False),
+            nn.Conv2d(width, width, 3, padding=1, bias=False),
             norm_layer(width),
             nn.ReLU(inplace=True))
         self.conv2p = nn.Sequential(
-            nn.Conv2d(in_channels[-2], width, 3, padding=1, bias=False),
+            nn.Conv2d(width, width, 3, padding=1, bias=False),
             norm_layer(width),
             nn.ReLU(inplace=True))
         self.conv1p = nn.Sequential(
-            nn.Conv2d(in_channels[-3], width, 3, padding=1, bias=False),
+            nn.Conv2d(width, width, 3, padding=1, bias=False),
             norm_layer(width),
             nn.ReLU(inplace=True))
 
