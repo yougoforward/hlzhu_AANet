@@ -356,9 +356,8 @@ class SE_CAM_Module(nn.Module):
 
         self.gamma = nn.Parameter(torch.zeros(1))
         self.softmax  = nn.Softmax(dim=-1)
-        self.avgpool = nn.AvgPool2d(2, 2)
 
-        self.se = SE_Module()
+        self.se = SE_Module(in_dim)
 
     def forward(self,x):
         """
