@@ -6,6 +6,7 @@ from .psp import *
 from .encnet import *
 from .deeplabv3 import *
 from .aanet import *
+from .aanet_ml import *
 
 def get_segmentation_model(name, **kwargs):
     from .fcn import get_fcn
@@ -14,6 +15,7 @@ def get_segmentation_model(name, **kwargs):
         'psp': get_psp,
         'encnet': get_encnet,
         'deeplab': get_deeplab,
-        'aanet': get_aanet
+        'aanet': get_aanet,
+        'aanet_ml': get_annet_ml,
     }
     return models[name.lower()](**kwargs)
