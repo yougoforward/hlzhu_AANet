@@ -16,6 +16,6 @@ def get_segmentation_model(name, **kwargs):
         'encnet': get_encnet,
         'deeplab': get_deeplab,
         'aanet': get_aanet,
-        'aanet_ml': get_annet_ml,
+        'aanet_ml': get_aanet_ml,
     }
     return models[name.lower()](**kwargs)
