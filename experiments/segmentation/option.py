@@ -95,11 +95,12 @@ class Options():
         if args.epochs is None:
             epoches = {
                 'coco': 30,
-                'citys': 240,
+                'cityscapes': 240,
                 'pascal_voc': 50,
                 'pascal_aug': 50,
                 'pcontext': 80,
                 'ade20k': 120,
+                'cocostuff': 180,
             }
             args.epochs = epoches[args.dataset.lower()]
         if args.batch_size is None:
@@ -109,11 +110,12 @@ class Options():
         if args.lr is None:
             lrs = {
                 'coco': 0.01,
-                'citys': 0.01,
+                'cityscapes': 0.01,
                 'pascal_voc': 0.0001,
                 'pascal_aug': 0.001,
                 'pcontext': 0.001,
                 'ade20k': 0.01,
+                'cocostuff': 0.01,
             }
             args.lr = lrs[args.dataset.lower()] / 16 * args.batch_size
         print(args)
