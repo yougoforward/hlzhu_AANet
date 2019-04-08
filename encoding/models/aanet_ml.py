@@ -31,7 +31,7 @@ class AANet_ML(BaseNet):
         x[2] = F.interpolate(x[2], (h, w), **self._up_kwargs)
         x[3] = F.interpolate(x[3], (h, w), **self._up_kwargs)
 
-        outputs = [x[0]]
+        outputs.append(x[0])
         outputs.append(x[1])
         outputs.append(x[2])
         outputs.append(x[3])
@@ -91,6 +91,7 @@ class AANetMLHead(nn.Module):
         # fuse
         feat_sum = aspp_conv + sec_conv + sa_conv
         fuse_output = self.conv8(feat_sum)
+        
         output = [fuse_output]
         output.append(sa_out)
         output.append(aspp_out)
