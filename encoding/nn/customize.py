@@ -19,7 +19,7 @@ from torch.autograd import Variable
 
 torch_ver = torch.__version__[:3]
 
-__all__ = ['SegmentationLosses', 'PyramidPooling', 'JPU', 'Mean', 'JFPU']
+__all__ = ['SegmentationLosses', 'PyramidPooling', 'JPU', 'Mean', 'JFPU', 'SegmentationMultiLosses']
 
 class SegmentationLosses(CrossEntropyLoss):
     """2D Cross Entropy Loss with Auxilary Loss"""
@@ -69,6 +69,29 @@ class SegmentationLosses(CrossEntropyLoss):
             tvect[i] = vect
         return tvect
 
+class SegmentationMultiLosses(CrossEntropyLoss):
+    """2D Cross Entropy Loss with Multi-L1oss"""
+    def __init__(self, nclass=-1, weight=None,size_average=True, ignore_index=-1):
+        super(SegmentationMultiLosses, self).__init__(weight, size_average, ignore_index)
+        self.nclass = nclass
+
+
+    def forward(self, *inputs):
+        # *preds, target = tuple(inputs)
+        # pred1 = preds[0][0]
+        # loss = super(SegmentationMultiLosses, self).forward(pred1, target)
+
+        *preds, target = tuple(inputs)
+        pred1, pred2 ,pred3, pred4= tuple(preds)
+
+
+        loss1 = super(SegmentationMultiLosses, self).forward(pred1, target)
+        loss2 = super(SegmentationMultiLosses, self).forward(pred2, target)
+        loss3 = super(SegmentationMultiLosses, self).forward(pred3, target)
+        loss4 = super(SegmentationMultiLosses, self).forward(pred4, target)
+        
+        loss = 0.4*loss1 + 0.2*loss2 + 0.2*loss3 + 0.2*loss4
+        return loss
 
 class Normalize(Module):
     r"""Performs :math:`L_p` normalization of inputs over specified dimension.
