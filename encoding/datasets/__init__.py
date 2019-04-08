@@ -15,6 +15,7 @@ datasets = {
     'pascal_aug': VOCAugSegmentation,
     'pcontext': ContextSegmentation,
     'cityscapes': CitySegmentation,
+    'cocostuff': CocostuffSegmentation,
 }
 
 def get_segmentation_dataset(name, **kwargs):
