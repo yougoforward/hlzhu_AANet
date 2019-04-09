@@ -7,7 +7,8 @@ from .encnet import *
 from .deeplabv3 import *
 from .aanet import *
 from .aanet_ml import *
-
+from .dict_aanet import *
+from .topk_aanet import *
 def get_segmentation_model(name, **kwargs):
     from .fcn import get_fcn
     models = {
@@ -17,5 +18,7 @@ def get_segmentation_model(name, **kwargs):
         'deeplab': get_deeplab,
         'aanet': get_aanet,
         'aanet_ml': get_aanet_ml,
+        'dict_aanet': get_dict_aanet,
+        'topk_aanet': get_topk_aanet,
     }
     return models[name.lower()](**kwargs)
