@@ -245,18 +245,19 @@ class dict_Encoding(Module):
         # input X is a 4D tensor
         assert(X.size(1) == self.D)
         B, D = X.size(0), self.D
+        h,w = X.size(2), X.size(3)
         if X.dim() == 3:
             # BxDxN => BxNxD
-            X = X.transpose(1, 2).contiguous()
+            Xt = X.transpose(1, 2).contiguous()
         elif X.dim() == 4:
             # BxDxHxW => Bx(HW)xD
-            X = X.view(B, D, -1).transpose(1, 2).contiguous()
+            Xt = X.view(B, D, -1).transpose(1, 2).contiguous()
         else:
             raise RuntimeError('Encoding Layer unknown input dims!')
         # assignment weights BxNxK
-        A = F.softmax(torch.matmul(X,self.codewords),dim=-1)
+        A = F.softmax(torch.matmul(Xt,self.codewords),dim=-1)
         # aggregate
-        E = X + self.gamma*torch.matmul(A, self.codewords.transpose(0,1)).permute(0,2,1).view(B,D,X.size(2),X.size(3))
+        E = X + self.gamma*torch.matmul(A, self.codewords.transpose(0,1)).permute(0,2,1).view(B,D,h,w)
         return E
 
 
