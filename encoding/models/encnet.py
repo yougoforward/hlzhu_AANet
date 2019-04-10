@@ -22,7 +22,7 @@ class EncNet(BaseNet):
                  norm_layer=nn.BatchNorm2d, **kwargs):
         super(EncNet, self).__init__(nclass, backbone, aux, se_loss,
                                      norm_layer=norm_layer, **kwargs)
-        self.head = EncHead([512, 1024, 1024], self.nclass, se_loss=se_loss, jpu=kwargs['jpu'],
+        self.head = EncHead([512, 1024, 512], self.nclass, se_loss=se_loss, jpu=kwargs['jpu'],
                             lateral=kwargs['lateral'], norm_layer=norm_layer,
                             up_kwargs=self._up_kwargs)
         if aux:

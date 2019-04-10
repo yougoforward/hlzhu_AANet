@@ -19,7 +19,7 @@ from torch.autograd import Variable
 
 torch_ver = torch.__version__[:3]
 
-__all__ = ['SegmentationLosses', 'PyramidPooling', 'JPU', 'Mean', 'JFPU', 'SegmentationMultiLosses']
+__all__ = ['SegmentationLosses', 'PyramidPooling', 'JPU', 'Mean', 'JFPU', 'SegmentationMultiLosses', 'JSFPU']
 
 class SegmentationLosses(CrossEntropyLoss):
     """2D Cross Entropy Loss with Auxilary Loss"""
@@ -245,6 +245,95 @@ class JFPU(nn.Module):
 
         return inputs[0], inputs[1], inputs[2], feat
 
+class JSFPU(nn.Module):
+    def __init__(self, in_channels, width=512, norm_layer=None, up_kwargs=None):
+        super(JSFPU, self).__init__()
+        self.up_kwargs = up_kwargs
+
+        self.conv5 = nn.Sequential(
+            nn.Conv2d(in_channels[-1], 64, 3, padding=1, bias=False),
+            norm_layer(width),
+            nn.ReLU(inplace=True))
+        self.conv4 = nn.Sequential(
+            nn.Conv2d(in_channels[-2], 64, 3, padding=1, bias=False),
+            norm_layer(width),
+            nn.ReLU(inplace=True))
+        self.conv3 = nn.Sequential(
+            nn.Conv2d(in_channels[-3], 64, 3, padding=1, bias=False),
+            norm_layer(width),
+            nn.ReLU(inplace=True))
+
+        self.conv3p3 = nn.Sequential(
+            nn.Conv2d(in_channels[-3], 64, 3, padding=1, bias=False),
+            norm_layer(width),
+            nn.ReLU(inplace=True))
+
+        self.conv5p = nn.Sequential(
+            nn.Conv2d(in_channels[-1], width, 3, padding=1, bias=False),
+            norm_layer(width),
+            nn.ReLU(inplace=True))
+        self.conv4p = nn.Sequential(
+            nn.Conv2d(in_channels[-2], width, 3, padding=1, bias=False),
+            norm_layer(width),
+            nn.ReLU(inplace=True))
+        self.conv3p = nn.Sequential(
+            nn.Conv2d(in_channels[-3], width, 3, padding=1, bias=False),
+            norm_layer(width),
+            nn.ReLU(inplace=True))
+
+        self.pa4 = PA()
+        self.pa3 = PA()
+
+
+    def forward(self, *inputs):
+        feats = [self.conv5(inputs[-1]), self.conv4(inputs[-2]), self.conv3(inputs[-3])]
+
+        _, _, h, w = feats[-1].size()
+        _, _, h2, w2= feats[-2].size()
+        _, _, h3, w3 = feats[-3].size()
+
+        pa4_out = self.pa4([feats[1],feats[2], inputs[-1]])
+        pa4_out = self.conv5p(pa4_out)+self.conv4p(inputs[-2])
+
+        pa3_out = self.pa3([feats[0],self.conv3p3(pa4_out),pa4_out])
+        pa3_out = pa3_out + self.conv3p(inputs[-3])
+
+        return inputs[0], inputs[1], inputs[2], pa3_out
+
+class PA(nn.Module):
+    """ Position attention module"""
+
+    # Ref from SAGAN
+    def __init__(self):
+        super(PA, self).__init__()
+        self.gamma = nn.Parameter(torch.zeros(1))
+
+        self.softmax = nn.Softmax(dim=-1)
+
+    def forward(self, x):
+        """
+            inputs :
+                x : input feature maps( B X C X H X W)
+            returns :
+                out : attention value + input feature
+                attention: B X (HxW) X (HxW)
+        """
+        query = x[0]
+        key = x[1]
+        value = x[2]
+        m_batchsize, Cq, hq, wq = x[0].size()
+        _, Cv, hv, wv = x[2].size()
+
+        proj_query = query.view(m_batchsize, -1, wq * hq).permute(0, 2, 1)
+        proj_key = key.view(m_batchsize, -1, wv * hv)
+
+        energy = torch.bmm(proj_query, proj_key)
+        attention = self.softmax(energy)
+        proj_value = value.view(m_batchsize, -1, wv * hv)
+
+        out = torch.bmm(proj_value, attention.permute(0, 2, 1))
+        out = out.view(m_batchsize, Cv, hq, wq)*self.gamma
+        return out
 
 class JPU(nn.Module):
     def __init__(self, in_channels, width=512, norm_layer=None, up_kwargs=None):

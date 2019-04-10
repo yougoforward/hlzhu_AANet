@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from torch.nn.parallel.scatter_gather import scatter
 from torch.nn.parallel.data_parallel import DataParallel
 
-from ..nn import JPU, JFPU
+from ..nn import JPU, JFPU, JSFPU
 from .. import dilated as resnet
 from ..utils import batch_pix_accuracy, batch_intersection_union
 
@@ -50,7 +50,8 @@ class BaseNet(nn.Module):
         self._up_kwargs = up_kwargs
         self.backbone = backbone
         # self.jpu = JPU([512, 1024, 2048], width=512, norm_layer=norm_layer, up_kwargs=up_kwargs) if jpu else None
-        self.jpu = JFPU([512, 1024, 2048], width=256, norm_layer=norm_layer, up_kwargs=up_kwargs) if jpu else None
+        # self.jpu = JFPU([512, 1024, 2048], width=256, norm_layer=norm_layer, up_kwargs=up_kwargs) if jpu else None
+        self.jpu = JSFPU([512, 1024, 2048], width=512, norm_layer=norm_layer, up_kwargs=up_kwargs) if jpu else None
         
     def base_forward(self, x):
         x = self.pretrained.conv1(x)
