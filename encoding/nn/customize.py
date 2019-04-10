@@ -90,7 +90,7 @@ class SegmentationMultiLosses(CrossEntropyLoss):
         loss3 = super(SegmentationMultiLosses, self).forward(pred3, target)
         loss4 = super(SegmentationMultiLosses, self).forward(pred4, target)
         
-        loss = 0.4*loss1 + 0.2*loss2 + 0.2*loss3 + 0.2*loss4
+        loss = 0.3*(loss1 + loss2 + loss3 + loss4)
         return loss
 
 class Normalize(Module):

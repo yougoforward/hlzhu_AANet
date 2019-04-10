@@ -15,7 +15,7 @@ class dict_AANet(BaseNet):
     def __init__(self, nclass, backbone, aux=True, se_loss=False, norm_layer=nn.BatchNorm2d, **kwargs):
         super(dict_AANet, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
 
-        self.head = dict_AANetHead(2048, nclass, norm_layer, self._up_kwargs)
+        self.head = dict_AANetHead(2048, nclass, norm_layer, se_loss, self._up_kwargs)
         if aux:
             self.auxlayer = FCNHead(1024, nclass, norm_layer)
 
@@ -23,21 +23,20 @@ class dict_AANet(BaseNet):
         _, _, h, w = x.size()
         _, _, c3, c4 = self.base_forward(x)
 
-        outputs = []
-        x = self.head(c4)
-        x = F.interpolate(x, (h, w), **self._up_kwargs)
-        outputs.append(x)
+        x = list(self.head(c4))
+        x[0] = F.interpolate(x[0], (h, w), **self._up_kwargs)
         if self.aux:
             auxout = self.auxlayer(c3)
             auxout = F.interpolate(auxout, (h, w), **self._up_kwargs)
-            outputs.append(auxout)
-
-        return tuple(outputs)
+            x.append(auxout)
+        return tuple(x)
 
 
 class dict_AANetHead(nn.Module):
-    def __init__(self, in_channels, out_channels, norm_layer, up_kwargs, atrous_rates=(12, 24, 36)):
+    def __init__(self, in_channels, out_channels, norm_layer, se_loss, up_kwargs, atrous_rates=(12, 24, 36)):
         super(dict_AANetHead, self).__init__()
+        self.se_loss = se_loss
+
         inter_channels = in_channels // 4
 
         self.conv5a = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
@@ -61,6 +60,15 @@ class dict_AANetHead(nn.Module):
                                     norm_layer(inter_channels), nn.ReLU(True))
 
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(512, out_channels, 1))
+        
+        self.gap = nn.AdaptiveAvgPool2d(1)
+
+        self.fc = nn.Sequential(
+            nn.Linear(inter_channels, inter_channels),
+            nn.Sigmoid())
+
+        if self.se_loss:
+            self.selayer = nn.Linear(inter_channels, out_channels)
 
     def forward(self, x):
         # ssa
@@ -77,8 +85,17 @@ class dict_AANetHead(nn.Module):
         sec_conv = self.conv53(sec_feat)
         # fuse
         feat_sum = aspp_conv + sec_conv + sa_conv
-        output = self.conv8(feat_sum)
-        return output
+        # outputs = self.conv8(feat_sum)
+        
+        if self.se_loss:
+            gap_feat = self.gap(feat_sum)
+            gamma = self.fc(gap_feat)
+            outputs = [self.conv8(F.relu_(feat_sum + feat_sum * gamma))]
+            outputs.append(self.selayer(gap_feat))
+        else:
+            outputs = self.conv8(feat_sum)
+            
+        return outputs
 
 
 def ASPPConv(in_channels, out_channels, atrous_rate, norm_layer):
