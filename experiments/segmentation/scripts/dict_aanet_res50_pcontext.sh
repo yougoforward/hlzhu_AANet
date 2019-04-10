@@ -7,6 +7,6 @@ python train.py --dataset pcontext \
 
 #test [single-scale]
 python test.py --dataset pcontext \
-    --model topk_aanet --aux --dilated --base-size 608 --crop-size 576 \
+    --model dict_aanet --aux --dilated --base-size 608 --crop-size 576 \
     --backbone resnet50 --resume runs/pcontext/dict_aanet/dict_aanet_res50_pcontext/model_best.pth.tar \
     --split val --mode testval
