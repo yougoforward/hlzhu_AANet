@@ -265,7 +265,7 @@ class JSFPU(nn.Module):
 
         self.conv3p3 = nn.Sequential(
             nn.Conv2d(in_channels[-3], 64, 3, padding=1, bias=False),
-            norm_layer(width),
+            norm_layer(64),
             nn.ReLU(inplace=True))
 
         self.conv5p = nn.Sequential(
