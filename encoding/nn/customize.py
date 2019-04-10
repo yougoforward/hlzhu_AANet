@@ -292,10 +292,10 @@ class JSFPU(nn.Module):
         _, _, h2, w2= feats[-2].size()
         _, _, h3, w3 = feats[-3].size()
 
-        pa4_out = self.pa4([feats[1],feats[2], inputs[-1]])
+        pa4_out = self.pa4([feats[1],feats[0], inputs[-1]])
         pa4_out = self.conv5p(pa4_out)+self.conv4p(inputs[-2])
 
-        pa3_out = self.pa3([feats[0],self.conv3p3(pa4_out),pa4_out])
+        pa3_out = self.pa3([feats[2],self.conv3p3(pa4_out),pa4_out])
         pa3_out = pa3_out + self.conv3p(inputs[-3])
 
         return inputs[0], inputs[1], inputs[2], pa3_out
