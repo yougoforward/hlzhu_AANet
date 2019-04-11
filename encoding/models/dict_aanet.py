@@ -93,9 +93,9 @@ class dict_AANetHead(nn.Module):
             outputs = [self.conv8(F.relu_(feat_sum + feat_sum * gamma))]
             outputs.append(self.selayer(torch.squeeze(gap_feat)))
         else:
-            outputs = self.conv8(feat_sum)
+            outputs = [self.conv8(feat_sum)]
             
-        return outputs
+        return tuple(outputs)
 
 
 def ASPPConv(in_channels, out_channels, atrous_rate, norm_layer):

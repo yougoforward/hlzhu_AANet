@@ -63,7 +63,7 @@ class topk_AANetHead(nn.Module):
         self.gap = nn.AdaptiveAvgPool2d(1)
 
         self.fc = nn.Sequential(
-            nn.Linear(inter_channels, inter_channels),
+            nn.Conv2d(inter_channels, inter_channels, 1),
             nn.Sigmoid())
 
         if self.se_loss:
@@ -90,11 +90,11 @@ class topk_AANetHead(nn.Module):
             gap_feat = self.gap(feat_sum)
             gamma = self.fc(gap_feat)
             outputs = [self.conv8(F.relu_(feat_sum + feat_sum * gamma))]
-            outputs.append(self.selayer(gap_feat))
+            outputs.append(self.selayer(torch.squeeze(gap_feat)))
         else:
-            outputs = self.conv8(feat_sum)
+            outputs = [self.conv8(feat_sum)]
 
-        return outputs
+        return tuple(outputs)
 
 
 def ASPPConv(in_channels, out_channels, atrous_rate, norm_layer):
