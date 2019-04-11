@@ -64,7 +64,7 @@ class dict_AANetHead(nn.Module):
         self.gap = nn.AdaptiveAvgPool2d(1)
 
         self.fc = nn.Sequential(
-            nn.Linear(inter_channels, inter_channels),
+            nn.Conv2d(inter_channels, inter_channels, 1),
             nn.Sigmoid())
 
         if self.se_loss:
