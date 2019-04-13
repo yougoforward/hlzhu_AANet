@@ -6,3 +6,6 @@ CUDA_VISIBLE_DEVICES=4,5,6,7 sh scripts/aanet_res50_pcontext.sh 2>&1 | tee aanet
 
 
 CUDA_VISIBLE_DEVICES=4,5,6,7 python train_ml.py --dataset cityscapes --batch-size 8 --model aanet_ml --dilated --base-size 1024 --crop-size 768 --backbone resnet50 --checkname aanet_ml_res50_cityscapes
+
+
+CUDA_VISIBLE_DEVICES=0,1,2,3 sh scripts/topk_aanet_res50_pcontext.sh 2>&1 | tee topk_aanet_res50_pcontext.log
