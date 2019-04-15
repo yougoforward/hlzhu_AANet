@@ -3,10 +3,16 @@
 #train
 python train.py --dataset pcontext \
     --model dict_aanet --aux --dilated --base-size 608 --crop-size 576 \
-    --backbone resnet50 --checkname dict_aanet_res50_pcontext
+    --backbone resnet50 --checkname dict512_aanet_res50_pcontext
 
 #test [single-scale]
 python test.py --dataset pcontext \
     --model dict_aanet --aux --dilated --base-size 608 --crop-size 576 \
-    --backbone resnet50 --resume runs/pcontext/dict_aanet/dict_aanet_res50_pcontext/model_best.pth.tar \
+    --backbone resnet50 --resume runs/pcontext/dict_aanet/dict512_aanet_res50_pcontext/model_best.pth.tar \
     --split val --mode testval
+
+#test [multi-scale]
+python test.py --dataset pcontext \
+    --model dict_aanet --aux --dilated --base-size 608 --crop-size 576 \
+    --backbone resnet50 --resume runs/pcontext/dict_aanet/dict512_aanet_res50_pcontext/model_best.pth.tar \
+    --split val --mode testval --ms

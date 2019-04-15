@@ -46,7 +46,7 @@ class dict_AANetHead(nn.Module):
         self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
 
-        self.sa = encoding.nn.dict_Encoding(inter_channels,256)
+        self.sa = encoding.nn.dict_Encoding(inter_channels,512)
         # self.sa = PAM_Module(inter_channels, inter_channels // 8, inter_channels)
         # self.sa = topk_PAM_Module(inter_channels, 256, inter_channels, 10)
         self.aa_aspp = aa_ASPP_Module(inter_channels, atrous_rates, norm_layer, up_kwargs)
