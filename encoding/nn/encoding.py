@@ -195,7 +195,7 @@ class pydict_Encoding(Module):
         X2 = self.conv1(X)
         X3 = self.conv2(X2)
 
-        Xt1 = X.view(B, D, -1).transpose(1, 2).contiguous()
+        Xt1 = X.view(B, D, -1)
         Xt2 = X2.view(B, D, -1)
         Xt3 = X3.view(B, D, -1)
 
