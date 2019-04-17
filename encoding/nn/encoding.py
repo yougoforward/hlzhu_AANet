@@ -200,9 +200,9 @@ class pydict_Encoding(Module):
         Xt3 = X3.view(B, D, -1)
 
         # assignment weights BxNxK
-        A1 = self.scale3*torch.matmul(Xt1, self.codewords1)
+        A1 = self.scale1*torch.matmul(self.codewords1.permute(1, 0), Xt1)
         A2 = self.scale2*torch.matmul(self.codewords2.permute(1, 0), Xt2)
-        A3 = self.scale1*torch.matmul(self.codewords3.permute(1, 0), Xt3)
+        A3 = self.scale3*torch.matmul(self.codewords3.permute(1, 0), Xt3)
 
         S2 = F.softmax(torch.matmul(self.codewords1.permute(1, 0), self.codewords2), dim=-1)
         S3 = F.softmax(torch.matmul(self.codewords2.permute(1, 0), self.codewords3), dim=-1)
@@ -210,7 +210,7 @@ class pydict_Encoding(Module):
         # aggregate
         SA3 = torch.matmul(S3, A3)
         SA2 = torch.matmul(S2, A2+self.gamma3*SA3)
-        SA1 = F.softmax(torch.matmul(self.codewords1, A1 + self.gammm2*SA2), dim=-1)
+        SA1 = torch.matmul(self.codewords1, F.softmax((A1 + self.gammm2*SA2).permute(0,2,1), dim=-2))
 
         E = X + self.gamma1*SA1.view(B,D,h,w)
 
