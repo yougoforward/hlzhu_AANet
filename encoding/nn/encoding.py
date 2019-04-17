@@ -243,13 +243,13 @@ class simple_pydict_Encoding(Module):
 
     def reset_params(self):
         std1 = 1. / ((self.K1 * self.D) ** (1 / 2))
-        self.codewords.data.uniform_(-std1, std1)
+        self.codewords1.data.uniform_(-std1, std1)
 
         std2 = 1. / ((self.K2 * self.D) ** (1 / 2))
-        self.codewords.data.uniform_(-std2, std2)
+        self.codewords2.data.uniform_(-std2, std2)
 
         std3 = 1. / ((self.K3 * self.D) ** (1 / 2))
-        self.codewords.data.uniform_(-std3, std3)
+        self.codewords3.data.uniform_(-std3, std3)
 
         self.scale1.data.uniform_(-1, 0)
         self.scale2.data.uniform_(-1, 0)
