@@ -174,13 +174,13 @@ class pydict_Encoding(Module):
 
     def reset_params(self):
         std1 = 1. / ((self.K1 * self.D) ** (1 / 2))
-        self.codewords.data.uniform_(-std1, std1)
+        self.codewords1.data.uniform_(-std1, std1)
 
         std2 = 1. / ((self.K2 * self.D) ** (1 / 2))
-        self.codewords.data.uniform_(-std2, std2)
+        self.codewords1.data.uniform_(-std2, std2)
 
         std3 = 1. / ((self.K3 * self.D) ** (1 / 2))
-        self.codewords.data.uniform_(-std3, std3)
+        self.codewords3.data.uniform_(-std3, std3)
 
         self.scale1.data.uniform_(-1, 0)
         self.scale2.data.uniform_(-1, 0)
@@ -210,7 +210,7 @@ class pydict_Encoding(Module):
         # aggregate
         SA3 = torch.matmul(S3, A3)
         SA2 = torch.matmul(S2, A2+self.gamma3*SA3)
-        SA1 = F.softmax(torch.matmul(self.codewords2, A1 + self.gammm2*SA2), dim=-1)
+        SA1 = F.softmax(torch.matmul(self.codewords1, A1 + self.gammm2*SA2), dim=-1)
 
         E = X + self.gamma1*SA1.view(B,D,h,w)
 
