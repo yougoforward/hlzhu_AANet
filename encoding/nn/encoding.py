@@ -210,7 +210,7 @@ class pydict_Encoding(Module):
         # aggregate
         SA3 = torch.matmul(S3, A3)
         SA2 = torch.matmul(S2, A2+self.gamma3*SA3)
-        SA1 = torch.matmul(self.codewords1, F.softmax((A1 + self.gammm2*SA2).permute(0,2,1), dim=-2))
+        SA1 = torch.matmul(self.codewords1, F.softmax((A1 + self.gamma2*SA2).permute(0,2,1), dim=-2))
 
         E = X + self.gamma1*SA1.view(B,D,h,w)
 
