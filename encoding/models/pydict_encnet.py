@@ -8,14 +8,14 @@ import encoding
 from .fcn import FCNHead
 from .base import BaseNet
 
-__all__ = ['pydict', 'get_pydict']
+__all__ = ['pydict_encnet', 'get_pydict_encnet']
 
 
-class pydict(BaseNet):
+class pydict_encnet(BaseNet):
     def __init__(self, nclass, backbone, aux=True, se_loss=False, norm_layer=nn.BatchNorm2d, **kwargs):
-        super(pydict, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
+        super(pydict_encnet, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
 
-        self.head = pydictHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
+        self.head = pydictEncHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
         if aux:
             self.auxlayer = FCNHead(1024, nclass, norm_layer)
 
@@ -32,9 +32,9 @@ class pydict(BaseNet):
         return tuple(x)
 
 
-class pydictHead(nn.Module):
+class pydictEncHead(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, se_loss, jpu=False, up_kwargs=None, atrous_rates=(12, 24, 36)):
-        super(pydictHead, self).__init__()
+        super(pydictEncHead, self).__init__()
         self.se_loss = se_loss
 
         inter_channels = in_channels // 4
@@ -45,33 +45,28 @@ class pydictHead(nn.Module):
             nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
                           norm_layer(512),
                           nn.ReLU(inplace=True))
-        self.conv5as = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
-                                   norm_layer(512),
-                                   nn.ReLU(inplace=True)) if jpu else \
-            nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
-                          norm_layer(512),
-                          nn.ReLU(inplace=True))
-        self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
-                                   norm_layer(512),
-                                   nn.ReLU(inplace=True)) if jpu else \
-            nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
-                          norm_layer(512),
-                          nn.ReLU(inplace=True))
+        # self.conv5a = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
+        #                             norm_layer(inter_channels), nn.ReLU(True))
+        # self.conv5as = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
+        #                              norm_layer(inter_channels), nn.ReLU(True))
+        # self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
+        #                             norm_layer(inter_channels), nn.ReLU(True))
 
         self.sa = encoding.nn.pydict_Encoding(inter_channels, norm_layer, 512, 512, 256, 128)
         # self.sa = encoding.nn.simple_pydict_Encoding(inter_channels, norm_layer, 512, 512, 256, 128)
         # self.sa = encoding.nn.dict_Encoding(inter_channels, 512)
         # self.sa = PAM_Module(inter_channels, inter_channels // 8, inter_channels)
         # self.sa = topk_PAM_Module(inter_channels, 256, inter_channels, 10)
-        self.aa_aspp = aa_ASPP_Module(inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.sec = SE_CAM_Module(inter_channels)
+
+        # self.aa_aspp = aa_ASPP_Module(inter_channels, atrous_rates, norm_layer, up_kwargs)
+        # self.sec = SE_CAM_Module(inter_channels)
 
         self.conv51 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
-        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
-                                    norm_layer(inter_channels), nn.ReLU(True))
-        self.conv53 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
-                                    norm_layer(inter_channels), nn.ReLU(True))
+        # self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
+        #                             norm_layer(inter_channels), nn.ReLU(True))
+        # self.conv53 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
+        #                             norm_layer(inter_channels), nn.ReLU(True))
 
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(512, out_channels, 1))
 
@@ -90,15 +85,17 @@ class pydictHead(nn.Module):
         sa_feat = self.sa(feat1)
         sa_conv = self.conv51(sa_feat)
         # aaspp
-        feat_as = self.conv5as(x)
-        aspp_feat = self.aa_aspp(feat_as)
-        aspp_conv = self.conv52(aspp_feat)
-        # sec
-        feat2 = self.conv5c(x)
-        sec_feat = self.sec(feat2)
-        sec_conv = self.conv53(sec_feat)
-        # fuse
-        feat_sum = aspp_conv + sec_conv + sa_conv
+        # feat_as = self.conv5as(x)
+        # aspp_feat = self.aa_aspp(feat_as)
+        # aspp_conv = self.conv52(aspp_feat)
+        # # sec
+        # feat2 = self.conv5c(x)
+        # sec_feat = self.sec(feat2)
+        # sec_conv = self.conv53(sec_feat)
+        # # fuse
+        # feat_sum = aspp_conv + sec_conv + sa_conv
+
+        feat_sum=sa_conv
         # outputs = self.conv8(feat_sum)
 
         if self.se_loss:
@@ -196,11 +193,11 @@ class aa_ASPP_Module(nn.Module):
         return out
 
 
-def get_pydict(dataset='pascal_voc', backbone='resnet50', pretrained=False,
+def get_pydict_encnet(dataset='pascal_voc', backbone='resnet50', pretrained=False,
                    root='~/.encoding/models', **kwargs):
     # infer number of classes
     from ..datasets import datasets
-    model = pydict(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
+    model = pydict_encnet(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
     if pretrained:
         raise NotImplementedError
 
