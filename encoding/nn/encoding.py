@@ -177,7 +177,7 @@ class pydict_Encoding(Module):
         self.codewords1.data.uniform_(-std1, std1)
 
         std2 = 1. / ((self.K2 * self.D) ** (1 / 2))
-        self.codewords1.data.uniform_(-std2, std2)
+        self.codewords2.data.uniform_(-std2, std2)
 
         std3 = 1. / ((self.K3 * self.D) ** (1 / 2))
         self.codewords3.data.uniform_(-std3, std3)
