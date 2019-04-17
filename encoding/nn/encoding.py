@@ -151,7 +151,7 @@ class dict_Encoding(Module):
 class pydict_Encoding(Module):
 
     def __init__(self, in_dim, norm_layer, D, K1,K2,K3):
-        super(dict_Encoding, self).__init__()
+        super(pydict_Encoding, self).__init__()
         # init codewords and smoothing factor
         self.D, self.K1, self.K2, self.K3 = D, K1, K2, K3
         self.codewords1 = Parameter(torch.Tensor(D, K1), requires_grad=True)
