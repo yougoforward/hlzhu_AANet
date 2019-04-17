@@ -188,7 +188,7 @@ def get_pydict(dataset='pascal_voc', backbone='resnet50', pretrained=False,
                    root='~/.encoding/models', **kwargs):
     # infer number of classes
     from ..datasets import datasets
-    model = pydictNet(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
+    model = pydict(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
     if pretrained:
         raise NotImplementedError
 
