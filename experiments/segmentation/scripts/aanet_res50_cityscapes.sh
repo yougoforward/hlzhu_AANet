@@ -11,6 +11,12 @@ python test.py --dataset cityscapes --batch-size 8 \
     --backbone resnet50 --resume runs/cityscapes/aanet/aanet_res50_cityscapes/model_best.pth.tar \
     --split val --mode testval
 
+#test [single-scale]
+python test.py --dataset cityscapes --batch-size 8 \
+    --model aanet --aux --dilated --base-size 2048 --crop-size 1024 \
+    --backbone resnet50 --resume runs/cityscapes/aanet/aanet_res50_cityscapes/model_best.pth.tar \
+    --split val --mode testval --ms
+
 ##test [multi-scale]
 #python test.py --dataset cityscapes --batch-size 8 \
 #    --model aanet --aux --dilated --base-size 2048 --crop-size 1024 \
