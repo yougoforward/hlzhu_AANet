@@ -11,6 +11,7 @@ from .dict_aanet import *
 from .topk_aanet import *
 from .pydict import *
 from .pydict_encnet import *
+from .aanet_encnet import *
 def get_segmentation_model(name, **kwargs):
     from .fcn import get_fcn
     models = {
@@ -24,5 +25,6 @@ def get_segmentation_model(name, **kwargs):
         'topk_aanet': get_topk_aanet,
         'pydict': get_pydict,
         'pydict_encnet': get_pydict_encnet,
+        'aanet_encnet': get_aanet_encnet,
     }
     return models[name.lower()](**kwargs)
