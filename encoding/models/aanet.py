@@ -14,7 +14,7 @@ class AANet(BaseNet):
     def __init__(self, nclass, backbone, aux=True, se_loss=False, norm_layer=nn.BatchNorm2d, **kwargs):
         super(AANet, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
 
-        self.head = AANetHead(2048, nclass, norm_layer, se_loss, self._up_kwargs)
+        self.head = AANetHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
         if aux:
             self.auxlayer = FCNHead(1024, nclass, norm_layer)
 
@@ -33,17 +33,29 @@ class AANet(BaseNet):
    
 
 class AANetHead(nn.Module):
-    def __init__(self, in_channels, out_channels, norm_layer, se_loss, up_kwargs, atrous_rates=(12, 24, 36)):
+    def __init__(self, in_channels, out_channels, norm_layer, se_loss, jpu=False, up_kwargs=None, atrous_rates=(12, 24, 36)):
         super(AANetHead, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 4
 
-        self.conv5a = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
-                                    norm_layer(inter_channels), nn.ReLU(True))
-        self.conv5as = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
-                                     norm_layer(inter_channels), nn.ReLU(True))
-        self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
-                                    norm_layer(inter_channels), nn.ReLU(True))
+        self.conv5a = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
+                                    norm_layer(512),
+                                    nn.ReLU(inplace=True)) if jpu else \
+            nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
+                          norm_layer(512),
+                          nn.ReLU(inplace=True))
+        self.conv5as = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
+                                     norm_layer(512),
+                                     nn.ReLU(inplace=True)) if jpu else \
+            nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
+                          norm_layer(512),
+                          nn.ReLU(inplace=True))
+        self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
+                                    norm_layer(512),
+                                    nn.ReLU(inplace=True)) if jpu else \
+            nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
+                          norm_layer(512),
+                          nn.ReLU(inplace=True))
         
         
         self.sa = PAM_Module(inter_channels, inter_channels//8, inter_channels)
