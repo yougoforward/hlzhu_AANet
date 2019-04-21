@@ -105,7 +105,7 @@ class AANetHead(nn.Module):
             gap_feat = self.gap(feat_sum)
             gamma = self.fc(gap_feat)
             outputs = [self.conv8(F.relu_(feat_sum + feat_sum * gamma))]
-            outputs.append(self.selayer(torch.sueeze(gap_feat)))
+            outputs.append(self.selayer(torch.squeeze(gap_feat)))
         else:
             outputs = [self.conv8(feat_sum)]
             
