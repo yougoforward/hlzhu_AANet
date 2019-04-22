@@ -20,6 +20,40 @@ python test.py --dataset pcontext \
 
 
 #fps
-CUDA_VISIBLE_DEVICES=0 python test_fps_params.py --dataset pcontext \
+CUDA_VISIBLE_DEVICES=7 python test_fps_params.py --dataset pcontext \
     --model aanet --jpu --aux --se-loss --base-size 608 --crop-size 576 \
     --backbone resnet101
+
+CUDA_VISIBLE_DEVICES=7 python test_fps_params.py --dataset pcontext \
+    --model aanet --jpu --aux --se-loss \
+    --backbone resnet101
+
+CUDA_VISIBLE_DEVICES=7 python test_fps_params.py --dataset pcontext \
+    --model dict_aanet --jpu --aux --se-loss \
+    --backbone resnet101
+
+CUDA_VISIBLE_DEVICES=7 python test_fps_params.py --dataset pcontext \
+    --model aanet_nopam --jpu --aux --se-loss \
+    --backbone resnet101
+
+CUDA_VISIBLE_DEVICES=7 python test_fps_params.py --dataset pcontext \
+    --model aanet --dilated --aux --se-loss \
+    --backbone resnet101
+
+CUDA_VISIBLE_DEVICES=7 python test_fps_params.py --dataset pcontext \
+    --model dict_aanet --dilated --aux --se-loss \
+    --backbone resnet101
+
+CUDA_VISIBLE_DEVICES=7 python test_fps_params.py --dataset pcontext \
+    --model encnet --dilated --aux --se-loss \
+    --backbone resnet101
+
+
+CUDA_VISIBLE_DEVICES=7 python test_fps_params.py --dataset pcontext \
+    --model aanet --jpu --aux --se-loss --base-size 608 --crop-size 576 \
+    --backbone resnet50
+
+
+CUDA_VISIBLE_DEVICES=7 python test_fps_params.py --dataset pcontext \
+    --model aanet --jpu --aux --se-loss \
+    --backbone resnet50
