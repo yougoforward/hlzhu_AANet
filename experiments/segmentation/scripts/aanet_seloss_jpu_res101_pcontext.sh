@@ -37,6 +37,18 @@ CUDA_VISIBLE_DEVICES=7 python test_fps_params.py --dataset pcontext \
     --backbone resnet101
 
 CUDA_VISIBLE_DEVICES=7 python test_fps_params.py --dataset pcontext \
+    --model aanet_nopam --jpu --aux --se-loss \
+    --backbone resnet50
+
+CUDA_VISIBLE_DEVICES=7 python test_fps_params.py --dataset pcontext \
+    --model psp --jpu --aux \
+    --backbone resnet101
+
+CUDA_VISIBLE_DEVICES=7 python test_fps_params.py --dataset pcontext \
+    --model deeplab --jpu --aux \
+    --backbone resnet101
+
+CUDA_VISIBLE_DEVICES=7 python test_fps_params.py --dataset pcontext \
     --model aanet --dilated --aux --se-loss \
     --backbone resnet101
 
