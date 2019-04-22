@@ -58,7 +58,7 @@ def test(args):
         print("=> loaded checkpoint '{}' (epoch {})".format(args.resume, checkpoint['epoch']))
 
     print(model)
-    scales = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25] if args.dataset == 'citys' else \
+    scales = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25] if args.dataset == 'cityscapes' else \
         [0.5, 0.75, 1.0, 1.25, 1.5, 1.75]
     if not args.ms:
         scales = [1.0]
