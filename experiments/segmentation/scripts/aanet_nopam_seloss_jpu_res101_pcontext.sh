@@ -8,11 +8,11 @@ python train.py --dataset pcontext \
 #test [single-scale]
 python test.py --dataset pcontext \
     --model aanet_nopam --aux --jpu --se-loss --base-size 608 --crop-size 576 \
-    --backbone resnet101 --resume runs/cocostuff/aanet_nopam/aanet_nopam_seloss_jpu_res101_pcontext/model_best.pth.tar \
+    --backbone resnet101 --resume runs/pcontext/aanet_nopam/aanet_nopam_seloss_jpu_res101_pcontext/model_best.pth.tar \
     --split val --mode testval
 
 #test [multi-scale]
 python test.py --dataset pcontext \
     --model aanet_nopam --aux --jpu --se-loss --base-size 608 --crop-size 576 \
-    --backbone resnet101 --resume runs/cocostuff/aanet_nopam/aanet_nopam_seloss_jpu_res101_pcontext/model_best.pth.tar \
+    --backbone resnet101 --resume runs/pcontext/aanet_nopam/aanet_nopam_seloss_jpu_res101_pcontext/model_best.pth.tar \
     --split val --mode testval --ms
