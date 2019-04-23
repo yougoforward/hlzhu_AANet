@@ -110,12 +110,12 @@ class Options():
         if args.lr is None:
             lrs = {
                 'coco': 0.01,
-                'cityscapes': 0.01,
+                'cityscapes': 0.001,
                 'pascal_voc': 0.0001,
                 'pascal_aug': 0.001,
                 'pcontext': 0.001,
-                'ade20k': 0.01,
-                'cocostuff': 0.01,
+                'ade20k': 0.001,
+                'cocostuff': 0.001,
             }
             args.lr = lrs[args.dataset.lower()] / 16 * args.batch_size
         print(args)
