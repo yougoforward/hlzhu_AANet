@@ -86,16 +86,16 @@ class metric_SegmentationLosses(CrossEntropyLoss):
 
     def forward(self, *inputs):
         if not self.se_loss and not self.aux:
-            return super(SegmentationLosses, self).forward(*inputs)
+            return super(metric_SegmentationLosses, self).forward(*inputs)
         elif not self.se_loss:
             pred1, pred2, target = tuple(inputs)
-            loss1 = super(SegmentationLosses, self).forward(pred1, target)
-            loss2 = super(SegmentationLosses, self).forward(pred2, target)
+            loss1 = super(metric_SegmentationLosses, self).forward(pred1, target)
+            loss2 = super(metric_SegmentationLosses, self).forward(pred2, target)
             return loss1 + self.aux_weight * loss2
         elif not self.aux:
             pred, se_pred, target = tuple(inputs)
             se_target = self._get_batch_label_vector(target, nclass=self.nclass).type_as(pred)
-            loss1 = super(SegmentationLosses, self).forward(pred, target)
+            loss1 = super(metric_SegmentationLosses, self).forward(pred, target)
             loss2 = self.bceloss(torch.sigmoid(se_pred), se_target)
             return loss1 + self.se_weight * loss2
         else:
@@ -104,8 +104,8 @@ class metric_SegmentationLosses(CrossEntropyLoss):
             bs, N, N = metric_pred.size()
             metric_target = F.interpolate(target, scale_factor=0.125, mode='nearest')
             metric_target = torch.where(metric_target.view(bs,N,1).expand(bs,N,N)==metric_target.view(bs,1,N).expand(bs,N,N), torch.ones(bs,N,N), torch.zeros(bs,N,N))
-            loss1 = super(SegmentationLosses, self).forward(pred1, target)
-            loss2 = super(SegmentationLosses, self).forward(pred2, target)
+            loss1 = super(metric_SegmentationLosses, self).forward(pred1, target)
+            loss2 = super(metric_SegmentationLosses, self).forward(pred2, target)
             loss3 = self.bceloss(torch.sigmoid(se_pred), se_target)
             loss4 = self.bceloss(torch.sigmoid(metric_pred), metric_target)
             return loss1 + self.aux_weight * loss2 + self.se_weight * loss3 + 0.2 * loss4
