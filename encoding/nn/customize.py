@@ -103,12 +103,12 @@ class metric_SegmentationLosses(CrossEntropyLoss):
             se_target = self._get_batch_label_vector(target, nclass=self.nclass).type_as(pred1)
             bs, N, N = metric_pred.size()
             # print(target.size())
-            metric_target = F.interpolate(target.cpu(), scale_factor=0.125, mode='nearest').cuda()
-            metric_target = torch.where(metric_target.view(bs,N,1).expand(bs,N,N)==metric_target.view(bs,1,N).expand(bs,N,N), torch.ones(bs,N,N), torch.zeros(bs,N,N))
+            metric_target = F.interpolate(target.unsqueeze(dim=1), scale_factor=0.125, mode='nearest')
+            metric_target = torch.where(metric_target.view(bs,1,N,1).expand(bs,1,N,N)==metric_target.view(bs,1,1,N).expand(bs,1,N,N), torch.ones(bs,1,N,N), torch.zeros(bs,1,N,N))
             loss1 = super(metric_SegmentationLosses, self).forward(pred1, target)
             loss2 = super(metric_SegmentationLosses, self).forward(pred2, target)
             loss3 = self.bceloss(torch.sigmoid(se_pred), se_target)
-            loss4 = self.bceloss(torch.sigmoid(metric_pred), metric_target)
+            loss4 = self.bceloss(torch.sigmoid(metric_pred).unsqueeze(dim=1), metric_target)
             return loss1 + self.aux_weight * loss2 + self.se_weight * loss3 + 0.2 * loss4
 
     @staticmethod
