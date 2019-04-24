@@ -14,7 +14,8 @@ import torchvision.transforms as transform
 from torch.nn.parallel.scatter_gather import gather
 
 import encoding.utils as utils
-from encoding.nn import metric_SegmentationLosses, BatchNorm2d
+from encoding.nn import  metric_SegmentationLosses as SegmentationLosses
+from encoding.nn import BatchNorm2d
 from encoding.parallel import DataParallelModel, DataParallelCriterion
 from encoding.datasets import get_segmentation_dataset
 from encoding.models import get_segmentation_model
@@ -24,7 +25,6 @@ from option import Options
 torch_ver = torch.__version__[:3]
 if torch_ver == '0.3':
     from torch.autograd import Variable
-
 
 class Trainer():
     def __init__(self, args):
@@ -37,8 +37,8 @@ class Trainer():
         data_kwargs = {'transform': input_transform, 'base_size': args.base_size,
                        'crop_size': args.crop_size}
         trainset = get_segmentation_dataset(args.dataset, split=args.train_split, mode='train',
-                                            **data_kwargs)
-        testset = get_segmentation_dataset(args.dataset, split='val', mode='val',
+                                           **data_kwargs)
+        testset = get_segmentation_dataset(args.dataset, split='val', mode ='val',
                                            **data_kwargs)
         # dataloader
         kwargs = {'num_workers': args.workers, 'pin_memory': True} \
@@ -49,25 +49,27 @@ class Trainer():
                                          drop_last=False, shuffle=False, **kwargs)
         self.nclass = trainset.num_class
         # model
-        model = get_segmentation_model(args.model, dataset=args.dataset,
-                                       backbone=args.backbone, dilated=args.dilated,
-                                       lateral=args.lateral, jpu=args.jpu, aux=args.aux,
-                                       se_loss=args.se_loss, norm_layer=BatchNorm2d,
-                                       base_size=args.base_size, crop_size=args.crop_size)
+        model = get_segmentation_model(args.model, dataset = args.dataset,
+                                       backbone = args.backbone, dilated = args.dilated,
+                                       lateral = args.lateral, jpu = args.jpu, aux = args.aux,
+                                       se_loss = args.se_loss, norm_layer = BatchNorm2d,
+                                       base_size = args.base_size, crop_size = args.crop_size)
         print(model)
         # optimizer using different LR
-        params_list = [{'params': model.pretrained.parameters(), 'lr': args.lr}, ]
+        params_list = [{'params': model.pretrained.parameters(), 'lr': args.lr},]
         if hasattr(model, 'jpu') and model.jpu:
-            params_list.append({'params': model.jpu.parameters(), 'lr': args.lr * 10})
+            params_list.append({'params': model.jpu.parameters(), 'lr': args.lr*10})
         if hasattr(model, 'head'):
-            params_list.append({'params': model.head.parameters(), 'lr': args.lr * 10})
+            params_list.append({'params': model.head.parameters(), 'lr': args.lr*10})
         if hasattr(model, 'auxlayer'):
-            params_list.append({'params': model.auxlayer.parameters(), 'lr': args.lr * 10})
+            params_list.append({'params': model.auxlayer.parameters(), 'lr': args.lr*10})
         optimizer = torch.optim.SGD(params_list, lr=args.lr,
-                                    momentum=args.momentum, weight_decay=args.weight_decay)
+            momentum=args.momentum, weight_decay=args.weight_decay)
         # criterions
-        self.criterion = metric_SegmentationLosses(nclass=self.nclass)
-
+        self.criterion = SegmentationLosses(se_loss=args.se_loss, aux=args.aux,
+                                            nclass=self.nclass,
+                                            se_weight=args.se_weight,
+                                            aux_weight=args.aux_weight)
         self.model, self.optimizer = model, optimizer
         # using cuda
         if args.cuda:
@@ -76,7 +78,7 @@ class Trainer():
         # resuming checkpoint
         if args.resume is not None:
             if not os.path.isfile(args.resume):
-                raise RuntimeError("=> no checkpoint found at '{}'".format(args.resume))
+                raise RuntimeError("=> no checkpoint found at '{}'" .format(args.resume))
             checkpoint = torch.load(args.resume)
             args.start_epoch = checkpoint['epoch']
             if args.cuda:
@@ -123,6 +125,7 @@ class Trainer():
                 'best_pred': self.best_pred,
             }, self.args, is_best)
 
+
     def validation(self, epoch):
         # Fast test during the training
         def eval_batch(model, image, target):
@@ -156,7 +159,7 @@ class Trainer():
             tbar.set_description(
                 'pixAcc: %.3f, mIoU: %.3f' % (pixAcc, mIoU))
 
-        new_pred = (pixAcc + mIoU) / 2
+        new_pred = (pixAcc + mIoU)/2
         if new_pred > self.best_pred:
             is_best = True
             self.best_pred = new_pred
