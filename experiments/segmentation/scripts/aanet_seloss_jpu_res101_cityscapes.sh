@@ -7,12 +7,12 @@ python train.py --dataset cityscapes \
 
 #test [single-scale]
 python test.py --dataset cityscapes \
-    --model aanet --aux --jpu --se-loss --batch-size 16 --base-size 2048 --crop-size 768 \
+    --model aanet --aux --jpu --se-loss  --base-size 2048 --crop-size 768 \
     --backbone resnet101 --resume runs/cityscapes/aanet/aanet_seloss_jpu_res101_cityscapes/model_best.pth.tar \
     --split val --mode testval
 
 #test [multi-scale]
 python test.py --dataset cityscapes \
-    --model aanet --aux --jpu --se-loss --batch-size 16 --base-size 2048 --crop-size 1024 \
+    --model aanet --aux --jpu --se-loss  --base-size 2048 --crop-size 1024 \
     --backbone resnet101 --resume runs/cityscapes/aanet/aanet_seloss_jpu_res101_cityscapes/model_best.pth.tar \
     --split val --mode testval --ms
