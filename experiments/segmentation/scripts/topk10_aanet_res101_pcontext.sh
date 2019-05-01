@@ -14,4 +14,4 @@ python test.py --dataset pcontext \
 python test.py --dataset pcontext \
     --model topk_aanet --aux --dilated --base-size 608 --crop-size 576 \
     --backbone resnet101 --resume runs/pcontext/topk_aanet/topk10_aanet_res101_pcontext/model_best.pth.tar \
-    --split val --mode testval
+    --split val --mode testval --ms
