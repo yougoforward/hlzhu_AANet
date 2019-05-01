@@ -2,7 +2,7 @@
 
 #train
 python train.py --dataset cityscapes \
-    --model aanet --aux --jpu --se-loss --batch-size 8 --base-size 1024 --crop-size 768 \
+    --model aanet --aux --jpu --se-loss --batch-size 8 --base-size 1024 --crop-size 768 --lr 0.004 \
     --backbone resnet50 --checkname aanet_seloss_jpu_res50_cityscapes
 
 #test [single-scale]
