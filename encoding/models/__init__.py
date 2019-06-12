@@ -14,6 +14,7 @@ from .pydict_encnet import *
 from .aanet_encnet import *
 from .aanet_nopam import *
 from .aanet_pam_metric import *
+from .amca_aca import *
 def get_segmentation_model(name, **kwargs):
     from .fcn import get_fcn
     models = {
@@ -30,5 +31,6 @@ def get_segmentation_model(name, **kwargs):
         'aanet_encnet': get_aanet_encnet,
         'aanet_nopam': get_aanet_nopam,
         'aanet_metric': get_aanet_metric,
+        'amaca': get_amacanet,
     }
     return models[name.lower()](**kwargs)
