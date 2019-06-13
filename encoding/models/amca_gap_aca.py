@@ -8,14 +8,14 @@ from .mask_softmax import Mask_Softmax
 from .fcn import FCNHead
 from .base import BaseNet
 
-__all__ = ['AMACANet', 'get_amacanet']
+__all__ = ['AMGAPACANet', 'get_amgapacanet']
 
 
-class AMACANet(BaseNet):
+class AMGAPACANet(BaseNet):
     def __init__(self, nclass, backbone, aux=True, se_loss=False, norm_layer=nn.BatchNorm2d, **kwargs):
-        super(AMACANet, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
+        super(AMGAPACANet, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
 
-        self.head = AMACANetHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
+        self.head = AMGAPACANetHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
         if aux:
             self.auxlayer = FCNHead(1024, nclass, norm_layer)
 
@@ -32,10 +32,10 @@ class AMACANet(BaseNet):
         return tuple(x)
 
 
-class AMACANetHead(nn.Module):
+class AMGAPACANetHead(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, se_loss, jpu=False, up_kwargs=None,
                  atrous_rates=(12, 24, 36)):
-        super(AMACANetHead, self).__init__()
+        super(AMGAPACANetHead, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 4
 
@@ -182,26 +182,26 @@ class aa_ASPP_Module(nn.Module):
         self.b1 = ASPPConv(in_channels, out_channels, rate1, norm_layer)
         self.b2 = ASPPConv(in_channels, out_channels, rate2, norm_layer)
         self.b3 = ASPPConv(in_channels, out_channels, rate3, norm_layer)
-        # self.b4 = AsppPooling(in_channels, out_channels, norm_layer, up_kwargs)
-        self.guided_se_cam = guided_SE_CAM_Module(4 * out_channels, out_channels, out_channels, norm_layer)
+        self.b4 = AsppPooling(in_channels, out_channels, norm_layer, up_kwargs)
+        self.guided_se_cam = guided_SE_CAM_Module(5 * out_channels, out_channels, out_channels, norm_layer)
 
     def forward(self, x):
         feat0 = self.b0(x)
         feat1 = self.b1(x)
         feat2 = self.b2(x)
         feat3 = self.b3(x)
-        # feat4 = self.b4(x)
-        y = torch.cat((feat0, feat1, feat2, feat3), 1)
-        # y = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
+        feat4 = self.b4(x)
+        # y = torch.cat((feat0, feat1, feat2, feat3), 1)
+        y = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         out = self.guided_se_cam(y)
         return out
 
 
-def get_amacanet(dataset='pascal_voc', backbone='resnet50', pretrained=False,
+def get_amgapacanet(dataset='pascal_voc', backbone='resnet50', pretrained=False,
               root='~/.encoding/models', **kwargs):
     # infer number of classes
     from ..datasets import datasets
-    model = AMACANet(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
+    model = AMGAPACANet(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
     if pretrained:
         raise NotImplementedError
 

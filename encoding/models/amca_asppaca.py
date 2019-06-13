@@ -8,14 +8,14 @@ from .mask_softmax import Mask_Softmax
 from .fcn import FCNHead
 from .base import BaseNet
 
-__all__ = ['AMACANet', 'get_amacanet']
+__all__ = ['AMCA_asppacaNet', 'get_amca_aspp_acanet']
 
 
-class AMACANet(BaseNet):
+class AMCA_asppacaNet(BaseNet):
     def __init__(self, nclass, backbone, aux=True, se_loss=False, norm_layer=nn.BatchNorm2d, **kwargs):
-        super(AMACANet, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
+        super(AMCA_asppacaNet, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
 
-        self.head = AMACANetHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
+        self.head = AMCA_asppacaNetHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
         if aux:
             self.auxlayer = FCNHead(1024, nclass, norm_layer)
 
@@ -32,10 +32,10 @@ class AMACANet(BaseNet):
         return tuple(x)
 
 
-class AMACANetHead(nn.Module):
+class AMCA_asppacaNetHead(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, se_loss, jpu=False, up_kwargs=None,
                  atrous_rates=(12, 24, 36)):
-        super(AMACANetHead, self).__init__()
+        super(AMCA_asppacaNetHead, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 4
 
@@ -64,25 +64,25 @@ class AMACANetHead(nn.Module):
         # self.sa = PAM_Module(inter_channels, inter_channels // 8, inter_channels)
         # self.sa = topk_PAM_Module(inter_channels, 256, inter_channels, 10)
         self.aa_aspp = aa_ASPP_Module(in_channels, atrous_rates, norm_layer, up_kwargs)
-        self.sec = SE_CAM_Module(inter_channels)
+        # self.sec = SE_CAM_Module(inter_channels)
 
         # self.conv51 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
         #                             norm_layer(inter_channels), nn.ReLU(True))
-        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
+        self.conv52 = nn.Sequential(nn.Conv2d(256, 256, 3, padding=1, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
-        self.conv53 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
-                                    norm_layer(inter_channels), nn.ReLU(True))
+        # self.conv53 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
+        #                             norm_layer(inter_channels), nn.ReLU(True))
 
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(512, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(256, out_channels, 1))
 
         self.gap = nn.AdaptiveAvgPool2d(1)
 
         self.fc = nn.Sequential(
-            nn.Conv2d(inter_channels, inter_channels, 1),
+            nn.Conv2d(256, 256, 1),
             nn.Sigmoid())
 
         if self.se_loss:
-            self.selayer = nn.Linear(inter_channels, out_channels)
+            self.selayer = nn.Linear(256, out_channels)
 
     def forward(self, x):
         # ssa
@@ -94,14 +94,14 @@ class AMACANetHead(nn.Module):
         aspp_feat = self.aa_aspp(x)
         aspp_conv = self.conv52(aspp_feat)
         # sec
-        feat2 = self.conv5c(x)
-        sec_feat = self.sec(feat2)
+        # feat2 = self.conv5c(x)
+        # sec_feat = self.sec(feat2)
         # sec_conv = self.conv53(sec_feat)
         # fuse
         # feat_sum = aspp_conv + sec_conv + sa_conv
         # outputs = self.conv8(feat_sum)
-        feat_sum = aspp_conv+sec_feat
-
+        # feat_sum = aspp_conv+sec_feat
+        feat_sum = aspp_conv
         if self.se_loss:
             gap_feat = self.gap(feat_sum)
             gamma = self.fc(gap_feat)
@@ -182,26 +182,31 @@ class aa_ASPP_Module(nn.Module):
         self.b1 = ASPPConv(in_channels, out_channels, rate1, norm_layer)
         self.b2 = ASPPConv(in_channels, out_channels, rate2, norm_layer)
         self.b3 = ASPPConv(in_channels, out_channels, rate3, norm_layer)
-        # self.b4 = AsppPooling(in_channels, out_channels, norm_layer, up_kwargs)
-        self.guided_se_cam = guided_SE_CAM_Module(4 * out_channels, out_channels, out_channels, norm_layer)
+        self.b4 = AsppPooling(in_channels, out_channels, norm_layer, up_kwargs)
+        self.guided_se_cam = guided_SE_CAM_Module(5 * out_channels, out_channels, out_channels, norm_layer)
+
+        self.guided_se_cam0 = guided_SE_CAM_Module(out_channels, out_channels, out_channels, norm_layer)
+        self.guided_se_cam1 = guided_SE_CAM_Module(out_channels, out_channels, out_channels, norm_layer)
+        self.guided_se_cam2 = guided_SE_CAM_Module(out_channels, out_channels, out_channels, norm_layer)
+        self.guided_se_cam3 = guided_SE_CAM_Module(out_channels, out_channels, out_channels, norm_layer)
 
     def forward(self, x):
         feat0 = self.b0(x)
         feat1 = self.b1(x)
         feat2 = self.b2(x)
         feat3 = self.b3(x)
-        # feat4 = self.b4(x)
-        y = torch.cat((feat0, feat1, feat2, feat3), 1)
-        # y = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
+        feat4 = self.b4(x)
+        # y = torch.cat((feat0, feat1, feat2, feat3), 1)
+        y = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         out = self.guided_se_cam(y)
         return out
 
 
-def get_amacanet(dataset='pascal_voc', backbone='resnet50', pretrained=False,
+def get_amca_aspp_acanet(dataset='pascal_voc', backbone='resnet50', pretrained=False,
               root='~/.encoding/models', **kwargs):
     # infer number of classes
     from ..datasets import datasets
-    model = AMACANet(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
+    model = AMCA_asppacaNet(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
     if pretrained:
         raise NotImplementedError
 
@@ -381,7 +386,8 @@ class guided_SE_CAM_Module(nn.Module):
         bottle = self.project(x)
         se_x = self.se(x)
         se_bottle = se_x * bottle + bottle
-        out = torch.cat([gcam, se_bottle], dim=1)
+        # out = torch.cat([gcam, se_bottle], dim=1)
+        out = gcam+se_bottle
         return out
 
 

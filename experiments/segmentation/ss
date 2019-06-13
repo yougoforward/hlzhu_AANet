@@ -12,6 +12,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 sh scripts/topk_aanet_res50_pcontext.sh 2>&1 | tee 
 
 CUDA_VISIBLE_DEVICES=0,1,2,3 sh scripts/aanet_seloss_jpu_res101_cityscapes.sh
 
+CUDA_VISIBLE_DEVICES=0,1,2,3 sh scripts/amaca_res101_pcontext.sh
 
 #train
 CUDA_VISIBLE_DEVICES=0,1,2,3 python train.py --dataset cityscapes \
