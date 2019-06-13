@@ -69,7 +69,7 @@ class AMCA_asppacaNetHead(nn.Module):
         # self.conv51 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
         #                             norm_layer(inter_channels), nn.ReLU(True))
         self.conv52 = nn.Sequential(nn.Conv2d(256, 256, 3, padding=1, bias=False),
-                                    norm_layer(inter_channels), nn.ReLU(True))
+                                    norm_layer(256), nn.ReLU(True))
         # self.conv53 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
         #                             norm_layer(inter_channels), nn.ReLU(True))
 
