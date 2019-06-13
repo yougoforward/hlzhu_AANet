@@ -14,4 +14,4 @@ python test.py --dataset pcontext \
 python test.py --dataset pcontext \
     --model amca_asppaca --aux --dilated --base-size 608 --crop-size 576 \
     --backbone resnet101 --resume runs/pcontext/amca_asppaca/amca_asppaca_res101_pcontext/model_best.pth.tar \
-     --split val --mode testval --ms#!/usr/bin/env bash
+     --split val --mode testval --ms
