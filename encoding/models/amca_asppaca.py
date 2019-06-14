@@ -191,10 +191,15 @@ class aa_ASPP_Module(nn.Module):
         self.guided_se_cam3 = guided_SE_CAM_Module(out_channels, out_channels, out_channels, norm_layer)
 
     def forward(self, x):
-        feat0 = self.b0(x)
-        feat1 = self.b1(x)
-        feat2 = self.b2(x)
-        feat3 = self.b3(x)
+        # feat0 = self.b0(x)
+        # feat1 = self.b1(x)
+        # feat2 = self.b2(x)
+        # feat3 = self.b3(x)
+
+        feat0 = self.guided_se_cam0(self.b0(x))
+        feat1 = self.guided_se_cam1(self.b1(x))
+        feat2 = self.guided_se_cam2(self.b2(x))
+        feat3 = self.guided_se_cam3(self.b3(x))
         feat4 = self.b4(x)
         # y = torch.cat((feat0, feat1, feat2, feat3), 1)
         y = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
