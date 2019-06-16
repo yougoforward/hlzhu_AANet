@@ -17,6 +17,7 @@ from .aanet_pam_metric import *
 from .amca_aca import *
 from .amca_asppaca import *
 from .amca_gap_aca import *
+from .aspoc_secam import *
 def get_segmentation_model(name, **kwargs):
     from .fcn import get_fcn
     models = {
@@ -36,5 +37,6 @@ def get_segmentation_model(name, **kwargs):
         'amaca': get_amacanet,
         'amca_gapaca': get_amgapacanet,
         'amca_asppaca': get_amca_aspp_acanet,
+        'aspoc_secam': get_aspoc_secamnet,
     }
     return models[name.lower()](**kwargs)
