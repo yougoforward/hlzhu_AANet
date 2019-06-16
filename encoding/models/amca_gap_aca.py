@@ -66,7 +66,7 @@ class AMGAPACANetHead(nn.Module):
         self.aa_aspp = aa_ASPP_Module(in_channels, atrous_rates, norm_layer, up_kwargs)
         # self.sec = SE_CAM_Module(inter_channels)
 
-        self.sec = guided_SE_CAM_Module(inter_channels, 256, 256)
+        self.sec = guided_SE_CAM_Module(inter_channels, 256, 256, norm_layer)
         # self.conv51 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
         #                             norm_layer(inter_channels), nn.ReLU(True))
         self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
