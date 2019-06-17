@@ -8,14 +8,14 @@ from .mask_softmax import Mask_Softmax
 from .fcn import FCNHead
 from .base import BaseNet
 
-__all__ = ['ASPOC_SECAMNet', 'get_aspoc_secamnet']
+__all__ = ['ASP_OC_GAP_SECAMNet', 'get_asp_oc_gap_secamnet']
 
 
-class ASPOC_SECAMNet(BaseNet):
+class ASP_OC_GAP_SECAMNet(BaseNet):
     def __init__(self, nclass, backbone, aux=True, se_loss=False, norm_layer=nn.BatchNorm2d, **kwargs):
-        super(ASPOC_SECAMNet, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
+        super(ASP_OC_GAP_SECAMNet, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
 
-        self.head = ASPOC_SECAMNetHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
+        self.head = ASP_OC_GAP_SECAMNetHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
         if aux:
             self.auxlayer = FCNHead(1024, nclass, norm_layer)
 
@@ -32,10 +32,10 @@ class ASPOC_SECAMNet(BaseNet):
         return tuple(x)
 
 
-class ASPOC_SECAMNetHead(nn.Module):
+class ASP_OC_GAP_SECAMNetHead(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, se_loss, jpu=False, up_kwargs=None,
                  atrous_rates=(12, 24, 36)):
-        super(ASPOC_SECAMNetHead, self).__init__()
+        super(ASP_OC_GAP_SECAMNetHead, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 4
 
@@ -186,30 +186,44 @@ class aa_ASPP_Module(nn.Module):
         self.b3 = ASPPConv(in_channels, out_channels, rate3, norm_layer)
         self.b4 = PAM_Module(in_channels, 64, out_channels)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        # self.b4 = AsppPooling(in_channels, out_channels, norm_layer, up_kwargs)
-        self.guided_se_cam = guided_SE_CAM_Module(5 * out_channels, out_channels, out_channels, norm_layer)
+        self.b4 = AsppPooling(in_channels, out_channels, norm_layer, up_kwargs)
+        self.guided_se_cam = guided_SE_CAM_Module(6 * out_channels, out_channels, out_channels, norm_layer)
+
+        self.guided_se_cam0 = guided_SE_CAM_Module(out_channels, out_channels, out_channels, norm_layer)
+        self.guided_se_cam1 = guided_SE_CAM_Module(out_channels, out_channels, out_channels, norm_layer)
+        self.guided_se_cam2 = guided_SE_CAM_Module(out_channels, out_channels, out_channels, norm_layer)
+        self.guided_se_cam3 = guided_SE_CAM_Module(out_channels, out_channels, out_channels, norm_layer)
 
     def forward(self, x):
         _, _, h, w = x.size()
-        feat0 = self.b0(x)
-        feat1 = self.b1(x)
-        feat2 = self.b2(x)
-        feat3 = self.b3(x)
+        # feat0 = self.b0(x)
+        # feat1 = self.b1(x)
+        # feat2 = self.b2(x)
+        # feat3 = self.b3(x)
 
-        feat4 = self.maxpool(x)
-        feat4 = self.b4(feat4)
-        feat4 = F.interpolate(feat4, (h, w), **self._up_kwargs)
+        feat0 = self.guided_se_cam0(self.b0(x))
+        feat1 = self.guided_se_cam1(self.b1(x))
+        feat2 = self.guided_se_cam2(self.b2(x))
+        feat3 = self.guided_se_cam3(self.b3(x))
+
+        feat4 = self.b4(x)
+
+        feat5 = self.maxpool(x)
+        feat5 = self.b5(feat5)
+        feat5 = F.interpolate(feat5, (h, w), **self._up_kwargs)
+
+
         # y = torch.cat((feat0, feat1, feat2, feat3), 1)
-        y = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
+        y = torch.cat((feat0, feat1, feat2, feat3, feat4, feat5), 1)
         out = self.guided_se_cam(y)
         return out
 
 
-def get_aspoc_secamnet(dataset='pascal_voc', backbone='resnet50', pretrained=False,
+def get_asp_oc_gap_secamnet(dataset='pascal_voc', backbone='resnet50', pretrained=False,
               root='~/.encoding/models', **kwargs):
     # infer number of classes
     from ..datasets import datasets
-    model = ASPOC_SECAMNet(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
+    model = ASP_OC_GAP_SECAMNet(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
     if pretrained:
         raise NotImplementedError
 
@@ -247,7 +261,7 @@ class PAM_Module(nn.Module):
         proj_value = self.value_conv(x).view(m_batchsize, -1, width * height)
 
         out = torch.bmm(proj_value, attention.permute(0, 2, 1))
-        out = out.view(m_batchsize, -1, height, width)
+        out = out.view(m_batchsize, C, height, width)
 
         out = self.gamma * out + x
         return out
