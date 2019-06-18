@@ -45,21 +45,21 @@ class ASPOC_SECAMNetHead(nn.Module):
         #     nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
         #                   norm_layer(512),
         #                   nn.ReLU(inplace=True))
-        # self.conv5as = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
-        #                              norm_layer(512),
-        #                              nn.ReLU(inplace=True)) if jpu else \
-        #     nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
-        #                   norm_layer(512),
-        #                   nn.ReLU(inplace=True))
+        self.conv5as = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
+                                     norm_layer(inter_channels),
+                                     nn.ReLU(inplace=True)) if jpu else \
+            nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
+                          norm_layer(inter_channels),
+                          nn.ReLU(inplace=True))
         # self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
         #                             norm_layer(512),
         #                             nn.ReLU(inplace=True)) if jpu else \
         #     nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
         #                   norm_layer(512),
         #                   nn.ReLU(inplace=True))
-        self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
-                                    norm_layer(512),
-                                    nn.ReLU(inplace=True))
+        # self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
+        #                             norm_layer(512),
+        #                             nn.ReLU(inplace=True))
 
         # self.sa = PAM_Module(inter_channels, inter_channels // 8, inter_channels)
         # self.sa = topk_PAM_Module(inter_channels, 256, inter_channels, 10)
@@ -69,8 +69,8 @@ class ASPOC_SECAMNetHead(nn.Module):
 
         # self.conv51 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
         #                             norm_layer(inter_channels), nn.ReLU(True))
-        self.conv52 = nn.Sequential(nn.Conv2d(256, 256, 3, padding=1, bias=False),
-                                    norm_layer(256), nn.ReLU(True))
+        # self.conv52 = nn.Sequential(nn.Conv2d(256, 256, 3, padding=1, bias=False),
+        #                             norm_layer(256), nn.ReLU(True))
         # self.conv53 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
         #                             norm_layer(inter_channels), nn.ReLU(True))
 
@@ -92,6 +92,7 @@ class ASPOC_SECAMNetHead(nn.Module):
         # sa_conv = self.conv51(sa_feat)
         # aaspp
         # feat_as = self.conv5as(x)
+        x=self.conv5as(x)
         aspp_feat = self.aa_aspp(x)
         # aspp_conv = self.conv52(aspp_feat)
         # sec
