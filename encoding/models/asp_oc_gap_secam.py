@@ -170,6 +170,54 @@ class ASPP_Module(nn.Module):
 
         return self.project(y)
 
+class PyramidAttentionPooling(nn.Module):
+    """
+    Reference:
+        Zhao, Hengshuang, et al. *"Pyramid scene parsing network."*
+    """
+    def __init__(self, in_channels, norm_layer, up_kwargs):
+        super(PyramidAttentionPooling, self).__init__()
+        out_channels = int(in_channels)
+        # self.pool1 = nn.AvgPool2d(kernel_size=3, stride=2, padding=1)
+
+        self.pool2 = nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1, bias=False),
+                                norm_layer(out_channels),
+                                nn.ReLU(True))
+        self.pool3 = nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1, bias=False),
+                                norm_layer(out_channels),
+                                nn.ReLU(True))
+        self.pool4 = nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1, bias=False),
+                                norm_layer(out_channels),
+                                nn.ReLU(True))
+
+
+        self.conv1 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
+                                norm_layer(out_channels),
+                                nn.ReLU(True))
+        self.conv2 = PAM_Module(in_channels, in_channels//4, out_channels)
+        self.conv3 = PAM_Module(in_channels, in_channels//4, out_channels)
+        self.conv4 = PAM_Module(in_channels, in_channels//4, out_channels)
+        # bilinear upsample options
+        self._up_kwargs = up_kwargs
+        self.gamma = nn.Parameter(torch.zeros(1))
+
+    def forward(self, x):
+        _, _, h, w = x.size()
+        d1 = x
+        d2=self.pool2(d1)
+        d3=self.pool3(d2)
+        d4=self.pool4(d3)
+
+        p2 = self.conv2(d2)
+        p3 = self.conv3(d3)
+        p4 = self.conv4(d4)
+
+        u4 = F.upsample(p4, tuple(p3.size()[-2:]), **self._up_kwargs)
+        u3 = F.upsample(p3 + u4, tuple(p2.size()[-2:]), **self._up_kwargs)
+        u2 = F.upsample(p2 + u3, tuple(d1.size()[-2:]), **self._up_kwargs)
+
+        out=d1+self.gamma*u2
+        return out
 
 class aa_ASPP_Module(nn.Module):
     def __init__(self, in_channels, atrous_rates, norm_layer, up_kwargs):
@@ -184,10 +232,10 @@ class aa_ASPP_Module(nn.Module):
         self.b1 = ASPPConv(in_channels, out_channels, rate1, norm_layer)
         self.b2 = ASPPConv(in_channels, out_channels, rate2, norm_layer)
         self.b3 = ASPPConv(in_channels, out_channels, rate3, norm_layer)
-        self.b4 = PAM_Module(in_channels, 64, out_channels)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.pap = PyramidAttentionPooling(out_channels, norm_layer, up_kwargs)
+
         self.b4 = AsppPooling(in_channels, out_channels, norm_layer, up_kwargs)
-        self.guided_se_cam = guided_SE_CAM_Module(6 * out_channels, out_channels, out_channels, norm_layer)
+        self.guided_se_cam = guided_SE_CAM_Module(5 * out_channels, out_channels, out_channels, norm_layer)
 
         self.guided_se_cam0 = guided_SE_CAM_Module(out_channels, out_channels, out_channels, norm_layer)
         self.guided_se_cam1 = guided_SE_CAM_Module(out_channels, out_channels, out_channels, norm_layer)
@@ -201,20 +249,15 @@ class aa_ASPP_Module(nn.Module):
         # feat2 = self.b2(x)
         # feat3 = self.b3(x)
 
-        feat0 = self.guided_se_cam0(self.b0(x))
+        feat0 = self.guided_se_cam0(self.pap(self.b0(x)))
         feat1 = self.guided_se_cam1(self.b1(x))
         feat2 = self.guided_se_cam2(self.b2(x))
         feat3 = self.guided_se_cam3(self.b3(x))
 
         feat4 = self.b4(x)
 
-        feat5 = self.maxpool(x)
-        feat5 = self.b5(feat5)
-        feat5 = F.interpolate(feat5, (h, w), **self._up_kwargs)
-
-
         # y = torch.cat((feat0, feat1, feat2, feat3), 1)
-        y = torch.cat((feat0, feat1, feat2, feat3, feat4, feat5), 1)
+        y = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         out = self.guided_se_cam(y)
         return out
 
@@ -265,6 +308,8 @@ class PAM_Module(nn.Module):
 
         out = self.gamma * out + proj_value
         return out
+
+
 
 class topk_PAM_Module(nn.Module):
     """ Position attention module"""

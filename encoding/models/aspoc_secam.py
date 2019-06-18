@@ -238,16 +238,14 @@ class aa_ASPP_Module(nn.Module):
 
     def forward(self, x):
         _, _, h, w = x.size()
-        feat0 = self.pap(self.b0(x))
 
+        feat0 = self.pap(self.b0(x))
         feat1 = self.b1(x)
         feat2 = self.b2(x)
         feat3 = self.b3(x)
 
         feat4 = self.b4(x)
-
         # y = torch.cat((feat0, feat1, feat2, feat3), 1)
-
         y = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         out = self.guided_se_cam(y)
         return out
