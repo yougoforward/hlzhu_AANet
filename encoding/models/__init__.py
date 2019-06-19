@@ -19,6 +19,8 @@ from .amca_asppaca import *
 from .amca_gap_aca import *
 from .aspoc_secam import *
 from .asp_oc_gap_secam import *
+from .pgfnet import *
+from .asp_pgfnet import *
 def get_segmentation_model(name, **kwargs):
     from .fcn import get_fcn
     models = {
@@ -40,5 +42,7 @@ def get_segmentation_model(name, **kwargs):
         'amca_asppaca': get_amca_aspp_acanet,
         'aspoc_secam': get_aspoc_secamnet,
         'asp_oc_gap_secam': get_asp_oc_gap_secamnet,
+        'pgfnet': get_pgfnet,
+        'asp_pgfnet': get_asp_pgfnet,
     }
     return models[name.lower()](**kwargs)
