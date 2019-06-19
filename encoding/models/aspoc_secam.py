@@ -51,12 +51,12 @@ class ASPOC_SECAMNetHead(nn.Module):
             nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
                           norm_layer(inter_channels),
                           nn.ReLU(inplace=True))
-        # self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
-        #                             norm_layer(512),
-        #                             nn.ReLU(inplace=True)) if jpu else \
-        #     nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
-        #                   norm_layer(512),
-        #                   nn.ReLU(inplace=True))
+        self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
+                                    norm_layer(512),
+                                    nn.ReLU(inplace=True)) if jpu else \
+            nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
+                          norm_layer(512),
+                          nn.ReLU(inplace=True))
         # self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
         #                             norm_layer(512),
         #                             nn.ReLU(inplace=True))
@@ -91,13 +91,13 @@ class ASPOC_SECAMNetHead(nn.Module):
         # sa_feat = self.sa(feat1)
         # sa_conv = self.conv51(sa_feat)
         # aaspp
-        # feat_as = self.conv5as(x)
-        x=self.conv5as(x)
-        aspp_feat = self.aa_aspp(x)
+        feat_as = self.conv5as(x)
+        # x=self.conv5as(x)
+        aspp_feat = self.aa_aspp(feat_as)
         # aspp_conv = self.conv52(aspp_feat)
         # sec
-        # feat2 = self.conv5c(x)
-        sec_feat = self.sec(x)
+        feat2 = self.conv5c(x)
+        sec_feat = self.sec(feat2)
         # sec_conv = self.conv53(sec_feat)
         # fuse
         # feat_sum = aspp_conv + sec_conv + sa_conv
@@ -414,18 +414,18 @@ class guided_SE_CAM_Module(nn.Module):
 
     def __init__(self, in_dim, query_dim, out_dim, norm_layer):
         super(guided_SE_CAM_Module, self).__init__()
-        self.guided_cam = guided_CAM_Module(in_dim, query_dim, query_dim)
+        self.guided_cam = guided_CAM_Module(in_dim, query_dim, out_dim)
         self.project = nn.Sequential(
-            nn.Conv2d(in_dim, query_dim, kernel_size=1, padding=0, dilation=1, bias=False),
-            norm_layer(query_dim), nn.ReLU(True),
-            nn.Dropout2d(0.1)
-        )
-        self.se = SE_Module(in_dim, query_dim)
-        self.fuse = nn.Sequential(
-            nn.Conv2d(query_dim*2, out_dim, kernel_size=1, padding=0, dilation=1, bias=False),
+            nn.Conv2d(in_dim, out_dim, kernel_size=1, padding=0, dilation=1, bias=False),
             norm_layer(out_dim), nn.ReLU(True),
             nn.Dropout2d(0.1)
         )
+        self.se = SE_Module(in_dim, out_dim)
+        # self.fuse = nn.Sequential(
+        #     nn.Conv2d(query_dim*2, out_dim, kernel_size=1, padding=0, dilation=1, bias=False),
+        #     norm_layer(out_dim), nn.ReLU(True),
+        #     nn.Dropout2d(0.1)
+        # )
 
     def forward(self, x):
         """
@@ -440,8 +440,9 @@ class guided_SE_CAM_Module(nn.Module):
         bottle = self.project(x)
         se_x = self.se(x)
         se_bottle = se_x * bottle + bottle
-        out = torch.cat([gcam, se_bottle], dim=1)
-        out =self.fuse(out)
+        # out = torch.cat([gcam, se_bottle], dim=1)
+        # out =self.fuse(out)
+        out=se_bottle+gcam
         return out
 
 
