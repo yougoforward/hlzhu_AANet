@@ -54,14 +54,14 @@ class pgfNetHead(nn.Module):
         self.se_loss = se_loss
 
         if self.se_loss:
-            self.selayer = nn.Linear(256, out_channels)
+            self.selayer = nn.Linear(inter_channels, out_channels)
 
     def forward(self, x):
         x = self.pgf_conv(x)
-        x,gap_feat = self.pgf(x)
-        outputs = [self.block(x)]
+        x = self.pgf(x)
+        outputs = [self.block(x[0])]
         if self.se_loss:
-            outputs.append(self.selayer(torch.squeeze(gap_feat)))
+            outputs.append(self.selayer(torch.squeeze(x[1])))
 
         return tuple(outputs)
 
