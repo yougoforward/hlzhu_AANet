@@ -49,6 +49,7 @@ class asp_pgfNetHead(nn.Module):
             nn.ReLU(True),
             nn.Dropout2d(0.1, False),
             nn.Conv2d(inter_channels, out_channels, 1))
+        self.se_loss = se_loss
 
         if self.se_loss:
             self.selayer = nn.Linear(inter_channels, out_channels)
