@@ -56,8 +56,7 @@ class pgfNetHead(nn.Module):
 
     def forward(self, x):
         x = self.pgf_conv(x)
-        x=[x]
-        # x = self.pgf(x)
+        x = self.pgf(x)
         outputs = [self.block(x[0])]
         if self.se_loss:
             outputs.append(self.selayer(torch.squeeze(x[1])))
@@ -69,10 +68,10 @@ class GuidedFusion(nn.Module):
     """
     exploit self-attentin for  adjacent scale fusion
     """
-    def __init__(self, in_channels, query_dim, norm_layer=nn.BatchNorm2d):
+    def __init__(self, in_channels, query_dim, norm_layer):
         super(GuidedFusion, self).__init__()
-        self.key_channels = query_dim
-        self.query_conv = nn.Conv2d(in_channels=in_channels, out_channels=self.key_channels,
+        # self.key_channels = query_dim
+        self.query_conv = nn.Conv2d(in_channels=in_channels, out_channels=query_dim,
                       kernel_size=1, stride=1, padding=0)
         # self.query_conv =  nn.Sequential(
         #     nn.Conv2d(in_channels=in_channels, out_channels=self.key_channels,
