@@ -106,10 +106,7 @@ class PyramidGuidedFusion(nn.Module):
         super(PyramidGuidedFusion, self).__init__()
 
         out_channels = int(in_channels)
-        self.gap = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Sequential(
-            nn.Linear(in_channels, in_channels),
-            nn.Sigmoid())
+
 
         self.pool2 = nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1, bias=False),
                                    norm_layer(out_channels),
@@ -125,8 +122,13 @@ class PyramidGuidedFusion(nn.Module):
         self.gf3 = GuidedFusion(in_channels, in_channels // 2)
         self.gf4 = GuidedFusion(in_channels, in_channels // 2)
 
-        self.gamma = nn.Parameter(torch.zeros(1))
         self.se_loss = se_loss
+        if self.se_loss:
+            self.gamma = nn.Parameter(torch.zeros(1))
+            self.gap = nn.AdaptiveAvgPool2d(1)
+            self.fc = nn.Sequential(
+                nn.Linear(in_channels, in_channels),
+                nn.Sigmoid())
 
     def forward(self, x):
         _, _, h, w = x.size()
