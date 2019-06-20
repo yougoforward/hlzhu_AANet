@@ -21,18 +21,16 @@ class pgfNet(BaseNet):
         _, _, h, w = x.size()
         _, _, c3, c4 = self.base_forward(x)
 
-        outputs = []
-        # x = self.head(c4)
         x = list(self.head(c4))
         x[0] = F.interpolate(x[0], (h, w), **self._up_kwargs)
-        # x = F.interpolate(x, (h,w), **self._up_kwargs)
-        outputs.append(x)
+
         if self.aux:
             auxout = self.auxlayer(c3)
             auxout = F.interpolate(auxout, (h,w), **self._up_kwargs)
-            outputs.append(auxout)
+            x.append(auxout)
 
-        return tuple(outputs)
+        return tuple(x)
+
 
 class pgfNetHead(nn.Module):
     def __init__(self, in_channels, out_channels, se_loss, norm_layer, up_kwargs, atrous_rates=(12, 24, 36)):
