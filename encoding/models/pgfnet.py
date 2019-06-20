@@ -79,7 +79,12 @@ class GuidedFusion(nn.Module):
         #     norm_layer(self.key_channels),
         #     nn.ReLU(True)
         # )
-
+        self.fuse_conv =  nn.Sequential(
+            nn.Conv2d(in_channels=in_channels, out_channels=in_channels,
+                      kernel_size=1, stride=1, padding=0),
+            norm_layer(in_channels),
+            nn.ReLU(True)
+        )
         self.key_conv = self.query_conv
 
         self.gamma = nn.Parameter(torch.zeros(1))
@@ -105,6 +110,7 @@ class GuidedFusion(nn.Module):
         out = out.view(m_batchsize, C, hl, wl)
 
         out = self.gamma * out + low_level
+        out = self.fuse_conv(out)
         return out
 
 
