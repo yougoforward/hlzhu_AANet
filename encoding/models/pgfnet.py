@@ -128,9 +128,9 @@ class PyramidGuidedFusion(nn.Module):
         self.pool3 = self.pool2
         self.pool4 = self.pool2
 
-        # self.gf2 = GuidedFusion(in_channels, in_channels//2, norm_layer)
-        # self.gf3 = self.gf2
-        # self.gf4 = self.gf2
+        self.gf2 = GuidedFusion(in_channels, in_channels//2, norm_layer)
+        self.gf3 = self.gf2
+        self.gf4 = self.gf2
 
         self.se_loss = se_loss
         if self.se_loss:
@@ -153,11 +153,10 @@ class PyramidGuidedFusion(nn.Module):
             gamma = self.fc(gap_feat)
             d4 = F.relu(d4 + d4 * gamma)
 
-        # u3 = self.gf4(d3, d4)
-        # u2 = self.gf3(d2, u3)
-        # u1 = self.gf2(d1, u2)
-        # outputs= [u1]
-        outputs = [d1]
+        u3 = self.gf4(d3, d4)
+        u2 = self.gf3(d2, u3)
+        u1 = self.gf2(d1, u2)
+        outputs= [u1]
         if self.se_loss:
             outputs.append(gap_feat)
         return outputs
