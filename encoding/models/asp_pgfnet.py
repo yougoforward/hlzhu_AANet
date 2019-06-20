@@ -66,28 +66,38 @@ class GuidedFusion(nn.Module):
     """
     exploit self-attentin for  adjacent scale fusion
     """
-
-    def __init__(self, in_channels, query_dim):
+    def __init__(self, in_channels, query_dim, norm_layer=nn.BatchNorm2d):
         super(GuidedFusion, self).__init__()
-        self.query_conv = nn.Conv2d(in_channels=in_channels, out_channels=query_dim, kernel_size=1)
-        self.key_conv = nn.Conv2d(in_channels=in_channels, out_channels=query_dim, kernel_size=1)
+        self.key_channels = query_dim
+        self.query_conv =  nn.Sequential(
+            nn.Conv2d(in_channels=in_channels, out_channels=self.key_channels,
+                      kernel_size=1, stride=1, padding=0),
+            norm_layer(in_channels),
+            nn.ReLU(True)
+        )
+
+        self.key_conv = self.query_conv
 
         self.gamma = nn.Parameter(torch.zeros(1))
         self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, low_level, high_level):
+
         m_batchsize, C, hl, wl = low_level.size()
         m_batchsize, C, hh, wh = high_level.size()
 
         # query = low_level.view(m_batchsize, C, hl * wl).permute(0, 2, 1)  # m, hl*wl, c
         # key = high_level.view(m_batchsize, C, hh * wh)  # m, c, hh*wh
 
-        query = self.query_conv(low_level).view(m_batchsize, -1, hl * wl).permute(0, 2, 1)  # m, hl*wl, c
-        key = self.key_conv(high_level).view(m_batchsize, -1, hh * wh)  # m, c, hh*wh
-        energy = torch.bmm(query, key)  # C, hl*wl,hh*wh
+        query = self.query_conv(low_level).view(m_batchsize, -1, hl * wl).permute(0, 2, 1) # m, hl*wl, c
+        key = self.key_conv(high_level).view(m_batchsize, -1, hh * wh) # m, c, hh*wh
+        energy = torch.bmm(query, key)        # C, hl*wl,hh*wh
+
+        energy = (self.key_channels ** -.5) * energy
+
         attention = self.softmax(energy)
         value = high_level
-        out = torch.bmm(value.view(m_batchsize, C, hh * wh), attention.permute(0, 2, 1))
+        out = torch.bmm(value.view(m_batchsize, C, hh*wh), attention.permute(0, 2, 1))
         out = out.view(m_batchsize, C, hl, wl)
 
         out = self.gamma * out + low_level
@@ -105,16 +115,12 @@ class PyramidGuidedFusion(nn.Module):
         self.pool2 = nn.Sequential(nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1, bias=False),
                                 norm_layer(in_channels),
                                 nn.ReLU(True))
-        self.pool3 = nn.Sequential(nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1, bias=False),
-                                norm_layer(in_channels),
-                                nn.ReLU(True))
-        self.pool4 = nn.Sequential(nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1, bias=False),
-                                norm_layer(in_channels),
-                                nn.ReLU(True))
+        self.pool3 = self.pool2
+        self.pool4 = self.pool2
 
-        self.gf2 = GuidedFusion(in_channels, in_channels//2)
-        self.gf3 = GuidedFusion(in_channels, in_channels//2)
-        self.gf4 = GuidedFusion(in_channels, in_channels//2)
+        self.gf2 = GuidedFusion(in_channels, in_channels//2, norm_layer)
+        self.gf3 = self.gf2
+        self.gf4 = self.gf2
 
         self.se_loss = se_loss
         if self.se_loss:
