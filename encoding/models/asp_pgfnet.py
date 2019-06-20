@@ -72,7 +72,7 @@ class GuidedFusion(nn.Module):
         self.query_conv =  nn.Sequential(
             nn.Conv2d(in_channels=in_channels, out_channels=self.key_channels,
                       kernel_size=1, stride=1, padding=0),
-            norm_layer(in_channels),
+            norm_layer(self.key_channels),
             nn.ReLU(True)
         )
 
