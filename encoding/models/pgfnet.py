@@ -88,7 +88,7 @@ class GuidedFusion(nn.Module):
 
         self.gamma = nn.Parameter(torch.zeros(1))
         self.softmax = nn.Softmax(dim=-1)
-        self.relu=nn.ReLU
+        self.relu=nn.ReLU(True)
 
     def forward(self, low_level, high_level):
 

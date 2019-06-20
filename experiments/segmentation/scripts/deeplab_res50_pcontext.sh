@@ -15,17 +15,17 @@ python test.py --dataset pcontext \
     --model deeplab --jpu --aux \
     --backbone resnet50 --resume runs/pcontext/deeplab/deeplab_res50_pcontext/model_best.pth.tar --split val --mode testval --ms
 
-#predict [single-scale]
-python test.py --dataset pcontext \
-    --model deeplab --jpu --aux \
-    --backbone resnet50 --resume runs/pcontext/deeplab/deeplab_res50_pcontext/model_best.pth.tar --split val --mode test
+##predict [single-scale]
+#python test.py --dataset pcontext \
+#    --model deeplab --jpu --aux \
+#    --backbone resnet50 --resume runs/pcontext/deeplab/deeplab_res50_pcontext/model_best.pth.tar --split val --mode test
+#
+##predict [multi-scale]
+#python test.py --dataset pcontext \
+#    --model deeplab --jpu --aux \
+#    --backbone resnet50 --resume runs/pcontext/deeplab/deeplab_res50_pcontext/model_best.pth.tar --split val --mode test --ms
 
-#predict [multi-scale]
-python test.py --dataset pcontext \
-    --model deeplab --jpu --aux \
-    --backbone resnet50 --resume runs/pcontext/deeplab/deeplab_res50_pcontext/model_best.pth.tar --split val --mode test --ms
-
-#fps
-python test_fps_params.py --dataset pcontext \
-    --model deeplab --jpu --aux \
-    --backbone resnet50
+##fps
+#python test_fps_params.py --dataset pcontext \
+#    --model deeplab --jpu --aux \
+#    --backbone resnet50
