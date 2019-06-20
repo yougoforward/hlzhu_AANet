@@ -29,7 +29,7 @@ class _SelfAttentionBlock(nn.Module):
         position-aware context features.(w/o concate or add with the input)
     '''
 
-    def __init__(self, in_channels, key_channels, value_channels, out_channels=None, scale=1, norm_layer=nn.BatchNorm2d):
+    def __init__(self, in_channels, key_channels, value_channels, out_channels, norm_layer, scale=1):
         super(_SelfAttentionBlock, self).__init__()
         self.scale = scale
         self.in_channels = in_channels
@@ -78,12 +78,12 @@ class _SelfAttentionBlock(nn.Module):
 
 
 class SelfAttentionBlock2D(_SelfAttentionBlock):
-    def __init__(self, in_channels, key_channels, value_channels, out_channels=None, scale=1, norm_layer=nn.BatchNorm2d):
+    def __init__(self, in_channels, key_channels, value_channels, out_channels, norm_layer, scale=1):
         super(SelfAttentionBlock2D, self).__init__(in_channels,
                                                    key_channels,
                                                    value_channels,
                                                    out_channels,
-                                                   scale, norm_layer)
+                                                   norm_layer, scale)
 
 
 class BaseOC_Module(nn.Module):
@@ -97,7 +97,7 @@ class BaseOC_Module(nn.Module):
         features fused with Object context information.
     """
 
-    def __init__(self, in_channels, out_channels, key_channels, value_channels, dropout, sizes=([1]), norm_layer=nn.BatchNorm2d):
+    def __init__(self, in_channels, out_channels, key_channels, value_channels, dropout, norm_layer, sizes=([1])):
         super(BaseOC_Module, self).__init__()
         self.stages = []
         self.stages = nn.ModuleList(
@@ -109,12 +109,12 @@ class BaseOC_Module(nn.Module):
             nn.Dropout2d(dropout)
         )
 
-    def _make_stage(self, in_channels, output_channels, key_channels, value_channels, size, norm_layer=nn.BatchNorm2d):
+    def _make_stage(self, in_channels, output_channels, key_channels, value_channels, norm_layer, size):
         return SelfAttentionBlock2D(in_channels,
                                     key_channels,
                                     value_channels,
                                     output_channels,
-                                    size, norm_layer)
+                                    norm_layer, size)
 
     def forward(self, feats):
         priors = [stage(feats) for stage in self.stages]
@@ -137,23 +137,23 @@ class BaseOC_Context_Module(nn.Module):
         features after "concat" or "add"
     """
 
-    def __init__(self, in_channels, out_channels, key_channels, value_channels, dropout, sizes=([1]), norm_layer=nn.BatchNorm2d):
+    def __init__(self, in_channels, out_channels, key_channels, value_channels, dropout, norm_layer, sizes=([1])):
         super(BaseOC_Context_Module, self).__init__()
         self.stages = []
         self.stages = nn.ModuleList(
-            [self._make_stage(in_channels, out_channels, key_channels, value_channels, size, norm_layer) for size in sizes])
+            [self._make_stage(in_channels, out_channels, key_channels, value_channels, norm_layer, size) for size in sizes])
         self.conv_bn_dropout = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=1, padding=0),
             norm_layer(out_channels),
             nn.ReLU(True)
         )
 
-    def _make_stage(self, in_channels, output_channels, key_channels, value_channels, size, norm_layer=nn.BatchNorm2d):
+    def _make_stage(self, in_channels, output_channels, key_channels, value_channels, norm_layer, size):
         return SelfAttentionBlock2D(in_channels,
                                     key_channels,
                                     value_channels,
                                     output_channels,
-                                    size, norm_layer)
+                                    norm_layer, size)
 
     def forward(self, feats):
         priors = [stage(feats) for stage in self.stages]
