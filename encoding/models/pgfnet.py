@@ -13,7 +13,7 @@ class pgfNet(BaseNet):
     def __init__(self, nclass, backbone, aux=True, se_loss=False, norm_layer=nn.BatchNorm2d, **kwargs):
         super(pgfNet, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
 
-        self.head = pgfNetHead(2048, nclass, se_loss, norm_layer, self._up_kwargs)
+        self.head = pgfNetHead(2048, nclass, se_loss, norm_layer)
         if aux:
             self.auxlayer = FCNHead(1024, nclass, norm_layer)
 
@@ -33,13 +33,14 @@ class pgfNet(BaseNet):
 
 
 class pgfNetHead(nn.Module):
-    def __init__(self, in_channels, out_channels, se_loss, norm_layer, up_kwargs, atrous_rates=(12, 24, 36)):
+    def __init__(self, in_channels, out_channels, se_loss, norm_layer):
         super(pgfNetHead, self).__init__()
         inter_channels = in_channels // 8
 
-        self.pgf_conv = nn.Sequential(nn.Conv2d(in_channels, inter_channels, kernel_size=3, stride=2, padding=1, bias=False),
-                                   norm_layer(inter_channels),
-                                   nn.ReLU(True))
+        self.pgf_conv = nn.Sequential(
+            nn.Conv2d(in_channels, inter_channels, kernel_size=3, stride=2, padding=1, bias=False),
+            norm_layer(inter_channels),
+            nn.ReLU(True))
 
         self.pgf = PyramidGuidedFusion(inter_channels, se_loss, norm_layer)
 
@@ -50,7 +51,6 @@ class pgfNetHead(nn.Module):
             nn.Dropout2d(0.1, False),
             nn.Conv2d(inter_channels, out_channels, 1))
         self.se_loss = se_loss
-
         if self.se_loss:
             self.selayer = nn.Linear(inter_channels, out_channels)
 
@@ -58,9 +58,9 @@ class pgfNetHead(nn.Module):
         x = self.pgf_conv(x)
         x = self.pgf(x)
         outputs = [self.block(x[0])]
+
         if self.se_loss:
             outputs.append(self.selayer(torch.squeeze(x[1])))
-
         return tuple(outputs)
 
 

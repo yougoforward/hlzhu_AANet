@@ -1,31 +1,31 @@
 #!/usr/bin/env bash
 
 #train
-python train.py --dataset pcontext \
-    --model deeplab --jpu --aux \
-    --backbone resnet50 --checkname deeplab_res50_pcontext
+#CUDA_VISIBLE_DEVICES=0,1,2,3 python train.py --dataset pcontext \
+#    --model deeplab --jpu --aux \
+#    --backbone resnet50 --checkname deeplab_res50_pcontext
 
 #test [single-scale]
-python test.py --dataset pcontext \
+CUDA_VISIBLE_DEVICES=0,1,2,3 python test.py --dataset pcontext \
     --model deeplab --jpu --aux \
-    --backbone resnet50 --resume {MODEL} --split val --mode testval
+    --backbone resnet50 --resume runs/pcontext/deeplab/deeplab_res50_pcontext/model_best.pth.tar --split val --mode testval
 
 #test [multi-scale]
-python test.py --dataset pcontext \
+CUDA_VISIBLE_DEVICES=0,1,2,3 python test.py --dataset pcontext \
     --model deeplab --jpu --aux \
-    --backbone resnet50 --resume {MODEL} --split val --mode testval --ms
+    --backbone resnet50 --resume runs/pcontext/deeplab/deeplab_res50_pcontext/model_best.pth.tar --split val --mode testval --ms
 
 #predict [single-scale]
-python test.py --dataset pcontext \
+CUDA_VISIBLE_DEVICES=0,1,2,3 python test.py --dataset pcontext \
     --model deeplab --jpu --aux \
-    --backbone resnet50 --resume {MODEL} --split val --mode test
+    --backbone resnet50 --resume runs/pcontext/deeplab/deeplab_res50_pcontext/model_best.pth.tar --split val --mode test
 
 #predict [multi-scale]
-python test.py --dataset pcontext \
+CUDA_VISIBLE_DEVICES=0,1,2,3 python test.py --dataset pcontext \
     --model deeplab --jpu --aux \
-    --backbone resnet50 --resume {MODEL} --split val --mode test --ms
+    --backbone resnet50 --resume runs/pcontext/deeplab/deeplab_res50_pcontext/model_best.pth.tar --split val --mode test --ms
 
 #fps
-python test_fps_params.py --dataset pcontext \
+CUDA_VISIBLE_DEVICES=0 python test_fps_params.py --dataset pcontext \
     --model deeplab --jpu --aux \
     --backbone resnet50
