@@ -106,16 +106,14 @@ class PyramidGuidedFusion(nn.Module):
     def __init__(self, in_channels, se_loss, norm_layer):
         super(PyramidGuidedFusion, self).__init__()
 
-        out_channels = int(in_channels)
-
-        self.pool2 = nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1, bias=False),
-                                norm_layer(out_channels),
+        self.pool2 = nn.Sequential(nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1, bias=False),
+                                norm_layer(in_channels),
                                 nn.ReLU(True))
-        self.pool3 = nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1, bias=False),
-                                norm_layer(out_channels),
+        self.pool3 = nn.Sequential(nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1, bias=False),
+                                norm_layer(in_channels),
                                 nn.ReLU(True))
-        self.pool4 = nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1, bias=False),
-                                norm_layer(out_channels),
+        self.pool4 = nn.Sequential(nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1, bias=False),
+                                norm_layer(in_channels),
                                 nn.ReLU(True))
 
         self.gf2 = GuidedFusion(in_channels, in_channels//2)
@@ -126,7 +124,9 @@ class PyramidGuidedFusion(nn.Module):
         if self.se_loss:
             self.gamma = nn.Parameter(torch.zeros(1))
             self.gap = nn.AdaptiveAvgPool2d(1)
-            self.fc = nn.Sequential(nn.Linear(in_channels, in_channels),nn.Sigmoid())
+            self.fc = nn.Sequential(
+                nn.Conv2d(in_channels, in_channels, 1),
+                nn.Sigmoid())
 
 
     def forward(self, x):
@@ -149,6 +149,7 @@ class PyramidGuidedFusion(nn.Module):
         if self.se_loss:
             outputs.append(gap_feat)
         return outputs
+
 
 
 

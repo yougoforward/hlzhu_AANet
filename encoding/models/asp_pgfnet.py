@@ -101,41 +101,38 @@ class PyramidGuidedFusion(nn.Module):
     Reference:
         Zhao, Hengshuang, et al. *"Pyramid scene parsing network."*
     """
-
     def __init__(self, in_channels, se_loss, norm_layer):
         super(PyramidGuidedFusion, self).__init__()
 
-        out_channels = int(in_channels)
+        self.pool2 = nn.Sequential(nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1, bias=False),
+                                norm_layer(in_channels),
+                                nn.ReLU(True))
+        self.pool3 = nn.Sequential(nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1, bias=False),
+                                norm_layer(in_channels),
+                                nn.ReLU(True))
+        self.pool4 = nn.Sequential(nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1, bias=False),
+                                norm_layer(in_channels),
+                                nn.ReLU(True))
 
-
-        self.pool2 = nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1, bias=False),
-                                   norm_layer(out_channels),
-                                   nn.ReLU(True))
-        self.pool3 = nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1, bias=False),
-                                   norm_layer(out_channels),
-                                   nn.ReLU(True))
-        self.pool4 = nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1, bias=False),
-                                   norm_layer(out_channels),
-                                   nn.ReLU(True))
-
-        self.gf2 = GuidedFusion(in_channels, in_channels // 2)
-        self.gf3 = GuidedFusion(in_channels, in_channels // 2)
-        self.gf4 = GuidedFusion(in_channels, in_channels // 2)
+        self.gf2 = GuidedFusion(in_channels, in_channels//2)
+        self.gf3 = GuidedFusion(in_channels, in_channels//2)
+        self.gf4 = GuidedFusion(in_channels, in_channels//2)
 
         self.se_loss = se_loss
         if self.se_loss:
             self.gamma = nn.Parameter(torch.zeros(1))
             self.gap = nn.AdaptiveAvgPool2d(1)
             self.fc = nn.Sequential(
-                nn.Linear(in_channels, in_channels),
+                nn.Conv2d(in_channels, in_channels, 1),
                 nn.Sigmoid())
+
 
     def forward(self, x):
         _, _, h, w = x.size()
         d1 = x
-        d2 = self.pool2(d1)
-        d3 = self.pool3(d2)
-        d4 = self.pool4(d3)
+        d2=self.pool2(d1)
+        d3=self.pool3(d2)
+        d4=self.pool4(d3)
 
         if self.se_loss:
             gap_feat = self.gap(d4)
@@ -145,11 +142,12 @@ class PyramidGuidedFusion(nn.Module):
         u3 = self.gf4(d3, d4)
         u2 = self.gf3(d2, u3)
         u1 = self.gf2(d1, u2)
-        outputs = [u1]
+        outputs= [u1]
 
         if self.se_loss:
             outputs.append(gap_feat)
         return outputs
+
 
 
 def ASPPConv(in_channels, out_channels, atrous_rate, norm_layer):
