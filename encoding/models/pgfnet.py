@@ -136,9 +136,13 @@ class PyramidGuidedFusion(nn.Module):
         if self.se_loss:
             self.gamma = nn.Parameter(torch.zeros(1))
             self.gap = nn.AdaptiveAvgPool2d(1)
-            self.fc = nn.Sequential(
-                nn.Conv2d(in_channels, in_channels, 1),
-                nn.Sigmoid())
+            self.se = nn.Sequential(nn.Conv2d(in_channels, in_channels // 8, kernel_size=1,
+                                              bias=True),
+                                    nn.ReLU(),
+                                    nn.Conv2d(in_channels // 8, in_channels, kernel_size=1,
+                                              bias=True),
+                                    nn.Sigmoid()
+                                    )
 
 
     def forward(self, x):
@@ -150,7 +154,7 @@ class PyramidGuidedFusion(nn.Module):
 
         if self.se_loss:
             gap_feat = self.gap(d4)
-            gamma = self.fc(gap_feat)
+            gamma = self.se(gap_feat)
             d4 = F.relu(d4 + d4 * gamma)
 
         u3 = self.gf4(d3, d4)
