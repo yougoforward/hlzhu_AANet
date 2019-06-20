@@ -2,7 +2,7 @@
 
 #train
 CUDA_VISIBLE_DEVICES=0,1,2,3 python train.py --dataset pcontext \
-    --model pgfnet --jpu --aux --se-loss \
+    --model pgfnet --jpu --aux --se-loss --batch-size 8\
     --backbone resnet50 --checkname pgfnet_res50_pcontext
 
 #test [single-scale]
