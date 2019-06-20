@@ -102,7 +102,7 @@ class GuidedFusion(nn.Module):
         key = self.key_conv(high_level).view(m_batchsize, -1, hh * wh) # m, c, hh*wh
         energy = torch.bmm(query, key)        # C, hl*wl,hh*wh
 
-        energy = (self.key_channels ** -.5) * energy
+        # energy = (self.key_channels ** -.5) * energy
 
         attention = self.softmax(energy)
         value = high_level
