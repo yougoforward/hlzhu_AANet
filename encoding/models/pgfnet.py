@@ -144,7 +144,6 @@ class PyramidGuidedFusion(nn.Module):
                                     nn.Sigmoid()
                                     )
 
-
     def forward(self, x):
         _, _, h, w = x.size()
         d1 = x
@@ -163,7 +162,7 @@ class PyramidGuidedFusion(nn.Module):
         outputs= [u1]
         if self.se_loss:
             outputs.append(gap_feat)
-        return outputs
+        return tuple(outputs)
 
 
 
