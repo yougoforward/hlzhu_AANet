@@ -56,7 +56,8 @@ class pgfNetHead(nn.Module):
 
     def forward(self, x):
         x = self.pgf_conv(x)
-        x = self.pgf(x)
+        # x = self.pgf(x)
+        x=[x]
         outputs = [self.block(x[0])]
 
         if self.se_loss:
