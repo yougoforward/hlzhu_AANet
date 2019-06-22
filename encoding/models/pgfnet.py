@@ -146,15 +146,15 @@ class PyramidGuidedFusion(nn.Module):
         d1 = x
         d2=self.pool2(d1)
         d3=self.pool3(d2)
-        d4=self.pool4(d3)
-        # d4=d3
+        # d4=self.pool4(d3)
+        d4=d3
         if self.se_loss:
             gap_feat = self.gap(d4)
             gamma = self.se(gap_feat)
             d4 = F.relu(d4 + d4 * gamma)
 
-        u3 = self.gf4(d3, d4)
-        # u3=d4
+        # u3 = self.gf4(d3, d4)
+        u3=d4
         u2 = self.gf3(d2, u3)
         u1 = self.gf2(d1, u2)
         outputs= [u1]
