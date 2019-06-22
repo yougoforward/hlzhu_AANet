@@ -110,8 +110,7 @@ class GuidedFusion(nn.Module):
         out = torch.bmm(value.view(m_batchsize, C, hh*wh), attention.permute(0, 2, 1))
         out = out.view(m_batchsize, C, hl, wl)
 
-        out = self.relu(self.gamma * out + low_level)
-
+        out = self.gamma * out + low_level
         return out
 
 
@@ -146,17 +145,17 @@ class PyramidGuidedFusion(nn.Module):
         _, _, h, w = x.size()
         d1 = x
         d2=self.pool2(d1)
-        # d3=self.pool3(d2)
-        # d4=self.pool4(d3)
-        d4=d2
+        d3=self.pool3(d2)
+        d4=self.pool4(d3)
+        # d4=d2
         if self.se_loss:
             gap_feat = self.gap(d4)
             gamma = self.se(gap_feat)
             d4 = F.relu(d4 + d4 * gamma)
 
-        # u3 = self.gf4(d3, d4)
-        # u2 = self.gf3(d2, u3)
-        u2=d4
+        u3 = self.gf4(d3, d4)
+        u2 = self.gf3(d2, u3)
+        # u2=d4
         u1 = self.gf2(d1, u2)
         outputs= [u1]
         if self.se_loss:
