@@ -69,13 +69,14 @@ class GuidedFusion(nn.Module):
     def __init__(self, in_channels, query_dim, norm_layer):
         super(GuidedFusion, self).__init__()
         self.key_channels = query_dim
-        # self.query_conv = nn.Conv2d(in_channels=in_channels, out_channels=query_dim,
-        #               kernel_size=1, stride=1, padding=0)
-        self.query_conv =  nn.Sequential(
-            nn.Conv2d(in_channels=in_channels, out_channels=self.key_channels,
-                      kernel_size=1, stride=1, padding=0, bias=False),
-            norm_layer(self.key_channels),
-        )
+        self.query_conv = nn.Conv2d(in_channels=in_channels, out_channels=query_dim,
+                      kernel_size=1, stride=1, padding=0)
+        # self.query_conv =  nn.Sequential(
+        #     nn.Conv2d(in_channels=in_channels, out_channels=self.key_channels,
+        #               kernel_size=1, stride=1, padding=0, bias=False),
+        #     norm_layer(self.key_channels),
+        #     nn.ReLU(True)
+        # )
 
         self.value_conv =  nn.Sequential(
             nn.Conv2d(in_channels=in_channels, out_channels=in_channels,
@@ -127,7 +128,7 @@ class PyramidGuidedFusion(nn.Module):
         self.pool3 = self.pool2
         self.pool4 = self.pool2
 
-        self.gf2 = GuidedFusion(in_channels, in_channels//2, norm_layer)
+        self.gf2 = GuidedFusion(in_channels, 128, norm_layer)
         self.gf3 = self.gf2
         self.gf4 = self.gf2
 

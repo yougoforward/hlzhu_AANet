@@ -35,7 +35,7 @@ class pgfNet(BaseNet):
 class pgfNetHead(nn.Module):
     def __init__(self, in_channels, out_channels, se_loss, norm_layer):
         super(pgfNetHead, self).__init__()
-        inter_channels = in_channels // 8
+        inter_channels = in_channels // 4
 
         self.pgf_conv = nn.Sequential(
             nn.Conv2d(in_channels, inter_channels, kernel_size=3, stride=2, padding=1, bias=False),
@@ -72,13 +72,14 @@ class GuidedFusion(nn.Module):
     def __init__(self, in_channels, query_dim, norm_layer):
         super(GuidedFusion, self).__init__()
         self.key_channels = query_dim
-        # self.query_conv = nn.Conv2d(in_channels=in_channels, out_channels=query_dim,
-        #               kernel_size=1, stride=1, padding=0)
-        self.query_conv =  nn.Sequential(
-            nn.Conv2d(in_channels=in_channels, out_channels=self.key_channels,
-                      kernel_size=1, stride=1, padding=0, bias=False),
-            norm_layer(self.key_channels),
-        )
+        self.query_conv = nn.Conv2d(in_channels=in_channels, out_channels=query_dim,
+                      kernel_size=1, stride=1, padding=0)
+        # self.query_conv =  nn.Sequential(
+        #     nn.Conv2d(in_channels=in_channels, out_channels=self.key_channels,
+        #               kernel_size=1, stride=1, padding=0, bias=False),
+        #     norm_layer(self.key_channels),
+        #     nn.ReLU(True)
+        # )
 
         self.value_conv =  nn.Sequential(
             nn.Conv2d(in_channels=in_channels, out_channels=in_channels,
@@ -134,9 +135,9 @@ class PyramidGuidedFusion(nn.Module):
                                 norm_layer(in_channels),
                                 nn.ReLU(True))
 
-        self.gf2 = GuidedFusion(in_channels, in_channels//2, norm_layer)
-        self.gf3 = GuidedFusion(in_channels, in_channels//2, norm_layer)
-        self.gf4 = GuidedFusion(in_channels, in_channels//2, norm_layer)
+        self.gf2 = GuidedFusion(in_channels, 128, norm_layer)
+        self.gf3 = GuidedFusion(in_channels, 128, norm_layer)
+        self.gf4 = GuidedFusion(in_channels, 128, norm_layer)
 
         self.se_loss = se_loss
         if self.se_loss:
