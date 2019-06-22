@@ -125,12 +125,16 @@ class PyramidGuidedFusion(nn.Module):
         self.pool2 = nn.Sequential(nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1, bias=False),
                                 norm_layer(in_channels),
                                 nn.ReLU(True))
-        self.pool3 = self.pool2
-        self.pool4 = self.pool2
+        self.pool3 = nn.Sequential(nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1, bias=False),
+                                norm_layer(in_channels),
+                                nn.ReLU(True))
+        self.pool4 = nn.Sequential(nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=1, bias=False),
+                                norm_layer(in_channels),
+                                nn.ReLU(True))
 
         self.gf2 = GuidedFusion(in_channels, in_channels//2, norm_layer)
-        self.gf3 = self.gf2
-        self.gf4 = self.gf2
+        self.gf3 = GuidedFusion(in_channels, in_channels//2, norm_layer)
+        self.gf4 = GuidedFusion(in_channels, in_channels//2, norm_layer)
 
         self.se_loss = se_loss
         if self.se_loss:
@@ -146,15 +150,15 @@ class PyramidGuidedFusion(nn.Module):
         d1 = x
         d2=self.pool2(d1)
         d3=self.pool3(d2)
-        # d4=self.pool4(d3)
-        d4=d3
+        d4=self.pool4(d3)
+        # d4=d3
         if self.se_loss:
             gap_feat = self.gap(d4)
             gamma = self.se(gap_feat)
             d4 = F.relu(d4 + d4 * gamma)
 
-        # u3 = self.gf4(d3, d4)
-        u3=d4
+        u3 = self.gf4(d3, d4)
+        # u3=d4
         u2 = self.gf3(d2, u3)
         u1 = self.gf2(d1, u2)
         outputs= [u1]
