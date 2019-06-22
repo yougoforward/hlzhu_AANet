@@ -72,14 +72,15 @@ class GuidedFusion(nn.Module):
     def __init__(self, in_channels, query_dim, norm_layer):
         super(GuidedFusion, self).__init__()
         self.key_channels = query_dim
-        # self.query_conv = nn.Conv2d(in_channels=in_channels, out_channels=query_dim,
-        #               kernel_size=1, stride=1, padding=0)
-        self.query_conv =  nn.Sequential(
-            nn.Conv2d(in_channels=in_channels, out_channels=self.key_channels,
-                      kernel_size=1, stride=1, padding=0),
-            norm_layer(self.key_channels),
-            nn.ReLU(True)
-        )
+        self.query_conv = nn.Conv2d(in_channels=in_channels, out_channels=query_dim,
+                      kernel_size=1, stride=1, padding=0)
+        # self.query_conv =  nn.Sequential(
+        #     nn.Conv2d(in_channels=in_channels, out_channels=self.key_channels,
+        #               kernel_size=1, stride=1, padding=0),
+        #     norm_layer(self.key_channels),
+        #     nn.ReLU(True)
+        # )
+
         self.value_conv =  nn.Sequential(
             nn.Conv2d(in_channels=in_channels, out_channels=in_channels,
                       kernel_size=1, stride=1, padding=0),
@@ -101,7 +102,9 @@ class GuidedFusion(nn.Module):
 
         query = self.query_conv(low_level).view(m_batchsize, -1, hl * wl).permute(0, 2, 1) # m, hl*wl, c
         key = self.key_conv(high_level).view(m_batchsize, -1, hh * wh) # m, c, hh*wh
+
         value = self.value_conv(high_level)
+
         energy = torch.bmm(query, key)        # C, hl*wl,hh*wh
 
         energy = (self.key_channels ** -.5) * energy
@@ -110,7 +113,7 @@ class GuidedFusion(nn.Module):
         out = torch.bmm(value.view(m_batchsize, C, hh*wh), attention.permute(0, 2, 1))
         out = out.view(m_batchsize, C, hl, wl)
 
-        out = self.gamma * out + low_level
+        out = self.relu(self.gamma * out + low_level)
         return out
 
 
