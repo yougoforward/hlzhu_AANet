@@ -38,7 +38,7 @@ class asppacaca_head(nn.Module):
         super(asppacaca_head, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 4
-
+        aspp_out_channels= 256
         self.conv5as = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
                                      norm_layer(512),
                                      nn.ReLU(inplace=True)) if jpu else \
@@ -48,18 +48,19 @@ class asppacaca_head(nn.Module):
 
         self.aa_aspp = aa_ASPP_Module(inter_channels, atrous_rates, norm_layer, up_kwargs)
 
-        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
-                                    norm_layer(inter_channels), nn.ReLU(True))
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1, False), nn.Conv2d(512, out_channels, 1))
+
+        self.conv52 = nn.Sequential(nn.Conv2d(aspp_out_channels, aspp_out_channels, 3, padding=1, bias=False),
+                                    norm_layer(256), nn.ReLU(True))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1, False), nn.Conv2d(aspp_out_channels, out_channels, 1))
 
         self.gap = nn.AdaptiveAvgPool2d(1)
 
         self.fc = nn.Sequential(
-            nn.Conv2d(inter_channels, inter_channels, 1),
+            nn.Conv2d(aspp_out_channels, aspp_out_channels, 1),
             nn.Sigmoid())
 
         if self.se_loss:
-            self.selayer = nn.Linear(inter_channels, out_channels)
+            self.selayer = nn.Linear(aspp_out_channels, out_channels)
 
     def forward(self, x):
         # aaspp
@@ -160,7 +161,7 @@ class aa_ASPP_Module(nn.Module):
             PA_Module(out_channels, out_channels, out_channels//2, out_channels, scale=2, norm_layer=norm_layer))
 
         # self.b4 = AsppPooling(in_channels, out_channels, norm_layer, up_kwargs)
-        self.guided_ca = guided_CA_Module(6 * out_channels, out_channels*2, out_channels, norm_layer)
+        self.guided_ca = guided_CA_Module(6 * out_channels, out_channels, out_channels, norm_layer)
 
     def forward(self, x):
         feat0 = self.b0(x)
