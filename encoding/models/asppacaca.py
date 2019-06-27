@@ -141,14 +141,14 @@ class aa_ASPP_Module(nn.Module):
         super(aa_ASPP_Module, self).__init__()
         out_channels = 256
         rate1, rate2, rate3 = tuple(atrous_rates)
-        self.b0 = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 1, bias=False),
-            norm_layer(out_channels),
-            nn.ReLU(True),
-        )
-        self.b1 = ASPPConv(in_channels, out_channels, rate1, norm_layer)
-        self.b2 = ASPPConv(in_channels, out_channels, rate2, norm_layer)
-        self.b3 = ASPPConv(in_channels, out_channels, rate3, norm_layer)
+        # self.b0 = nn.Sequential(
+        #     nn.Conv2d(in_channels, out_channels, 1, bias=False),
+        #     norm_layer(out_channels),
+        #     nn.ReLU(True),
+        # )
+        self.b1 = nn.Sequential(ASPPConv(in_channels, out_channels, rate1, norm_layer),CA_Module(out_channels))
+        self.b2 = nn.Sequential(ASPPConv(in_channels, out_channels, rate2, norm_layer),CA_Module(out_channels))
+        self.b3 = nn.Sequential(ASPPConv(in_channels, out_channels, rate3, norm_layer),CA_Module(out_channels))
 
         self.b4 = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, 3,padding=1, bias=False),
@@ -162,16 +162,16 @@ class aa_ASPP_Module(nn.Module):
             PA_Module(out_channels, out_channels, out_channels//2, out_channels, scale=2, norm_layer=norm_layer))
 
         # self.b4 = AsppPooling(in_channels, out_channels, norm_layer, up_kwargs)
-        self.guided_ca = guided_CA_Module(6 * out_channels, out_channels, out_channels, norm_layer)
+        self.guided_ca = guided_CA_Module(5 * out_channels, out_channels, out_channels, norm_layer)
 
     def forward(self, x):
-        feat0 = self.b0(x)
+        # feat0 = self.b0(x)
         feat1 = self.b1(x)
         feat2 = self.b2(x)
         feat3 = self.b3(x)
         feat4 = self.b4(x)
         feat5 = self.b5(x)
-        y = torch.cat((feat0, feat1, feat2, feat3, feat4, feat5), 1)
+        y = torch.cat((feat1, feat2, feat3, feat4, feat5), 1)
         out = self.guided_ca(y)
         return out
 
