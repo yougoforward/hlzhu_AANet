@@ -144,18 +144,19 @@ class aa_ASPP_Module(nn.Module):
         self.b0 = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, 1, bias=False),
             norm_layer(out_channels),
-            nn.ReLU(True))
+            nn.ReLU(True),
+        )
         self.b1 = ASPPConv(in_channels, out_channels, rate1, norm_layer)
         self.b2 = ASPPConv(in_channels, out_channels, rate2, norm_layer)
         self.b3 = ASPPConv(in_channels, out_channels, rate3, norm_layer)
 
         self.b4 = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 3, bias=False),
+            nn.Conv2d(in_channels, out_channels, 3,padding=1, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True),
             CA_Module(out_channels))
         self.b5 = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 3, bias=False),
+            nn.Conv2d(in_channels, out_channels, 3,padding=1, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True),
             PA_Module(out_channels, out_channels, out_channels//2, out_channels, scale=2, norm_layer=norm_layer))
