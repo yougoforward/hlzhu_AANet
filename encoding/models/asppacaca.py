@@ -146,9 +146,9 @@ class aa_ASPP_Module(nn.Module):
         #     norm_layer(out_channels),
         #     nn.ReLU(True),
         # )
-        self.b1 = nn.Sequential(ASPPConv(in_channels, out_channels, rate1, norm_layer),CA_Module(out_channels))
-        self.b2 = nn.Sequential(ASPPConv(in_channels, out_channels, rate2, norm_layer),CA_Module(out_channels))
-        self.b3 = nn.Sequential(ASPPConv(in_channels, out_channels, rate3, norm_layer),CA_Module(out_channels))
+        self.b1 = nn.Sequential(ASPPConv(in_channels, out_channels, rate1, norm_layer))
+        self.b2 = nn.Sequential(ASPPConv(in_channels, out_channels, rate2, norm_layer))
+        self.b3 = nn.Sequential(ASPPConv(in_channels, out_channels, rate3, norm_layer))
 
         self.b4 = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, 3,padding=1, bias=False),
