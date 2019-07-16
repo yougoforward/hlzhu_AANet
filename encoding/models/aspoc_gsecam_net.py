@@ -218,8 +218,8 @@ class aa_ASPP_Module(nn.Module):
         self.b2 = ASPPConv(in_channels, out_channels, rate2, norm_layer)
         self.b3 = ASPPConv(in_channels, out_channels, rate3, norm_layer)
         self.context = nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, dilation=1, bias=False),
-                                   norm_layer(out_features),nn.ReLU(),
-                                   SelfAttentionBlock(in_channels=out_features, out_channels=out_features, key_channels=out_features//2, value_channels=out_features, 
+                                   norm_layer(out_channels),nn.ReLU(),
+                                   SelfAttentionBlock(in_channels=out_channels, out_channels=out_channels, key_channels=out_channels//2, value_channels=out_channels,
                                     dropout=0, scale=2))
 
         self.b4 = AsppPooling(in_channels, out_channels, norm_layer, up_kwargs)
@@ -242,7 +242,7 @@ def get_aspoc_gsecamnet(dataset='pascal_voc', backbone='resnet50', pretrained=Fa
               root='~/.encoding/models', **kwargs):
     # infer number of classes
     from ..datasets import datasets
-    model = ASPOC_GSECAMNet(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
+    model = ASPOC_GSECAM_Net(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
     if pretrained:
         raise NotImplementedError
 
