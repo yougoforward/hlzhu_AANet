@@ -47,7 +47,7 @@ def get_segmentation_model(name, **kwargs):
         'asp_oc_gap_secam': get_asp_oc_gap_secamnet,
         'pgfnet': get_pgfnet,
         'asp_pgfnet': get_asp_pgfnet,
-        'asppacaca' : get_asppacaca,
+        'asppacaca': get_asppacaca,
         'aspoc_gsecam': get_aspoc_secamnet,
         'aspoc_gsecam_du': get_aspoc_gsecam_dunet,
     }

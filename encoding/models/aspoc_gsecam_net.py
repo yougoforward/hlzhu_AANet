@@ -45,6 +45,12 @@ class ASPOC_GSECAM_NetHead(nn.Module):
             nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
                           norm_layer(inter_channels),
                           nn.ReLU(inplace=True))
+        self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
+                                    norm_layer(inter_channels),
+                                    nn.ReLU(inplace=True)) if jpu else \
+            nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
+                          norm_layer(inter_channels),
+                          nn.ReLU(inplace=True))
         
         self.aa_aspp = aa_ASPP_Module(inter_channels, 256, atrous_rates, norm_layer, up_kwargs)
 
@@ -61,9 +67,10 @@ class ASPOC_GSECAM_NetHead(nn.Module):
             self.selayer = nn.Linear(512, num_classes)
 
     def forward(self, x):
-        x = self.conv5a(x)
-        aspp_feat = self.aa_aspp(x)
-        sec_feat = self.sec(x)
+        aa_x = self.conv5a(x)
+        aspp_feat = self.aa_aspp(aa_x)
+        ss_x = self.conv5c(x)
+        sec_feat = self.sec(ss_x)
         feat_sum = aspp_feat+sec_feat
 
         if self.se_loss:
