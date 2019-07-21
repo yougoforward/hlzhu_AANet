@@ -20,18 +20,27 @@ class ASPOC_GSECAM_DU_Net(BaseNet):
         if aux:
             self.auxlayer = FCNHead(1024, nclass, norm_layer)
 
-        self.conv2 = nn.Sequential(nn.Conv2d(256, 256, 3, padding=1, bias=False),
-                                   norm_layer(256),
+        self.conv2 = nn.Sequential(nn.Conv2d(256, 128, 3, padding=1, bias=False),
+                                   norm_layer(128),
                                    nn.ReLU(inplace=True))
 
-        self.conv3 = nn.Sequential(nn.Conv2d(512, 512, 3, padding=1, bias=False),
-                                   norm_layer(512),
+        self.conv3 = nn.Sequential(nn.Conv2d(512, 256, 3, padding=1, bias=False),
+                                   norm_layer(256),
                                    nn.ReLU(inplace=True))
-        self.conv4 = nn.Sequential(nn.Conv2d(1024, 1024, 3, padding=1, bias=False),
-                                   norm_layer(1024),
+        self.conv4 = nn.Sequential(nn.Conv2d(1024, 512, 3, padding=1, bias=False),
+                                   norm_layer(512),
                                    nn.ReLU(inplace=True))
         self.conv5 = nn.Sequential(nn.Conv2d(2048, 2048, 3, padding=1, bias=False),
                                    norm_layer(2048),
+                                   nn.ReLU(inplace=True))
+        self.conv6 = nn.Sequential(nn.Conv2d(512, 1024, 3, padding=1, bias=False),
+                                   norm_layer(1024),
+                                   nn.ReLU(inplace=True))
+        self.conv7 = nn.Sequential(nn.Conv2d(256, 512, 3, padding=1, bias=False),
+                                   norm_layer(512),
+                                   nn.ReLU(inplace=True))
+        self.conv8 = nn.Sequential(nn.Conv2d(128, 128, 3, padding=1, bias=False),
+                                   norm_layer(128),
                                    nn.ReLU(inplace=True))
 
     def forward(self, x):
@@ -43,12 +52,11 @@ class ASPOC_GSECAM_DU_Net(BaseNet):
         rearr_c3 = self.conv4(c3)
         rearr_c4 = self.conv5(c4)
 
-        c3_du = F.pixel_shuffle(rearr_c3, 2)+rearr_c1
-        c4_du = F.pixel_shuffle(rearr_c4, 2) + rearr_c2
+        c4_du = self.conv6(F.pixel_shuffle(rearr_c4, 2) + rearr_c3)
+        c3_du = self.conv7(F.pixel_shuffle(c4_du, 2) + rearr_c2)
+        c2_du = self.conv8(F.pixel_shuffle(c3_du, 2) + rearr_c1)
 
-
-
-        x = list(self.head(c4_du, c3_du))
+        x = list(self.head(c3_du, c2_du))
 
 
         x[0] = F.interpolate(x[0], (h, w), **self._up_kwargs)
@@ -66,22 +74,10 @@ class ASPOC_GSECAM_DU_NetHead(nn.Module):
         self.se_loss = se_loss
         inter_channels = in_channels // 4
 
-        self.conv5a = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
-                                    norm_layer(inter_channels),
-                                    nn.ReLU(inplace=True)) if jpu else \
-            nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
-                          norm_layer(inter_channels),
-                          nn.ReLU(inplace=True))
 
         self.aa_aspp = aa_ASPP_Module(inter_channels, 256, atrous_rates, norm_layer, up_kwargs)
 
-        self.sec = guided_SE_CAM_Module(inter_channels, 256, 256, norm_layer)
-
-
-        self.conv2 = nn.Sequential(nn.Conv2d(256, 48, kernel_size=1, stride=1, padding=0, dilation=1, bias=False),
-                                   norm_layer(48), nn.ReLU(inplace=False))
-
-        self.conv3 = nn.Sequential(nn.Conv2d(304, 256, kernel_size=1, padding=0, dilation=1, bias=False),
+        self.conv3 = nn.Sequential(nn.Conv2d(384, 256, kernel_size=1, padding=0, dilation=1, bias=False),
                                    norm_layer(256), nn.ReLU(inplace=False),
                                    nn.Conv2d(256, 256, kernel_size=1, padding=0, dilation=1, bias=False),
                                    norm_layer(256), nn.ReLU(inplace=False))
@@ -96,14 +92,11 @@ class ASPOC_GSECAM_DU_NetHead(nn.Module):
             self.selayer = nn.Linear(256, num_classes)
 
     def forward(self, x, xl):
-        # x = self.conv5a(x)
         aspp_feat = self.aa_aspp(x)
-        sec_feat = self.sec(x)
-        feat_sum = aspp_feat + sec_feat
+        feat_sum = aspp_feat
 
         _, _, th, tw = xl.size()
         xt = F.interpolate(feat_sum, size=(th, tw), mode='bilinear', align_corners=True)
-        xl = self.conv2(xl)
         x = torch.cat([xt, xl], dim=1)
         feat_sum = self.conv3(x)
 
@@ -267,7 +260,9 @@ class aa_ASPP_Module(nn.Module):
                                norm_layer=norm_layer, scale=2))
 
         self.b4 = AsppPooling(in_channels, out_channels, norm_layer, up_kwargs)
-        self.guided_se_cam = guided_SE_CAM_Module(6 * out_channels, out_channels, out_channels, norm_layer)
+        self.sec = guided_SE_CAM_Module(in_channels, out_channels, out_channels, norm_layer)
+
+        self.guided_se_cam = guided_SE_CAM_Module(7 * out_channels, out_channels, out_channels, norm_layer)
 
     def forward(self, x):
         _, _, h, w = x.size()
@@ -277,7 +272,8 @@ class aa_ASPP_Module(nn.Module):
         feat3 = self.b3(x)
         feat4 = self.b4(x)
         oc = self.context(x)
-        y = torch.cat((feat0, feat1, feat2, feat3, feat4, oc), 1)
+        sec = self.sec(x)
+        y = torch.cat((feat0, feat1, feat2, feat3, feat4, oc, sec), 1)
         out = self.guided_se_cam(y)
         return out
 
