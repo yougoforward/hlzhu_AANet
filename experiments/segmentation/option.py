@@ -80,7 +80,7 @@ class Options():
         parser.add_argument('--mode', default='testval')
         parser.add_argument('--ms', action='store_true', default=False,
                             help='multi scale & flip')
-        parser.add_argument('--no-val', action='store_true', default= False,
+        parser.add_argument('--no-val', action='store_true', default= True,
                             help='skip validation during training')
         parser.add_argument('--save-folder', type=str, default='results',
                             help = 'path to save images')
