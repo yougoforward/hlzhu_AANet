@@ -264,7 +264,7 @@ class aa_ASPP_Module(nn.Module):
             norm_layer(out_channels), nn.ReLU(),
             SelfAttentionBlock(in_channels=out_channels, out_channels=out_channels, key_channels=out_channels // 2,
                                value_channels=out_channels,
-                               dropout=0, scale=2))
+                               norm_layer=norm_layer, scale=2))
 
         self.b4 = AsppPooling(in_channels, out_channels, norm_layer, up_kwargs)
         self.guided_se_cam = guided_SE_CAM_Module(6 * out_channels, out_channels, out_channels, norm_layer)
