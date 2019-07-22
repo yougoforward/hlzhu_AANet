@@ -67,11 +67,12 @@ class ASPOC_GSECAM_NetHead(nn.Module):
             self.selayer = nn.Linear(512, num_classes)
 
     def forward(self, x):
-        aa_x = self.conv5a(x)
-        aspp_feat = self.aa_aspp(aa_x)
-        ss_x = self.conv5c(x)
-        sec_feat = self.sec(ss_x)
-        feat_sum = aspp_feat+sec_feat
+        # aa_x = self.conv5a(x)
+        aspp_feat = self.aa_aspp(x)
+        # ss_x = self.conv5c(x)
+        # sec_feat = self.sec(ss_x)
+        # feat_sum = aspp_feat+sec_feat
+        feat_sum = aspp_feat
 
         if self.se_loss:
             gap_feat = self.gap(feat_sum)
@@ -230,7 +231,9 @@ class aa_ASPP_Module(nn.Module):
                                     dropout=0, scale=2))
 
         self.b4 = AsppPooling(in_channels, out_channels, norm_layer, up_kwargs)
-        self.guided_se_cam = guided_SE_CAM_Module(6 * out_channels, out_channels, 2*out_channels, norm_layer)
+        self.sec = guided_SE_CAM_Module(in_channels, out_channels, out_channels, norm_layer)
+
+        self.guided_se_cam = guided_SE_CAM_Module(7 * out_channels, out_channels, out_channels, norm_layer)
 
     def forward(self, x):
         _, _, h, w = x.size()
@@ -240,7 +243,8 @@ class aa_ASPP_Module(nn.Module):
         feat3 = self.b3(x)
         feat4 = self.b4(x)
         oc = self.context(x)
-        y = torch.cat((feat0, feat1, feat2, feat3, feat4, oc), 1)
+        sec = self.sec(x)
+        y = torch.cat((feat0, feat1, feat2, feat3, feat4, oc, sec), 1)
         out = self.guided_se_cam(y)
         return out
 
@@ -336,7 +340,7 @@ class guided_SE_CAM_Module(nn.Module):
             nn.Conv2d(query_dim, out_dim, kernel_size=1, padding=0, dilation=1, bias=False),
             norm_layer(out_dim), nn.ReLU(True),
         )
-
+        self.relu = nn.ReLU()
     def forward(self, x):
         """
             inputs :
@@ -347,9 +351,9 @@ class guided_SE_CAM_Module(nn.Module):
         """
         bottle = self.project(x)
         bottle = self.gamma*self.guided_cam(x, bottle)+bottle
-        bottle = self.fuse(bottle)
+        # bottle = self.fuse(bottle)
         se_x = self.se(x)
-        se_bottle = se_x * bottle + bottle
+        se_bottle = self.relu(se_x * bottle + bottle)
         out = self.out(se_bottle)
         return out
 
