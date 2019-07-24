@@ -58,8 +58,8 @@ class AANetHead(nn.Module):
                           norm_layer(512),
                           nn.ReLU(inplace=True))
 
-        # self.sa = PAM_Module(inter_channels, inter_channels // 8, inter_channels, scale=1)
-        self.sa = topk_PAM_Module(inter_channels, inter_channels // 8, inter_channels, 0.1, scale=1)
+        self.sa = PAM_Module(inter_channels, inter_channels // 8, inter_channels, scale=1)
+        # self.sa = topk_PAM_Module(inter_channels, inter_channels // 8, inter_channels, 0.1, scale=1)
         self.aa_aspp = aa_ASPP_Module(inter_channels, atrous_rates, norm_layer, up_kwargs)
         self.sec = SE_CAM_Module(inter_channels)
 
