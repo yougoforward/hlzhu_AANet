@@ -213,6 +213,7 @@ class PAM_Module(nn.Module):
         self.chanel_in = in_dim
         self.key_dim = key_dim
         self.out_dim = out_dim
+        self.scale =scale
         if scale>1:
             self.pool = nn.MaxPool2d(kernel_size=(scale, scale))
 
@@ -264,6 +265,7 @@ class topk_PAM_Module(nn.Module):
         self.key_dim = key_dim
         self.out_dim = out_dim
         self.topk = topk
+        self.scale =scale
 
         if scale>1:
             self.pool = nn.MaxPool2d(kernel_size=(scale, scale))
