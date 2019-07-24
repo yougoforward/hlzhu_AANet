@@ -26,6 +26,7 @@ from .aspoc_gsecam_net import *
 from .aspoc_gsecam_du_net import *
 from .fcn_8s import *
 from .fcn_du import *
+from .aanet_simple import *
 def get_segmentation_model(name, **kwargs):
     from .fcn import get_fcn
     models = {
@@ -54,5 +55,6 @@ def get_segmentation_model(name, **kwargs):
         'aspoc_gsecam_du': get_aspoc_gsecam_dunet,
         'fcn_8s': get_fcn_8s,
         'fcn_du': get_fcn_du,
+        'aanet_simple': get_aanet_fast,
     }
     return models[name.lower()](**kwargs)
