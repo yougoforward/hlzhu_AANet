@@ -81,8 +81,8 @@ class BaseDataset(data.Dataset):
         img = img.resize((ow, oh), Image.BILINEAR)
         mask = mask.resize((ow, oh), Image.NEAREST)
 
-        # random rotate
-        img, mask = RandomRotation(img, mask, 20, is_continuous=False)
+        # # random rotate
+        # img, mask = RandomRotation(img, mask, 10, is_continuous=False)
 
         # pad crop
         if short_size < crop_size:
@@ -101,12 +101,12 @@ class BaseDataset(data.Dataset):
             img = img.filter(ImageFilter.GaussianBlur(
                 radius=random.random()))
 
-        #random hsv
-        img = RandomHSV(img, 10, 10, 10)
-        #random contrast
-        img=RandomContrast(img)
-        #random perm
-        img = RandomPerm(img)
+        # #random hsv
+        # img = RandomHSV(img, 10, 10, 10)
+        # #random contrast
+        # img=RandomContrast(img)
+        # #random perm
+        # img = RandomPerm(img)
         # final transform
         return img, self._mask_transform(mask)
 
