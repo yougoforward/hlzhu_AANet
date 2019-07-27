@@ -189,12 +189,12 @@ class MultiEvalModule(DataParallel):
             if h<w:
                 longsize = w
 
-            crop_size = self.crop_size*scale
+            crop_size = int(self.crop_size*scale)
             # resize image to current size
-            cur_img = F.interpolate(image, None, self.crop_size*scale/longsize, **self.module._up_kwargs)
-            _, _, cu_h,cu_w =cur_img.size()
+            cur_img = F.interpolate(image, None, crop_size/float(longsize), **self.module._up_kwargs)
+            _, _, cu_h, cu_w =cur_img.size()
 
-            if cu_h < crop_size or cu_w<crop_size:
+            if cu_h < crop_size or cu_w < crop_size:
                 pad_img = pad_image(cur_img, self.module.mean,
                                     self.module.std, crop_size)
                 outputs = module_inference(self.module, pad_img, self.flip)
