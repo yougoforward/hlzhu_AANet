@@ -8,14 +8,14 @@ from .mask_softmax import Mask_Softmax
 from .fcn import FCNHead
 from .base import BaseNet
 
-__all__ = ['AMGAPACANet', 'get_amgapacanet']
+__all__ = ['AMCACAMNet', 'get_amcacamnet']
 
 
-class AMGAPACANet(BaseNet):
+class AMCACAMNet(BaseNet):
     def __init__(self, nclass, backbone, aux=True, se_loss=False, norm_layer=nn.BatchNorm2d, **kwargs):
-        super(AMGAPACANet, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
+        super(AMCACAMNet, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
 
-        self.head = AMGAPACANetHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
+        self.head = AMCACAMNetHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
         if aux:
             self.auxlayer = FCNHead(1024, nclass, norm_layer)
 
@@ -32,52 +32,30 @@ class AMGAPACANet(BaseNet):
         return tuple(x)
 
 
-class AMGAPACANetHead(nn.Module):
+class AMCACAMNetHead(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, se_loss, jpu=False, up_kwargs=None,
                  atrous_rates=(12, 24, 36)):
-        super(AMGAPACANetHead, self).__init__()
+        super(AMCACAMNetHead, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 4
 
-        # self.conv5a = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
-        #                             norm_layer(512),
-        #                             nn.ReLU(inplace=True)) if jpu else \
-        #     nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
-        #                   norm_layer(512),
-        #                   nn.ReLU(inplace=True))
-        # self.conv5as = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
-        #                              norm_layer(512),
-        #                              nn.ReLU(inplace=True)) if jpu else \
-        #     nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
-        #                   norm_layer(512),
-        #                   nn.ReLU(inplace=True))
-        # self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
-        #                             norm_layer(512),
-        #                             nn.ReLU(inplace=True)) if jpu else \
-        #     nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
-        #                   norm_layer(512),
-        #                   nn.ReLU(inplace=True))
+        self.aa_aspp = aa_ASPP_Module(in_channels, atrous_rates, norm_layer, up_kwargs)
+        self.conv5 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
+                                    norm_layer(inter_channels), nn.ReLU(True))
+
+
         self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
                                     norm_layer(512),
                                     nn.ReLU(inplace=True))
-
-        # self.sa = PAM_Module(inter_channels, inter_channels // 8, inter_channels)
-        # self.sa = topk_PAM_Module(inter_channels, 256, inter_channels, 10)
-        self.aa_aspp = aa_ASPP_Module(in_channels, atrous_rates, norm_layer, up_kwargs)
-        # self.sec = SE_CAM_Module(inter_channels)
-
-        self.sec = guided_SE_CAM_Module(inter_channels, 256, 256, norm_layer)
-        # self.conv51 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
-        #                             norm_layer(inter_channels), nn.ReLU(True))
-        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
+        self.sec = CAM_Module(inter_channels)
+        self.conv5e = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
-        self.conv53 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
-                                    norm_layer(inter_channels), nn.ReLU(True))
+
+
+
 
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(512, out_channels, 1))
-
         self.gap = nn.AdaptiveAvgPool2d(1)
-
         self.fc = nn.Sequential(
             nn.Conv2d(inter_channels, inter_channels, 1),
             nn.Sigmoid())
@@ -86,21 +64,15 @@ class AMGAPACANetHead(nn.Module):
             self.selayer = nn.Linear(inter_channels, out_channels)
 
     def forward(self, x):
-        # ssa
-        # feat1 = self.conv5a(x)
-        # sa_feat = self.sa(feat1)
-        # sa_conv = self.conv51(sa_feat)
-        # aaspp
-        # feat_as = self.conv5as(x)
+
         aspp_feat = self.aa_aspp(x)
-        aspp_conv = self.conv52(aspp_feat)
+        aspp_conv = self.conv5(aspp_feat)
         # sec
-        feat2 = self.conv5c(x)
-        sec_feat = self.sec(feat2)
-        # sec_conv = self.conv53(sec_feat)
-        # fuse
-        # feat_sum = aspp_conv + sec_conv + sa_conv
-        # outputs = self.conv8(feat_sum)
+        feat = self.conv5c(x)
+        sec_feat = self.sec(feat)
+        sec_feat = self.conv5e(sec_feat)
+
+
         feat_sum = aspp_conv+sec_feat
 
         if self.se_loss:
@@ -198,103 +170,15 @@ class aa_ASPP_Module(nn.Module):
         return out
 
 
-def get_amgapacanet(dataset='pascal_voc', backbone='resnet50', pretrained=False,
+def get_amcacamnet(dataset='pascal_voc', backbone='resnet50', pretrained=False,
               root='~/.encoding/models', **kwargs):
     # infer number of classes
     from ..datasets import datasets
-    model = AMGAPACANet(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
+    model = AMCACAMNet(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
     if pretrained:
         raise NotImplementedError
 
     return model
-
-
-class PAM_Module(nn.Module):
-    """ Position attention module"""
-
-    # Ref from SAGAN
-    def __init__(self, in_dim, key_dim, out_dim):
-        super(PAM_Module, self).__init__()
-        self.chanel_in = in_dim
-
-        self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
-        self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
-        self.value_conv = nn.Conv2d(in_channels=in_dim, out_channels=out_dim, kernel_size=1)
-        self.gamma = nn.Parameter(torch.zeros(1))
-
-        self.softmax = nn.Softmax(dim=-1)
-
-    def forward(self, x):
-        """
-            inputs :
-                x : input feature maps( B X C X H X W)
-            returns :
-                out : attention value + input feature
-                attention: B X (HxW) X (HxW)
-        """
-        m_batchsize, C, height, width = x.size()
-        proj_query = self.query_conv(x).view(m_batchsize, -1, width * height).permute(0, 2, 1)
-        proj_key = self.key_conv(x).view(m_batchsize, -1, width * height)
-        energy = torch.bmm(proj_query, proj_key)
-        attention = self.softmax(energy)
-        proj_value = self.value_conv(x).view(m_batchsize, -1, width * height)
-
-        out = torch.bmm(proj_value, attention.permute(0, 2, 1))
-        out = out.view(m_batchsize, C, height, width)
-
-        out = self.gamma * out + x
-        return out
-
-
-class topk_PAM_Module(nn.Module):
-    """ Position attention module"""
-
-    # Ref from SAGAN
-    def __init__(self, in_dim, key_dim, out_dim, topk=10):
-        super(topk_PAM_Module, self).__init__()
-        self.chanel_in = in_dim
-        self.topk = topk
-        self.key_channels = key_dim
-
-        self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
-        self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
-        self.value_conv = nn.Conv2d(in_channels=in_dim, out_channels=out_dim, kernel_size=1)
-
-        self.gamma = nn.Parameter(torch.zeros(1))
-        self.softmax = Mask_Softmax(dim=-1)
-
-    def forward(self, x):
-        """
-            inputs :
-                x : input feature maps( B X C X H X W)
-            returns :
-                out : attention value + input feature
-                attention: B X (HxW) X (HxW)
-        """
-        m_batchsize, C, height, width = x.size()
-        proj_query = self.query_conv(x).view(m_batchsize, -1, width * height).permute(0, 2, 1)
-        proj_key = self.key_conv(x).view(m_batchsize, -1, width * height)
-        energy = torch.bmm(proj_query, proj_key)
-        proj_value = self.value_conv(x)
-        proj_value = proj_value.view(m_batchsize, -1, width * height)
-
-        # attention mask selection
-        val, idx = torch.topk(energy, height * width // self.topk, dim=2, largest=True, sorted=False)
-        at_sparse = torch.zeros_like(energy).cuda()
-        attention_mask = at_sparse.scatter_(2, idx, 1.0)
-
-        attention = self.softmax([energy, attention_mask])
-
-        # for inference with batch 1
-        # energy_sp = topk2sparse(idx, val)
-        # attention_sp = sparse_softmax(energy_sp)
-        # out = torch.sparse.mm(attention_sp,proj_value.permute(0,2,1)).permute(0,2,1)
-
-        out = torch.bmm(proj_value, attention.permute(0, 2, 1))
-        out = out.view(m_batchsize, C, height, width)
-
-        out = self.gamma * out + x
-        return out
 
 
 class guided_CAM_Module(nn.Module):
@@ -386,57 +270,16 @@ class guided_SE_CAM_Module(nn.Module):
         return out
 
 
-class SE_CAM_Module(nn.Module):
-    """ Channel attention module"""
-
-    def __init__(self, in_dim):
-        super(SE_CAM_Module, self).__init__()
-        self.chanel_in = in_dim
-
-        self.gamma = nn.Parameter(torch.zeros(1))
-        self.softmax = nn.Softmax(dim=-1)
-
-        self.se = SE_Module(in_dim, in_dim)
-
-    def forward(self, x):
-        """
-            inputs :
-                x : input feature maps( B X C X H X W)
-            returns :
-                out : attention value + input feature
-                attention: B X C X C
-        """
-        m_batchsize, C, height, width = x.size()
-        proj_query = x.view(m_batchsize, C, -1)
-        proj_key = x.view(m_batchsize, C, -1).permute(0, 2, 1)
-
-        energy = torch.bmm(proj_query, proj_key)
-
-        energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy) - energy
-        attention = self.softmax(energy_new)
-        proj_value = x.view(m_batchsize, C, -1)
-
-        out = torch.bmm(attention, proj_value)
-        out = out.view(m_batchsize, C, height, width)
-
-        se_x = self.se(x)
-        se_out = se_x * x
-
-        out = se_out + self.gamma * out + x
-        return out
-
-
 class CAM_Module(nn.Module):
     """ Channel attention module"""
-
     def __init__(self, in_dim):
         super(CAM_Module, self).__init__()
         self.chanel_in = in_dim
 
-        self.gamma = nn.Parameter(torch.zeros(1))
-        self.softmax = nn.Softmax(dim=-1)
 
-    def forward(self, x):
+        self.gamma = nn.Parameter(torch.zeros(1))
+        self.softmax  = nn.Softmax(dim=-1)
+    def forward(self,x):
         """
             inputs :
                 x : input feature maps( B X C X H X W)
@@ -448,13 +291,13 @@ class CAM_Module(nn.Module):
         proj_query = x.view(m_batchsize, C, -1)
         proj_key = x.view(m_batchsize, C, -1).permute(0, 2, 1)
         energy = torch.bmm(proj_query, proj_key)
-        energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy) - energy
+        energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy)-energy
         attention = self.softmax(energy_new)
         proj_value = x.view(m_batchsize, C, -1)
 
         out = torch.bmm(attention, proj_value)
         out = out.view(m_batchsize, C, height, width)
 
-        out = self.gamma * out + x
+        out = self.gamma*out + x
         return out
 

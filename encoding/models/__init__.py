@@ -14,7 +14,6 @@ from .pydict_encnet import *
 from .aanet_encnet import *
 from .aanet_nopam import *
 from .aanet_pam_metric import *
-from .amca_aca import *
 from .amca_asppaca import *
 from .amca_gap_aca import *
 from .aspoc_secam import *
@@ -27,6 +26,18 @@ from .aspoc_gsecam_du_net import *
 from .fcn_8s import *
 from .fcn_du import *
 from .aanet_simple import *
+from .amca import *
+from .amca2 import *
+from .aca import *
+from .aca2 import *
+from .aspp import *
+from .aspp2 import *
+from .cam import *
+from .cam2 import *
+from .asppcam import *
+from .asppaca import *
+from .amcacam import *
+from .amcaaca import *
 def get_segmentation_model(name, **kwargs):
     from .fcn import get_fcn
     models = {
@@ -43,8 +54,6 @@ def get_segmentation_model(name, **kwargs):
         'aanet_encnet': get_aanet_encnet,
         'aanet_nopam': get_aanet_nopam,
         'aanet_metric': get_aanet_metric,
-        'amaca': get_amacanet,
-        'amca_gapaca': get_amgapacanet,
         'amca_asppaca': get_amca_aspp_acanet,
         'aspoc_secam': get_aspoc_secamnet,
         'asp_oc_gap_secam': get_asp_oc_gap_secamnet,
@@ -55,6 +64,20 @@ def get_segmentation_model(name, **kwargs):
         'aspoc_gsecam_du': get_aspoc_gsecam_dunet,
         'fcn_8s': get_fcn_8s,
         'fcn_du': get_fcn_du,
+
         'aanet_simple': get_aanet_fast,
+        'amca': get_amcanet,
+        'amca2': get_amca2net,
+        'aca': get_acanet,
+        'aca2': get_aca2net,
+        'aspp': get_asppnet,
+        'aspp2': get_aspp2net,
+        'cam': get_camnet,
+        'cam2': get_cam2net,
+        'asppcam': get_asppcamnet,
+        'asppaca': get_asppacanet,
+        'amcaaca': get_amcacamnet,
+        'amcacam': get_amcacamnet,
+
     }
     return models[name.lower()](**kwargs)
