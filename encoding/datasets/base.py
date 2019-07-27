@@ -81,7 +81,7 @@ class BaseDataset(data.Dataset):
         img = img.resize((ow, oh), Image.BILINEAR)
         mask = mask.resize((ow, oh), Image.NEAREST)
 
-        # # random rotate
+        # # # random rotate
         # img, mask = RandomRotation(img, mask, 10, is_continuous=False)
 
         # pad crop
@@ -101,10 +101,10 @@ class BaseDataset(data.Dataset):
             img = img.filter(ImageFilter.GaussianBlur(
                 radius=random.random()))
 
-        # #random hsv
-        # img = RandomHSV(img, 10, 10, 10)
-        # #random contrast
-        # img=RandomContrast(img)
+        #random hsv
+        img = RandomHSV(img, 10, 10, 10)
+        #random contrast
+        img=RandomContrast(img)
         # #random perm
         # img = RandomPerm(img)
         # final transform
