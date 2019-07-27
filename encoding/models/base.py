@@ -197,6 +197,8 @@ class MultiEvalModule(DataParallel):
             if cu_h < crop_size or cu_w < crop_size:
                 pad_img = pad_image(cur_img, self.module.mean,
                                     self.module.std, crop_size)
+            else:
+                pad_img = cur_img
                 outputs = module_inference(self.module, pad_img, self.flip)
                 outputs = crop_image(outputs, 0, cu_h, 0, cu_w)
             # outputs = module_inference(self.module, cur_img, self.flip)
