@@ -199,8 +199,8 @@ class MultiEvalModule(DataParallel):
                                     self.module.std, crop_size)
             else:
                 pad_img = cur_img
-                outputs = module_inference(self.module, pad_img, self.flip)
-                outputs = crop_image(outputs, 0, cu_h, 0, cu_w)
+            outputs = module_inference(self.module, pad_img, self.flip)
+            outputs = crop_image(outputs, 0, cu_h, 0, cu_w)
             # outputs = module_inference(self.module, cur_img, self.flip)
             score = resize_image(outputs, h, w, **self.module._up_kwargs)
             scores += score
