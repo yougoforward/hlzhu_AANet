@@ -170,7 +170,7 @@ class aa_ASPP_Module(nn.Module):
         return out
 
 
-def get_amcaaca(dataset='pascal_voc', backbone='resnet50', pretrained=False,
+def get_amcaacanet(dataset='pascal_voc', backbone='resnet50', pretrained=False,
               root='~/.encoding/models', **kwargs):
     # infer number of classes
     from ..datasets import datasets
