@@ -40,12 +40,12 @@ class ASPPACANetHead(nn.Module):
         inter_channels = in_channels // 4
 
         self.aa_aspp = ASPP_Module(in_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv5 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
+        self.conv5 = nn.Sequential(nn.Conv2d(256, inter_channels, 3, padding=1, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
 
 
         self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
-                                    norm_layer(512),
+                                    norm_layer(inter_channels),
                                     nn.ReLU(inplace=True))
         self.sec = guided_SE_CAM_Module(inter_channels, 256, 256, norm_layer)
         self.conv5e = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
