@@ -103,8 +103,8 @@ class BaseDataset(data.Dataset):
 
         #random hsv
         img = RandomHSV(img, 10, 10, 10)
-        #random contrast
-        img=RandomContrast(img)
+        # #random contrast
+        # img=RandomContrast(img)
         # #random perm
         # img = RandomPerm(img)
         # final transform
