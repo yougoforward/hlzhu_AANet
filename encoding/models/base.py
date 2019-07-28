@@ -177,6 +177,35 @@ class MultiEvalModule(DataParallel):
     #         scores += score
     #
     #     return scores
+    # def forward(self, image):
+    #     """Mult-size Evaluation"""
+    #     # only single image is supported for evaluation
+    #     batch, _, h, w = image.size()
+    #     assert(batch == 1)
+    #     with torch.cuda.device_of(image):
+    #         scores = image.new().resize_(batch,self.nclass,h,w).zero_().cuda()
+    #     for scale in self.scales:
+    #         longsize = h
+    #         if h<w:
+    #             longsize = w
+    #
+    #         crop_size = int(self.crop_size*scale)
+    #         # resize image to current size
+    #         cur_img = F.interpolate(image, None, crop_size/float(longsize), **self.module._up_kwargs)
+    #         _, _, cu_h, cu_w =cur_img.size()
+    #
+    #         if cu_h < crop_size or cu_w < crop_size:
+    #             pad_img = pad_image(cur_img, self.module.mean,
+    #                                 self.module.std, crop_size)
+    #         else:
+    #             pad_img = cur_img
+    #         outputs = module_inference(self.module, pad_img, self.flip)
+    #         outputs = crop_image(outputs, 0, cu_h, 0, cu_w)
+    #         # outputs = module_inference(self.module, cur_img, self.flip)
+    #         score = resize_image(outputs, h, w, **self.module._up_kwargs)
+    #         scores += score
+    #
+    #     return scores
     def forward(self, image):
         """Mult-size Evaluation"""
         # only single image is supported for evaluation
@@ -185,22 +214,9 @@ class MultiEvalModule(DataParallel):
         with torch.cuda.device_of(image):
             scores = image.new().resize_(batch,self.nclass,h,w).zero_().cuda()
         for scale in self.scales:
-            longsize = h
-            if h<w:
-                longsize = w
-
-            crop_size = int(self.crop_size*scale)
             # resize image to current size
-            cur_img = F.interpolate(image, None, crop_size/float(longsize), **self.module._up_kwargs)
-            _, _, cu_h, cu_w =cur_img.size()
-
-            if cu_h < crop_size or cu_w < crop_size:
-                pad_img = pad_image(cur_img, self.module.mean,
-                                    self.module.std, crop_size)
-            else:
-                pad_img = cur_img
-            outputs = module_inference(self.module, pad_img, self.flip)
-            outputs = crop_image(outputs, 0, cu_h, 0, cu_w)
+            cur_img = F.interpolate(image, None, scale, **self.module._up_kwargs)
+            outputs = module_inference(self.module, cur_img, self.flip)
             # outputs = module_inference(self.module, cur_img, self.flip)
             score = resize_image(outputs, h, w, **self.module._up_kwargs)
             scores += score
