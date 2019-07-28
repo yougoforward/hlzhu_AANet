@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #train
-python train.py --dataset pcontext \
-    --model amcaaca --aux --dilated --base-size 608 --crop-size 576 \
-    --backbone resnet101 --checkname amcaaca_res101_pcontext
+#python train.py --dataset pcontext \
+#    --model amcaaca --aux --dilated --base-size 608 --crop-size 576 \
+#    --backbone resnet101 --checkname amcaaca_res101_pcontext
 
 #test [single-scale]
 python test.py --dataset pcontext \
