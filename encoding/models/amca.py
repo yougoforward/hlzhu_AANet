@@ -40,7 +40,7 @@ class AMCANetHead(nn.Module):
         inter_channels = in_channels // 4
 
         self.aa_aspp = aa_ASPP_Module(in_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
+        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
 
 
@@ -158,7 +158,7 @@ def get_amcanet(dataset='pascal_voc', backbone='resnet50', pretrained=False,
                     root='~/.encoding/models', **kwargs):
     # infer number of classes
     from ..datasets import datasets
-    model = AMCANetHead(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
+    model = AMCAHead(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
     if pretrained:
         raise NotImplementedError
 
