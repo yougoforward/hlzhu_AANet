@@ -163,7 +163,7 @@ def get_amca2net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
                     root='~/.encoding/models', **kwargs):
     # infer number of classes
     from ..datasets import datasets
-    model = AMCA2Head(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
+    model = AMCA2Net(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
     if pretrained:
         raise NotImplementedError
 
