@@ -39,11 +39,11 @@ class ACANetHead(nn.Module):
         self.se_loss = se_loss
         inter_channels = in_channels // 4
 
-        self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
+        self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
                                     norm_layer(512),
                                     nn.ReLU(inplace=True))
         self.sec = guided_SE_CAM_Module(inter_channels, 256, 256, norm_layer)
-        self.conv5e = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
+        self.conv5e = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
 
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(512, out_channels, 1))
