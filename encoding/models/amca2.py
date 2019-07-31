@@ -40,10 +40,10 @@ class AMCA2NetHead(nn.Module):
         inter_channels = in_channels // 4
 
         self.aa_aspp = aa_ASPP_Module(in_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv5 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
+        self.conv5 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
         self.aa_aspp2 = aa_ASPP_Module(in_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
+        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
 
 
