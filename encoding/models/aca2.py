@@ -39,17 +39,17 @@ class ACA2NetHead(nn.Module):
         self.se_loss = se_loss
         inter_channels = in_channels // 4
 
-        self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
-                                    norm_layer(512),
-                                    nn.ReLU(inplace=True))
-        self.sec = guided_SE_CAM_Module(inter_channels, 256, 256, norm_layer)
+        # self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
+        #                             norm_layer(512),
+        #                             nn.ReLU(inplace=True))
+        self.sec = guided_SE_CAM_Module(in_channels, 256, 256, norm_layer)
         self.conv5e = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
 
-        self.conv5c2 = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
-                                    norm_layer(512),
-                                    nn.ReLU(inplace=True))
-        self.sec2 = guided_SE_CAM_Module(inter_channels, 256, 256, norm_layer)
+        # self.conv5c2 = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
+        #                             norm_layer(512),
+        #                             nn.ReLU(inplace=True))
+        self.sec2 = guided_SE_CAM_Module(in_channels, 256, 256, norm_layer)
         self.conv5e2 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
 
@@ -65,12 +65,12 @@ class ACA2NetHead(nn.Module):
     def forward(self, x):
 
         # sec
-        feat = self.conv5c(x)
-        sec_feat = self.sec(feat)
+        # feat = self.conv5c(x)
+        sec_feat = self.sec(x)
         sec_feat = self.conv5e(sec_feat)
 
-        feat2 = self.conv5c2(x)
-        sec_feat2 = self.sec2(feat2)
+        # feat2 = self.conv5c2(x)
+        sec_feat2 = self.sec2(x)
         sec_feat2 = self.conv5e2(sec_feat2)
 
         feat_sum = sec_feat + sec_feat2
