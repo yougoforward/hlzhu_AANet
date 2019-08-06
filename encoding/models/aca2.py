@@ -69,9 +69,9 @@ class ACA2NetHead(nn.Module):
         sec_feat = self.sec(feat)
         sec_feat = self.conv5e(sec_feat)
 
-        feat2 = self.conv5c(x)
-        sec_feat2 = self.sec(feat2)
-        sec_feat2 = self.conv5e(sec_feat2)
+        feat2 = self.conv5c2(x)
+        sec_feat2 = self.sec2(feat2)
+        sec_feat2 = self.conv5e2(sec_feat2)
 
         feat_sum = sec_feat + sec_feat2
 
