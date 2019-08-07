@@ -40,16 +40,16 @@ class ACA2NetHead(nn.Module):
         inter_channels = in_channels // 4
 
         # self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
-        #                             norm_layer(512),
+        #                             norm_layer(inter_channels),
         #                             nn.ReLU(inplace=True))
-        self.sec = guided_SE_CAM_Module(in_channels, 256, 256, norm_layer)
+        self.sec = guided_SE_CAM_Module(in_channels, inter_channels, inter_channels, norm_layer)
         self.conv5e = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
 
         # self.conv5c2 = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
-        #                             norm_layer(512),
+        #                             norm_layer(inter_channels),
         #                             nn.ReLU(inplace=True))
-        self.sec2 = guided_SE_CAM_Module(in_channels, 256, 256, norm_layer)
+        self.sec2 = guided_SE_CAM_Module(in_channels, inter_channels, inter_channels, norm_layer)
         self.conv5e2 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
 
@@ -169,6 +169,7 @@ class guided_SE_CAM_Module(nn.Module):
             nn.Dropout2d(0.1)
         )
         self.se = SE_Module(in_dim, out_dim)
+        self.relu = nn.ReLU()
 
     def forward(self, x):
         """
@@ -183,7 +184,8 @@ class guided_SE_CAM_Module(nn.Module):
         bottle = self.project(x)
         se_x = self.se(x)
         se_bottle = se_x * bottle + bottle
-        out = torch.cat([gcam, se_bottle], dim=1)
+        # out = torch.cat([gcam, se_bottle], dim=1)
+        out = self.relu(se_bottle)+gcam
         return out
 
 
