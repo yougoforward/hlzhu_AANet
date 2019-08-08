@@ -107,35 +107,39 @@ class guided_CAM_Module(nn.Module):
         self.chanel_in = in_dim
         self.query_dim = query_dim
         self.chanel_out = out_dim
+        self.query_conv = nn.Sequential(
+            nn.Conv2d(in_channels=in_dim, out_channels=query_dim, kernel_size=1, bias=False), nn.BatchNorm2d(query_dim),
+            nn.ReLU())
+        self.key_conv = nn.Sequential(
+            nn.Conv2d(in_channels=in_dim, out_channels=query_dim, kernel_size=1, bias=False), nn.BatchNorm2d(query_dim),
+            nn.ReLU())
+        self.value_conv = nn.Sequential(
+            nn.Conv2d(in_channels=in_dim, out_channels=query_dim, kernel_size=1, bias=False), nn.BatchNorm2d(query_dim),
+            nn.ReLU())
 
         self.gamma = nn.Parameter(torch.zeros(1))
-        self.softmax = nn.Softmax(dim=-1)
-        self.query_conv_c = nn.Sequential(
-            nn.Conv2d(in_channels=in_dim, out_channels=query_dim, kernel_size=1, bias=False), nn.BatchNorm2d(query_dim),
-            nn.ReLU(), nn.Dropout2d(0.1))
-
-    def forward(self, x):
+        self.softmax  = nn.Softmax(dim=-1)
+    def forward(self,x):
         """
             inputs :
-                x=[x1,x2]
-                x1 : input feature maps( B X C*5 X H X W)
-                x2 : input deature maps (BxCxHxW)
+                x : input feature maps( B X C X H X W)
             returns :
-                out : output feature maps( B X C X H X W)
+                out : attention value + input feature
+                attention: B X C X C
         """
-
         m_batchsize, C, height, width = x.size()
-        proj_c_query = self.query_conv_c(x)
-
-        proj_c_key = x.view(m_batchsize, C, -1).permute(0, 2, 1)
-        energy = torch.bmm(proj_c_query.view(m_batchsize, self.query_dim, -1), proj_c_key)
-        energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy) - energy
+        proj_query = self.query_conv(x).view(m_batchsize, C, -1)
+        proj_key = self.key_conv(x).view(m_batchsize, C, -1).permute(0, 2, 1)
+        energy = torch.bmm(proj_query, proj_key)
+        energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy)-energy
         attention = self.softmax(energy_new)
+        proj_value = self.value_conv(x).view(m_batchsize, C, -1)
 
-        out_c = torch.bmm(attention, x.view(m_batchsize, -1, width * height))
-        out_c = out_c.view(m_batchsize, -1, height, width)
-        out_c = self.gamma * out_c + proj_c_query
-        return out_c
+        out = torch.bmm(attention, proj_value)
+        out = out.view(m_batchsize, C, height, width)
+
+        out = self.gamma*out + x
+        return out
 
 
 class SE_Module(nn.Module):
