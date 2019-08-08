@@ -137,7 +137,7 @@ class guided_CAM_Module(nn.Module):
         out = torch.bmm(attention, proj_value)
         out = out.view(m_batchsize, self.chanel_out, height, width)
 
-        out = self.gamma*out + x
+        out = self.gamma*out + proj_value
         return out
 
 
