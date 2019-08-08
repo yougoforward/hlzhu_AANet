@@ -132,9 +132,9 @@ class guided_CAM_Module(nn.Module):
         energy = torch.bmm(proj_query, proj_key)
         energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy)-energy
         attention = self.softmax(energy_new)
-        proj_value = self.value_conv(x).view(m_batchsize, self.chanel_out, -1)
+        proj_value = self.value_conv(x)
 
-        out = torch.bmm(attention, proj_value)
+        out = torch.bmm(attention, proj_value.view(m_batchsize, self.chanel_out, -1))
         out = out.view(m_batchsize, self.chanel_out, height, width)
 
         out = self.gamma*out + proj_value
