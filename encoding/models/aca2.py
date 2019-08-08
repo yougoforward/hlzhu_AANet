@@ -107,13 +107,13 @@ class guided_CAM_Module(nn.Module):
         self.chanel_in = in_dim
         self.chanel_out = out_dim
         self.query_conv = nn.Sequential(
-            nn.Conv2d(in_channels=in_dim, out_channels=out_dim, kernel_size=1, bias=False), nn.BatchNorm2d(query_dim),
+            nn.Conv2d(in_channels=in_dim, out_channels=out_dim, kernel_size=1, bias=False), nn.BatchNorm2d(out_dim),
             nn.ReLU())
         self.key_conv = nn.Sequential(
-            nn.Conv2d(in_channels=in_dim, out_channels=out_dim, kernel_size=1, bias=False), nn.BatchNorm2d(query_dim),
+            nn.Conv2d(in_channels=in_dim, out_channels=out_dim, kernel_size=1, bias=False), nn.BatchNorm2d(out_dim),
             nn.ReLU())
         self.value_conv = nn.Sequential(
-            nn.Conv2d(in_channels=in_dim, out_channels=out_dim, kernel_size=1, bias=False), nn.BatchNorm2d(query_dim),
+            nn.Conv2d(in_channels=in_dim, out_channels=out_dim, kernel_size=1, bias=False), nn.BatchNorm2d(out_dim),
             nn.ReLU())
 
         self.gamma = nn.Parameter(torch.zeros(1))
