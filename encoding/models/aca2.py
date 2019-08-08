@@ -42,14 +42,14 @@ class ACA2NetHead(nn.Module):
         # self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
         #                             norm_layer(inter_channels),
         #                             nn.ReLU(inplace=True))
-        self.sec = guided_SE_CAM_Module(in_channels, inter_channels, inter_channels, norm_layer)
+        self.sec = guided_SE_CAM_Module(in_channels, inter_channels, norm_layer)
         self.conv5e = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
 
         # self.conv5c2 = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
         #                             norm_layer(inter_channels),
         #                             nn.ReLU(inplace=True))
-        self.sec2 = guided_SE_CAM_Module(in_channels, inter_channels, inter_channels, norm_layer)
+        self.sec2 = guided_SE_CAM_Module(in_channels, inter_channels, norm_layer)
         self.conv5e2 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
 
@@ -102,19 +102,18 @@ class guided_CAM_Module(nn.Module):
     """ Position attention module"""
 
     # Ref from SAGAN
-    def __init__(self, in_dim, query_dim, out_dim):
+    def __init__(self, in_dim, out_dim):
         super(guided_CAM_Module, self).__init__()
         self.chanel_in = in_dim
-        self.query_dim = query_dim
         self.chanel_out = out_dim
         self.query_conv = nn.Sequential(
-            nn.Conv2d(in_channels=in_dim, out_channels=query_dim, kernel_size=1, bias=False), nn.BatchNorm2d(query_dim),
+            nn.Conv2d(in_channels=in_dim, out_channels=out_dim, kernel_size=1, bias=False), nn.BatchNorm2d(query_dim),
             nn.ReLU())
         self.key_conv = nn.Sequential(
-            nn.Conv2d(in_channels=in_dim, out_channels=query_dim, kernel_size=1, bias=False), nn.BatchNorm2d(query_dim),
+            nn.Conv2d(in_channels=in_dim, out_channels=out_dim, kernel_size=1, bias=False), nn.BatchNorm2d(query_dim),
             nn.ReLU())
         self.value_conv = nn.Sequential(
-            nn.Conv2d(in_channels=in_dim, out_channels=query_dim, kernel_size=1, bias=False), nn.BatchNorm2d(query_dim),
+            nn.Conv2d(in_channels=in_dim, out_channels=out_dim, kernel_size=1, bias=False), nn.BatchNorm2d(query_dim),
             nn.ReLU())
 
         self.gamma = nn.Parameter(torch.zeros(1))
@@ -128,15 +127,15 @@ class guided_CAM_Module(nn.Module):
                 attention: B X C X C
         """
         m_batchsize, C, height, width = x.size()
-        proj_query = self.query_conv(x).view(m_batchsize, C, -1)
-        proj_key = self.key_conv(x).view(m_batchsize, C, -1).permute(0, 2, 1)
+        proj_query = self.query_conv(x).view(m_batchsize, self.chanel_out, -1)
+        proj_key = self.key_conv(x).view(m_batchsize, self.chanel_out, -1).permute(0, 2, 1)
         energy = torch.bmm(proj_query, proj_key)
         energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy)-energy
         attention = self.softmax(energy_new)
-        proj_value = self.value_conv(x).view(m_batchsize, C, -1)
+        proj_value = self.value_conv(x).view(m_batchsize, self.chanel_out, -1)
 
         out = torch.bmm(attention, proj_value)
-        out = out.view(m_batchsize, C, height, width)
+        out = out.view(m_batchsize, self.chanel_out, height, width)
 
         out = self.gamma*out + x
         return out
@@ -164,13 +163,12 @@ class SE_Module(nn.Module):
 class guided_SE_CAM_Module(nn.Module):
     """ Channel attention module"""
 
-    def __init__(self, in_dim, query_dim, out_dim, norm_layer):
+    def __init__(self, in_dim, out_dim, norm_layer):
         super(guided_SE_CAM_Module, self).__init__()
-        self.guided_cam = guided_CAM_Module(in_dim, query_dim, out_dim)
+        self.guided_cam = guided_CAM_Module(in_dim, out_dim)
         self.project = nn.Sequential(
             nn.Conv2d(in_dim, out_dim, kernel_size=1, padding=0, dilation=1, bias=False),
             norm_layer(out_dim), nn.ReLU(True),
-            nn.Dropout2d(0.1)
         )
         self.se = SE_Module(in_dim, out_dim)
         self.relu = nn.ReLU()
@@ -189,7 +187,7 @@ class guided_SE_CAM_Module(nn.Module):
         se_x = self.se(x)
         se_bottle = se_x * bottle + bottle
         # out = torch.cat([gcam, se_bottle], dim=1)
-        out = self.relu(se_bottle)+gcam
+        out = self.relu(se_bottle+gcam)
         return out
 
 
