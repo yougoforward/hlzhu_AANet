@@ -38,6 +38,7 @@ from .asppcam import *
 from .asppaca import *
 from .amcacam import *
 from .amcaaca import *
+from .papnet import *
 def get_segmentation_model(name, **kwargs):
     from .fcn import get_fcn
     models = {
@@ -78,6 +79,6 @@ def get_segmentation_model(name, **kwargs):
         'asppaca': get_asppacanet,
         'amcaaca': get_amcacamnet,
         'amcacam': get_amcacamnet,
-
+        'papnet': get_papnet,
     }
     return models[name.lower()](**kwargs)
