@@ -79,6 +79,6 @@ def get_segmentation_model(name, **kwargs):
         'asppaca': get_asppacanet,
         'amcaaca': get_amcacamnet,
         'amcacam': get_amcacamnet,
-        'papnet': get_papnet,
+        'pap': get_papnet,
     }
     return models[name.lower()](**kwargs)
