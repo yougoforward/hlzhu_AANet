@@ -42,13 +42,13 @@ class papNetHead(nn.Module):
         self.conv5a = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, bias=False),
                                     norm_layer(inter_channels),
                                     nn.ReLU(inplace=True)) if jpu else \
-            nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
+            nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, padding=0, bias=False),
                           norm_layer(inter_channels),
                           nn.ReLU(inplace=True))
 
         self.pam = psp_aspp_PAM_Module(inter_channels, inter_channels // 8, norm_layer, atrous_rates, up_kwargs)
 
-        self.conv51 = nn.Sequential(nn.Conv2d(256, 256, 3, padding=1, bias=False),
+        self.conv51 = nn.Sequential(nn.Conv2d(256, 256, 1, padding=0, bias=False),
                                     norm_layer(256), nn.ReLU(True))
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(256, out_channels, 1))
 
