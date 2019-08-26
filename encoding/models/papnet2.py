@@ -8,14 +8,14 @@ from .mask_softmax import Mask_Softmax
 from .fcn import FCNHead
 from .base import BaseNet
 
-__all__ = ['papNet', 'get_papnet']
+__all__ = ['pap2Net', 'get_pap2net']
 
 
-class papNet(BaseNet):
+class pap2Net(BaseNet):
     def __init__(self, nclass, backbone, aux=True, se_loss=False, norm_layer=nn.BatchNorm2d, **kwargs):
-        super(papNet, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
+        super(pap2Net, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
 
-        self.head = papNetHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
+        self.head = pap2NetHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
         if aux:
             self.auxlayer = FCNHead(1024, nclass, norm_layer)
 
@@ -32,10 +32,10 @@ class papNet(BaseNet):
         return tuple(x)
 
 
-class papNetHead(nn.Module):
+class pap2NetHead(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, se_loss, jpu=False, up_kwargs=None,
                  atrous_rates=(12, 24, 36)):
-        super(papNetHead, self).__init__()
+        super(pap2NetHead, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 4
 
@@ -50,6 +50,11 @@ class papNetHead(nn.Module):
 
         self.conv51 = nn.Sequential(nn.Conv2d(256, 256, 1, padding=0, bias=False),
                                     norm_layer(256), nn.ReLU(True))
+
+        self.sec = guided_SE_CAM_Module(in_channels, 256, norm_layer)
+        self.conv5e = nn.Sequential(nn.Conv2d(256, 256, 1, padding=0, bias=False),
+                                    norm_layer(inter_channels), nn.ReLU(True))
+        
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(256, out_channels, 1))
 
         self.gap = nn.AdaptiveAvgPool2d(1)
@@ -60,12 +65,15 @@ class papNetHead(nn.Module):
             self.selayer = nn.Linear(256, out_channels)
 
     def forward(self, x):
+        sec_feat = self.sec(x)
+        sec_feat = self.conv5e(sec_feat)
+        
         # ssa
         feat1 = self.conv5a(x)
         sa_feat = self.pam(feat1)
         sa_conv = self.conv51(sa_feat)
         # fuse
-        feat_sum = sa_conv
+        feat_sum = sa_conv+sec_feat
         # outputs = self.conv8(feat_sum)
 
         if self.se_loss:
@@ -79,11 +87,11 @@ class papNetHead(nn.Module):
         return tuple(outputs)
 
 
-def get_papnet(dataset='pascal_voc', backbone='resnet50', pretrained=False,
+def get_pap2net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
                root='~/.encoding/models', **kwargs):
     # infer number of classes
     from ..datasets import datasets
-    model = papNet(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
+    model = pap2Net(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
     if pretrained:
         raise NotImplementedError
 
