@@ -53,7 +53,7 @@ class pap2NetHead(nn.Module):
 
         self.sec = guided_SE_CAM_Module(in_channels, 256, norm_layer)
         self.conv5e = nn.Sequential(nn.Conv2d(256, 256, 1, padding=0, bias=False),
-                                    norm_layer(inter_channels), nn.ReLU(True))
+                                    norm_layer(256), nn.ReLU(True))
         
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(256, out_channels, 1))
 
