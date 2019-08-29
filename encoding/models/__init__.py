@@ -40,6 +40,8 @@ from .amcacam import *
 from .amcaaca import *
 from .papnet import *
 from .papnet2 import *
+from .papnet3 import *
+from .papnet4 import *
 def get_segmentation_model(name, **kwargs):
     from .fcn import get_fcn
     models = {
@@ -82,5 +84,7 @@ def get_segmentation_model(name, **kwargs):
         'amcacam': get_amcacamnet,
         'pap': get_papnet,
         'pap2': get_pap2net,
+        'pap3': get_pap3net,
+        'pap4': get_pap4net,
     }
     return models[name.lower()](**kwargs)
