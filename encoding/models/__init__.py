@@ -42,6 +42,7 @@ from .papnet import *
 from .papnet2 import *
 from .papnet3 import *
 from .papnet4 import *
+from .papnet5 import *
 def get_segmentation_model(name, **kwargs):
     from .fcn import get_fcn
     models = {
@@ -86,5 +87,6 @@ def get_segmentation_model(name, **kwargs):
         'pap2': get_pap2net,
         'pap3': get_pap3net,
         'pap4': get_pap4net,
+        'pap5': get_pap5net,
     }
     return models[name.lower()](**kwargs)
