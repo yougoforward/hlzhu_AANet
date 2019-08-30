@@ -322,7 +322,7 @@ class guided_CAM_Module(nn.Module):
         out = out.view(m_batchsize, self.chanel_out, height, width)
 
         out = self.gamma * out + proj_value
-        return out
+        return out,proj_value
 
 
 class SE_Module(nn.Module):
@@ -350,7 +350,7 @@ class guided_SE_CAM_Module(nn.Module):
     def __init__(self, in_dim, out_dim, norm_layer):
         super(guided_SE_CAM_Module, self).__init__()
         self.guided_cam = guided_CAM_Module(in_dim, out_dim)
-        self.se = SE_Module(out_dim, out_dim)
+        self.se = SE_Module(in_dim, out_dim)
         self.relu = nn.ReLU()
 
     def forward(self, x):
@@ -361,9 +361,9 @@ class guided_SE_CAM_Module(nn.Module):
                 out : attention value + input feature
                 attention: B X C X C
         """
-        gcam = self.guided_cam(x)
-        se_x = self.se(gcam)
-        se_bottle = se_x * gcam
+        gcam, proj = self.guided_cam(x)
+        se_x = self.se(x)
+        se_bottle = se_x * proj
         out = self.relu(se_bottle + gcam)
         return out
 
