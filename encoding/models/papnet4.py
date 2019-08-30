@@ -322,7 +322,7 @@ class guided_CAM_Module(nn.Module):
         out = out.view(m_batchsize, self.chanel_out, height, width)
 
         out = self.gamma * out + proj_value
-        return out,proj_value
+        return out
 
 
 class SE_Module(nn.Module):
@@ -361,9 +361,9 @@ class guided_SE_CAM_Module(nn.Module):
                 out : attention value + input feature
                 attention: B X C X C
         """
-        gcam, proj = self.guided_cam(x)
+        gcam = self.guided_cam(x)
         se_x = self.se(x)
-        se_bottle = se_x * proj
+        se_bottle = se_x * gcam
         out = self.relu(se_bottle + gcam)
         return out
 
