@@ -8,14 +8,14 @@ from .mask_softmax import Mask_Softmax
 from .fcn import FCNHead
 from .base import BaseNet
 
-__all__ = ['pap4Net', 'get_pap4net']
+__all__ = ['pap6Net', 'get_pap6net']
 
 
-class pap4Net(BaseNet):
+class pap6Net(BaseNet):
     def __init__(self, nclass, backbone, aux=True, se_loss=False, norm_layer=nn.BatchNorm2d, **kwargs):
-        super(pap4Net, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
+        super(pap6Net, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
 
-        self.head = pap4NetHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
+        self.head = pap6NetHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
         if aux:
             self.auxlayer = FCNHead(1024, nclass, norm_layer)
 
@@ -32,10 +32,10 @@ class pap4Net(BaseNet):
         return tuple(x)
 
 
-class pap4NetHead(nn.Module):
+class pap6NetHead(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, se_loss, jpu=False, up_kwargs=None,
                  atrous_rates=(12, 24, 36)):
-        super(pap4NetHead, self).__init__()
+        super(pap6NetHead, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 4
 
@@ -50,6 +50,9 @@ class pap4NetHead(nn.Module):
 
         self.conv51 = nn.Sequential(nn.Conv2d(256, 256, 1, padding=0, bias=False),
                                     norm_layer(256), nn.ReLU(True))
+        self.sec = guided_SE_CAM_Module(in_channels, 256, norm_layer)
+        self.conv5e = nn.Sequential(nn.Conv2d(256, 256, 1, padding=0, bias=False),
+                                    norm_layer(256), nn.ReLU(True))
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(256, out_channels, 1))
 
         self.gap = nn.AdaptiveAvgPool2d(1)
@@ -60,12 +63,14 @@ class pap4NetHead(nn.Module):
             self.selayer = nn.Linear(256, out_channels)
 
     def forward(self, x):
+        sec_feat = self.sec(x)
+        sec_feat = self.conv5e(sec_feat)
         # ssa
         feat1 = self.conv5a(x)
         sa_feat = self.pam(feat1)
         sa_conv = self.conv51(sa_feat)
         # fuse
-        feat_sum = sa_conv
+        feat_sum = sa_conv+sec_feat
         # outputs = self.conv8(feat_sum)
 
         if self.se_loss:
@@ -79,11 +84,11 @@ class pap4NetHead(nn.Module):
         return tuple(outputs)
 
 
-def get_pap4net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
-               root='~/.encoding/models', **kwargs):
+def get_pap6net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
+                root='~/.encoding/models', **kwargs):
     # infer number of classes
     from ..datasets import datasets
-    model = pap4Net(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
+    model = pap6Net(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
     if pretrained:
         raise NotImplementedError
 
@@ -184,8 +189,7 @@ class psp_aspp_PAM_Module(nn.Module):
 
         self.query_conv = PyramidPooling(in_dim, key_dim, norm_layer, up_kwargs)
         self.key_conv = PyramidPooling(in_dim, key_dim, norm_layer, up_kwargs)
-        # self.value_conv = aa_ASPP_Module(in_dim, atrous_rates, norm_layer, up_kwargs)
-        self.value_conv = ASPP_Module(in_dim, atrous_rates, norm_layer, up_kwargs)
+        self.value_conv = aa_ASPP_Module(in_dim, atrous_rates, norm_layer, up_kwargs)
         self.gamma = nn.Parameter(torch.zeros(1))
 
         self.softmax = nn.Softmax(dim=-1)
@@ -326,6 +330,50 @@ class guided_CAM_Module(nn.Module):
         return out
 
 
+class guided_CAM_Module2(nn.Module):
+    """ Position attention module"""
+
+    # Ref from SAGAN
+    def __init__(self, in_dim, out_dim):
+        super(guided_CAM_Module2, self).__init__()
+        self.chanel_in = in_dim
+        self.chanel_out = out_dim
+        self.query_conv = nn.Sequential(
+            nn.Conv2d(in_channels=in_dim, out_channels=out_dim, kernel_size=1, bias=False), nn.BatchNorm2d(out_dim),
+            nn.ReLU())
+        self.key_conv = nn.Sequential(
+            nn.Conv2d(in_channels=in_dim, out_channels=out_dim, kernel_size=1, bias=False), nn.BatchNorm2d(out_dim),
+            nn.ReLU())
+        self.value_conv = nn.Sequential(
+            nn.Conv2d(in_channels=in_dim, out_channels=out_dim, kernel_size=1, bias=False), nn.BatchNorm2d(out_dim),
+            nn.ReLU())
+        self.pyramidpooling = PyramidPooling2()
+        self.gamma = nn.Parameter(torch.zeros(1))
+        self.softmax = nn.Softmax(dim=-1)
+
+    def forward(self, x):
+        """
+            inputs :
+                x : input feature maps( B X C X H X W)
+            returns :
+                out : attention value + input feature
+                attention: B X C X C
+        """
+        m_batchsize, C, height, width = x.size()
+        proj_query = self.pyramidpooling(self.query_conv(x))
+        proj_key = self.pyramidpooling(self.key_conv(x)).permute(0, 2, 1)
+        energy = torch.bmm(proj_query, proj_key)
+        energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy) - energy
+        attention = self.softmax(energy_new)
+        proj_value = self.value_conv(x)
+
+        out = torch.bmm(attention, proj_value.view(m_batchsize, self.chanel_out, -1))
+        out = out.view(m_batchsize, self.chanel_out, height, width)
+
+        out = self.gamma * out + proj_value
+        return out
+
+
 class SE_Module(nn.Module):
     """ Channel attention module"""
 
@@ -350,7 +398,11 @@ class guided_SE_CAM_Module(nn.Module):
 
     def __init__(self, in_dim, out_dim, norm_layer):
         super(guided_SE_CAM_Module, self).__init__()
-        self.guided_cam = guided_CAM_Module(in_dim, out_dim)
+        self.guided_cam = guided_CAM_Module2(in_dim, out_dim)
+        self.project = nn.Sequential(
+            nn.Conv2d(in_dim, out_dim, kernel_size=1, padding=0, dilation=1, bias=False),
+            norm_layer(out_dim), nn.ReLU(True),
+        )
         self.se = SE_Module(in_dim, out_dim)
         self.relu = nn.ReLU()
 
@@ -417,3 +469,26 @@ class PyramidPooling(nn.Module):
         feat = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         out = self.project(feat)
         return out
+
+
+class PyramidPooling2(nn.Module):
+    """
+    Reference:
+        Zhao, Hengshuang, et al. *"Pyramid scene parsing network."*
+    """
+
+    def __init__(self):
+        super(PyramidPooling2, self).__init__()
+        self.pool1 = nn.AdaptiveAvgPool2d(1)
+        self.pool2 = nn.AdaptiveAvgPool2d(2)
+        self.pool3 = nn.AdaptiveAvgPool2d(3)
+        self.pool4 = nn.AdaptiveAvgPool2d(6)
+
+    def forward(self, x):
+        bs, ch, h, w = x.size()
+        feat1 = self.pool1(x).view(bs, ch, -1)
+        feat2 = self.pool2(x).view(bs, ch, -1)
+        feat3 = self.pool3(x).view(bs, ch, -1)
+        feat4 = self.pool4(x).view(bs, ch, -1)
+        feat = torch.cat((feat1, feat2, feat3, feat4), -1)
+        return feat

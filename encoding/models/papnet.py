@@ -343,7 +343,6 @@ class SE_Module(nn.Module):
         out = self.se(x)
         return out
 
-
 class guided_SE_CAM_Module(nn.Module):
     """ Channel attention module"""
 
@@ -366,7 +365,6 @@ class guided_SE_CAM_Module(nn.Module):
                 attention: B X C X C
         """
         gcam = self.guided_cam(x)
-
         bottle = self.project(x)
         se_x = self.se(x)
         se_bottle = se_x * bottle + bottle
