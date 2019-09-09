@@ -53,14 +53,14 @@ class pap6NetHead(nn.Module):
         self.sec = guided_SE_CAM_Module(in_channels, 256, norm_layer)
         self.conv5e = nn.Sequential(nn.Conv2d(256, 256, 1, padding=0, bias=False),
                                     norm_layer(256), nn.ReLU(True))
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(256, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(512, out_channels, 1))
 
         self.gap = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
-            nn.Conv2d(256, 256, 1),
+            nn.Conv2d(512, 512, 1),
             nn.Sigmoid())
         if self.se_loss:
-            self.selayer = nn.Linear(256, out_channels)
+            self.selayer = nn.Linear(512, out_channels)
 
     def forward(self, x):
         sec_feat = self.sec(x)
@@ -70,7 +70,7 @@ class pap6NetHead(nn.Module):
         sa_feat = self.pam(feat1)
         sa_conv = self.conv51(sa_feat)
         # fuse
-        feat_sum = sa_conv+sec_feat
+        feat_sum = torch.cat([sa_conv, sec_feat], dim=1)
         # outputs = self.conv8(feat_sum)
 
         if self.se_loss:
@@ -329,7 +329,6 @@ class guided_CAM_Module(nn.Module):
         out = self.gamma * out + proj_value
         return out
 
-
 class guided_CAM_Module2(nn.Module):
     """ Position attention module"""
 
@@ -373,7 +372,6 @@ class guided_CAM_Module2(nn.Module):
         out = self.gamma * out + proj_value
         return out
 
-
 class SE_Module(nn.Module):
     """ Channel attention module"""
 
@@ -391,7 +389,6 @@ class SE_Module(nn.Module):
     def forward(self, x):
         out = self.se(x)
         return out
-
 
 class guided_SE_CAM_Module(nn.Module):
     """ Channel attention module"""
@@ -469,7 +466,6 @@ class PyramidPooling(nn.Module):
         feat = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         out = self.project(feat)
         return out
-
 
 class PyramidPooling2(nn.Module):
     """
