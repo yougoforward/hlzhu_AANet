@@ -109,6 +109,7 @@ class PAM_Module(nn.Module):
     #Ref from SAGAN
     def __init__(self, in_dim, key_dim, pool_size, norm_layer):
         super(PAM_Module, self).__init__()
+        self.pool_size =pool_size
         self.chanel_in = in_dim
         self.pool = nn.AdaptiveAvgPool2d(pool_size)
         self.query_conv = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1), norm_layer(key_dim), nn.ReLU())
@@ -126,7 +127,7 @@ class PAM_Module(nn.Module):
         m_batchsize, C, height, width = x.size()
         proj_query0 = self.query_conv(x)
         proj_query = proj_query0.view(m_batchsize, -1, width*height).permute(0, 2, 1) # n c h w   n hw c
-        proj_key = self.key_conv(self.pool(x)).view(m_batchsize, -1, width*height) # n c s s  n c s^2
+        proj_key = self.key_conv(self.pool(x)).view(m_batchsize, -1, self.pool_size*self.pool_size) # n c s s  n c s^2
         energy = torch.bmm(proj_query, proj_key) # n hw s^2
         attention = self.softmax(energy)
         proj_value = proj_key
