@@ -8,14 +8,14 @@ from .mask_softmax import Mask_Softmax
 from .fcn import FCNHead
 from .base import BaseNet
 
-__all__ = ['pap5Net', 'get_pap5net']
+__all__ = ['pap8Net', 'get_pap8net']
 
 
-class pap5Net(BaseNet):
+class pap8Net(BaseNet):
     def __init__(self, nclass, backbone, aux=True, se_loss=False, norm_layer=nn.BatchNorm2d, **kwargs):
-        super(pap5Net, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
+        super(pap8Net, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
 
-        self.head = pap5NetHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
+        self.head = pap8NetHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
         if aux:
             self.auxlayer = FCNHead(1024, nclass, norm_layer)
 
@@ -32,10 +32,10 @@ class pap5Net(BaseNet):
         return tuple(x)
 
 
-class pap5NetHead(nn.Module):
+class pap8NetHead(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, se_loss, jpu=False, up_kwargs=None,
                  atrous_rates=(12, 24, 36)):
-        super(pap5NetHead, self).__init__()
+        super(pap8NetHead, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 4
 
@@ -46,10 +46,12 @@ class pap5NetHead(nn.Module):
                           norm_layer(inter_channels),
                           nn.ReLU(inplace=True))
 
-        self.aspp = ASPP_Module(in_channels, atrous_rates, norm_layer, up_kwargs)
-        self.pam = psp_aspp_PAM_Module(inter_channels, inter_channels // 8, norm_layer, atrous_rates, up_kwargs)
-
-        self.conv51 = nn.Sequential(nn.Conv2d(256, 256, 1, padding=0, bias=False),
+        self.aspp = ASPP_Module(inter_channels, atrous_rates, norm_layer, up_kwargs)
+        self.pam = psp_aspp_PAM_Module(256*5, inter_channels // 8, norm_layer, atrous_rates, up_kwargs)
+        self.gcam = guided_CAM_Module2(256*5, 256)
+        self.se = SE_Module(256*5, 256*5)
+        
+        self.conv51 = nn.Sequential(nn.Conv2d(256*7, 256, 1, padding=0, bias=False),
                                     norm_layer(256), nn.ReLU(True))
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(256, out_channels, 1))
 
@@ -63,8 +65,12 @@ class pap5NetHead(nn.Module):
     def forward(self, x):
         # ssa
         feat1 = self.conv5a(x)
-        sa_feat = self.pam(feat1)
-        sa_conv = self.conv51(sa_feat)
+        aspp_feat = self.aspp(feat1)
+        sa_feat = self.pam(aspp_feat)
+        gcam = self.gcam(aspp_feat)
+        se_feat = self.se(aspp_feat)*aspp_feat+aspp_feat
+        
+        sa_conv = self.conv51(torch.cat([sa_feat, gcam, se_feat], dim=1))
         # fuse
         feat_sum = sa_conv
         # outputs = self.conv8(feat_sum)
@@ -80,11 +86,11 @@ class pap5NetHead(nn.Module):
         return tuple(outputs)
 
 
-def get_pap5net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
+def get_pap8net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
                 root='~/.encoding/models', **kwargs):
     # infer number of classes
     from ..datasets import datasets
-    model = pap5Net(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
+    model = pap8Net(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
     if pretrained:
         raise NotImplementedError
 
@@ -130,11 +136,11 @@ class ASPP_Module(nn.Module):
         self.b3 = ASPPConv(in_channels, out_channels, rate3, norm_layer)
         self.b4 = AsppPooling(in_channels, out_channels, norm_layer, up_kwargs)
 
-        self.project = nn.Sequential(
-            nn.Conv2d(5 * out_channels, out_channels, 1, bias=False),
-            norm_layer(out_channels),
-            nn.ReLU(True),
-            nn.Dropout2d(0.5, False))
+        # self.project = nn.Sequential(
+        #     nn.Conv2d(5 * out_channels, out_channels, 1, bias=False),
+        #     norm_layer(out_channels),
+        #     nn.ReLU(True),
+        #     nn.Dropout2d(0.5, False))
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -145,7 +151,7 @@ class ASPP_Module(nn.Module):
 
         y = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
 
-        return self.project(y)
+        return y
 
 
 class aa_ASPP_Module(nn.Module):
@@ -183,10 +189,12 @@ class psp_aspp_PAM_Module(nn.Module):
         super(psp_aspp_PAM_Module, self).__init__()
         self.chanel_in = in_dim
 
-        self.query_conv = PyramidPooling(in_dim, key_dim, norm_layer, up_kwargs)
-        self.key_conv = PyramidPooling(in_dim, key_dim, norm_layer, up_kwargs)
-        self.value_conv = aa_ASPP_Module(in_dim, atrous_rates, norm_layer, up_kwargs)
+        self.query_conv = pyramid_matching(in_dim, key_dim, norm_layer, up_kwargs)
+        self.key_conv = pyramid_matching(in_dim, key_dim, norm_layer, up_kwargs)
+        self.value_conv = nn.Conv2d(in_channels=in_dim, out_channels=256, kernel_size=1)
+        
         self.gamma = nn.Parameter(torch.zeros(1))
+        self.beta = nn.Parameter(torch.zeros(1))
 
         self.softmax = nn.Softmax(dim=-1)
 
@@ -209,9 +217,39 @@ class psp_aspp_PAM_Module(nn.Module):
         out = out.view(m_batchsize, -1, height, width)
 
         out = self.gamma * out + proj_value
+        
         return out
 
+class pyramid_matching(nn.Module):
+    """
+    Reference:
+        Zhao, Hengshuang, et al. *"Pyramid scene parsing network."*
+    """
 
+    def __init__(self, in_channels, out_channels, norm_layer, up_kwargs):
+        super(pyramid_matching, self).__init__()
+        self.base_dim = 12
+        # out_channels = int(in_channels/4)
+        self.conv0 = nn.Sequential(nn.Conv2d(in_channels, self.base_dim*4, 1, bias=False),
+                                   norm_layer(self.base_dim*4),
+                                   nn.ReLU(True))
+        self.conv1 = nn.Sequential(nn.Conv2d(self.base_dim*4, self.base_dim*2, 1, bias=False),
+                                   norm_layer(self.base_dim*2),
+                                   nn.ReLU(True))
+        self.conv2 = nn.Sequential(nn.Conv2d(self.base_dim*2, self.base_dim*1, 1, bias=False),
+                                   norm_layer(self.base_dim*1),
+                                   nn.ReLU(True))
+        # bilinear upsample options
+        self._up_kwargs = up_kwargs
+
+    def forward(self, x):
+        _, _, h, w = x.size()
+        feat0 = self.conv0(x)
+        feat1 = self.conv1(feat0)
+        feat2 = self.conv2(feat1)
+
+        out = torch.cat((feat0, feat1, feat2), 1)
+        return out
 class PAM_Module(nn.Module):
     """ Position attention module"""
 
