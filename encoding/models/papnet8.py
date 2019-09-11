@@ -46,6 +46,7 @@ class pap5NetHead(nn.Module):
                           norm_layer(inter_channels),
                           nn.ReLU(inplace=True))
 
+        self.aspp = ASPP_Module(in_channels, atrous_rates, norm_layer, up_kwargs)
         self.pam = psp_aspp_PAM_Module(inter_channels, inter_channels // 8, norm_layer, atrous_rates, up_kwargs)
 
         self.conv51 = nn.Sequential(nn.Conv2d(256, 256, 1, padding=0, bias=False),

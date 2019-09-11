@@ -111,6 +111,7 @@ class PAM_Module(nn.Module):
         super(PAM_Module, self).__init__()
         self.pool_size =pool_size
         self.chanel_in = in_dim
+        self.key_dim = key_dim
         self.pool = nn.AdaptiveAvgPool2d(pool_size)
         self.query_conv = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1), norm_layer(key_dim), nn.ReLU())
         self.key_conv = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1), norm_layer(key_dim), nn.ReLU())
@@ -133,7 +134,7 @@ class PAM_Module(nn.Module):
         proj_value = proj_key
 
         out = torch.bmm(proj_value, attention.permute(0, 2, 1))
-        out = out.view(m_batchsize, C, height, width)
+        out = out.view(m_batchsize, self.key_dim, height, width)
 
         out = out + proj_query0
         return out
