@@ -15,7 +15,6 @@ from .aanet_encnet import *
 from .aanet_nopam import *
 from .aanet_pam_metric import *
 from .amca_asppaca import *
-from .amca_gap_aca import *
 from .aspoc_secam import *
 from .asp_oc_gap_secam import *
 from .pgfnet import *
@@ -72,7 +71,6 @@ def get_segmentation_model(name, **kwargs):
         'aspoc_gsecam_du': get_aspoc_gsecam_dunet,
         'fcn_8s': get_fcn_8s,
         'fcn_du': get_fcn_du,
-
         'aanet_simple': get_aanet_fast,
         'amca': get_amcanet,
         'amca2': get_amca2net,
