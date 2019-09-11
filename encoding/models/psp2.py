@@ -39,7 +39,7 @@ class PSP2Head(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, up_kwargs):
         super(PSP2Head, self).__init__()
         inter_channels = in_channels // 4
-        self.conv5 = nn.Sequential(PyramidPooling(in_channels, norm_layer, up_kwargs),
+        self.conv5 = nn.Sequential(PyramidPooling(in_channels, norm_layer),
                                    nn.Conv2d(in_channels * 2, inter_channels, 3, padding=1, bias=False),
                                    norm_layer(inter_channels),
                                    nn.ReLU(True),
