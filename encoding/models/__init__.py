@@ -46,6 +46,11 @@ from .papnet6 import *
 from .papnet7 import *
 from .psp2 import *
 from .papnet8 import *
+from .psp3 import *
+from .psp4 import *
+from .psp5 import *
+from .psp6 import *
+from .psp7 import *
 def get_segmentation_model(name, **kwargs):
     from .fcn import get_fcn
     models = {
@@ -94,5 +99,10 @@ def get_segmentation_model(name, **kwargs):
         'pap7': get_pap7net,
         'psp2': get_psp2,
         'pap8': get_pap8net,
+        'psp3': get_PSP3,
+        'psp4': get_PSP4,
+        'psp5': get_PSP5,
+        'psp6': get_PSP6,
+        'psp7': get_PSP7,
     }
     return models[name.lower()](**kwargs)
