@@ -128,8 +128,8 @@ class PyramidContext(nn.Module):
         local_context = self.conv0(x)
         local_global_context = self.pool1(local_context)+local_context
         aff = self.conv_aff(local_global_context).view(bs,-1,h*w)
-        py_context = torch.cat([feat1.view(bs,self.out_channels,-1),feat1.view(bs,self.out_channels,-1),\
-        feat1.view(bs,self.out_channels,-1),feat1.view(bs,self.out_channels,-1)], dim=2)
+        py_context = torch.cat([feat1.view(bs,self.out_channels,-1),feat2.view(bs,self.out_channels,-1),\
+        feat3.view(bs,self.out_channels,-1),feat4.view(bs,self.out_channels,-1)], dim=2)
         out = torch.bmm(py_context,aff).view(bs,self.out_channels,h,w)+local_context
 
         return torch.cat((x, out), 1)

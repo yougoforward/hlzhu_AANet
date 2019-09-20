@@ -130,8 +130,8 @@ class PyramidContext(nn.Module):
         local_context = self.conv0(x)
         local_global_context = self.pool1(local_context)+local_context
         # aff = self.conv_aff(local_global_context).view(bs,-1,h*w)
-        py_context = torch.cat([feat1.view(bs,self.out_channels,-1),feat1.view(bs,self.out_channels,-1),\
-        feat1.view(bs,self.out_channels,-1),feat1.view(bs,self.out_channels,-1)], dim=2)
+        py_context = torch.cat([feat1.view(bs, self.out_channels, -1), feat2.view(bs, self.out_channels, -1), \
+                                feat3.view(bs, self.out_channels, -1), feat4.view(bs, self.out_channels, -1)], dim=2)
         # out = torch.bmm(py_context,aff).view(bs,self.out_channels,h,w)+local_context
 
         ch_energy = torch.bmm(py_context,py_context.permute(0,2,1))
@@ -144,7 +144,5 @@ class PyramidContext(nn.Module):
         ps_attention = self.softmax(energy)
         ps_agg = torch.bmm(py_context,ps_attention.permute(0,2,1)).view(bs,self.out_channels,h,w)
 
-        
-
-        out = ch_agg + local_context
+        out = ps_agg + local_context
         return torch.cat((x, out), 1)
