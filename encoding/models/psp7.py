@@ -89,7 +89,7 @@ class PyramidContext(nn.Module):
     Reference:
         Zhao, Hengshuang, et al. *"Pyramid scene parsing network."*
     """
-    def __init__(self, in_channels, norm_layer, up_kwargs):
+    def __init__(self, in_channels, norm_layer):
         super(PyramidContext, self).__init__()
         self.pool1 = nn.AdaptiveAvgPool2d(1)
         self.pool2 = nn.AdaptiveAvgPool2d(2)
@@ -117,8 +117,6 @@ class PyramidContext(nn.Module):
 
         # self.conv_aff = nn.Sequential(nn.Conv2d(self.out_channels, self.cont_dim, 1, bias=True),
         #                            nn.Softmax(dim=1))
-        # bilinear upsample options
-        self._up_kwargs = up_kwargs
         self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x):
