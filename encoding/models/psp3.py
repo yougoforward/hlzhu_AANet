@@ -85,7 +85,7 @@ def get_psp_resnet50_ade(pretrained=False, root='~/.encoding/models', **kwargs):
     return get_PSP3('ade20k', 'resnet50', pretrained, root=root, **kwargs)
 
 class PyramidContext(nn.Module):
-     """
+        """
     Reference:
         Zhao, Hengshuang, et al. *"Pyramid scene parsing network."*
     """
@@ -99,24 +99,24 @@ class PyramidContext(nn.Module):
 
         self.out_channels = int(in_channels/4)
         self.conv0 = nn.Sequential(nn.Conv2d(in_channels, self.out_channels, 1, bias=False),
-                                   norm_layer(self.out_channels),
-                                   nn.ReLU(True))
+                                    norm_layer(self.out_channels),
+                                    nn.ReLU(True))
 
         self.conv1 = nn.Sequential(nn.Conv2d(in_channels, self.out_channels, 1, bias=False),
-                                   norm_layer(self.out_channels),
-                                   nn.ReLU(True))
+                                    norm_layer(self.out_channels),
+                                    nn.ReLU(True))
         self.conv2 = nn.Sequential(nn.Conv2d(in_channels, self.out_channels, 1, bias=False),
-                                   norm_layer(self.out_channels),
-                                   nn.ReLU(True))
+                                    norm_layer(self.out_channels),
+                                    nn.ReLU(True))
         self.conv3 = nn.Sequential(nn.Conv2d(in_channels, self.out_channels, 1, bias=False),
-                                   norm_layer(self.out_channels),
-                                   nn.ReLU(True))
+                                    norm_layer(self.out_channels),
+                                    nn.ReLU(True))
         self.conv4 = nn.Sequential(nn.Conv2d(in_channels, self.out_channels, 1, bias=False),
-                                   norm_layer(self.out_channels),
-                                   nn.ReLU(True))
+                                    norm_layer(self.out_channels),
+                                    nn.ReLU(True))
 
         self.conv_aff = nn.Sequential(nn.Conv2d(self.out_channels, self.cont_dim, 1, bias=True),
-                                   nn.Softmax(dim=1))
+                                    nn.Softmax(dim=1))
         # bilinear upsample options
         self._up_kwargs = up_kwargs
 
@@ -172,58 +172,3 @@ class PyramidPooling(nn.Module):
         feat3 = F.upsample(self.conv3(self.pool3(x)), (h, w), **self._up_kwargs)
         feat4 = F.upsample(self.conv4(self.pool4(x)), (h, w), **self._up_kwargs)
         return torch.cat((x, feat1, feat2, feat3, feat4), 1)
-
-class PyramidPooling(nn.Module):
-    """
-    Reference:
-        Zhao, Hengshuang, et al. *"Pyramid scene parsing network."*
-    """
-    def __init__(self, in_channels, norm_layer):
-        super(PyramidPooling, self).__init__()
-        out_channels = int(in_channels/4)
-        self.pam1 = PAM_Module(in_channels, out_channels, 1, norm_layer)
-        self.pam2 = PAM_Module(in_channels, out_channels, 2, norm_layer)
-        self.pam3 = PAM_Module(in_channels, out_channels, 3, norm_layer)
-        self.pam4 = PAM_Module(in_channels, out_channels, 6, norm_layer)
-
-    def forward(self, x):
-        feat1 = self.pam1(x)
-        feat2 = self.pam2(x)
-        feat3 = self.pam3(x)
-        feat4 = self.pam4(x)
-        return torch.cat((x, feat1, feat2, feat3, feat4), 1)
-
-class PAM_Module(nn.Module):
-    """ Position attention module"""
-    #Ref from SAGAN
-    def __init__(self, in_dim, key_dim, pool_size, norm_layer):
-        super(PAM_Module, self).__init__()
-        self.pool_size =pool_size
-        self.chanel_in = in_dim
-        self.key_dim = key_dim
-        self.pool = nn.AdaptiveAvgPool2d(pool_size)
-        self.query_conv = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1), norm_layer(key_dim), nn.ReLU())
-        self.key_conv = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1), norm_layer(key_dim), nn.ReLU())
-        self.softmax = nn.Softmax(dim=-1)
-
-    def forward(self, x):
-        """
-            inputs :
-                x : input feature maps( B X C X H X W)
-            returns :
-                out : attention value + input feature
-                attention: B X (HxW) X (HxW)
-        """
-        m_batchsize, C, height, width = x.size()
-        proj_query0 = self.query_conv(x)
-        proj_query = proj_query0.view(m_batchsize, -1, width*height).permute(0, 2, 1) # n c h w   n hw c
-        proj_key = self.key_conv(self.pool(x)).view(m_batchsize, -1, self.pool_size*self.pool_size) # n c s s  n c s^2
-        energy = torch.bmm(proj_query, proj_key) # n hw s^2
-        attention = self.softmax(energy)
-        proj_value = proj_key
-
-        out = torch.bmm(proj_value, attention.permute(0, 2, 1))
-        out = out.view(m_batchsize, self.key_dim, height, width)
-
-        out = out + proj_query0
-        return out
