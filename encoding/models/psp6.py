@@ -85,7 +85,7 @@ def get_psp_resnet50_ade(pretrained=False, root='~/.encoding/models', **kwargs):
     return get_PSP6('ade20k', 'resnet50', pretrained, root=root, **kwargs)
 
 class PyramidContext(nn.Module):
-     """
+    """
     Reference:
         Zhao, Hengshuang, et al. *"Pyramid scene parsing network."*
     """
@@ -133,7 +133,7 @@ class PyramidContext(nn.Module):
         # local_global_context = self.pool1(local_context)+local_context
         # aff = self.conv_aff(local_global_context).view(bs,-1,h*w)
         py_context = torch.cat([feat1.view(bs,self.out_channels,-1),feat1.view(bs,self.out_channels,-1),\
-        feat1.view(bs,self.out_channels,-1),feat1.view(bs,self.out_channels,-1)}, dim=2)
+        feat1.view(bs,self.out_channels,-1),feat1.view(bs,self.out_channels,-1)], dim=2)
         # out = torch.bmm(py_context,aff).view(bs,self.out_channels,h,w)+local_context
         # query = local_global_context.view(bs, self.out_channels,-1).permute(0,2,1)
         # energy = torch.bmm(query,py_context)
