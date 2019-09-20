@@ -85,9 +85,8 @@ def get_psp_resnet50_ade(pretrained=False, root='~/.encoding/models', **kwargs):
     return get_PSP3('ade20k', 'resnet50', pretrained, root=root, **kwargs)
 
 class PyramidContext(nn.Module):
-        """
-    Reference:
-        Zhao, Hengshuang, et al. *"Pyramid scene parsing network."*
+    """
+    Reference:  Zhao, Hengshuang, et al. *"Pyramid scene parsing network."*
     """
     def __init__(self, in_channels, norm_layer, up_kwargs):
         super(PyramidContext, self).__init__()
@@ -132,43 +131,7 @@ class PyramidContext(nn.Module):
         local_global_context = self.pool1(local_context)+local_context
         aff = self.conv_aff(local_global_context).view(bs,-1,h*w)
         py_context = torch.cat([feat1.view(bs,self.out_channels,-1),feat1.view(bs,self.out_channels,-1),\
-        feat1.view(bs,self.out_channels,-1),feat1.view(bs,self.out_channels,-1)}, dim=2)
+        feat1.view(bs,self.out_channels,-1),feat1.view(bs,self.out_channels,-1)], dim=2)
         out = torch.bmm(py_context,aff).view(bs,self.out_channels,h,w)+local_context
 
         return torch.cat((x, out), 1)
-
-class PyramidPooling(nn.Module):
-     """
-    Reference:
-        Zhao, Hengshuang, et al. *"Pyramid scene parsing network."*
-    """
-    def __init__(self, in_channels, norm_layer, up_kwargs):
-        super(PyramidPooling, self).__init__()
-        self.pool1 = nn.AdaptiveAvgPool2d(1)
-        self.pool2 = nn.AdaptiveAvgPool2d(2)
-        self.pool3 = nn.AdaptiveAvgPool2d(3)
-        self.pool4 = nn.AdaptiveAvgPool2d(6)
-
-        out_channels = int(in_channels/4)
-        self.conv1 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
-                                   norm_layer(out_channels),
-                                   nn.ReLU(True))
-        self.conv2 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
-                                   norm_layer(out_channels),
-                                   nn.ReLU(True))
-        self.conv3 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
-                                   norm_layer(out_channels),
-                                   nn.ReLU(True))
-        self.conv4 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
-                                   norm_layer(out_channels),
-                                   nn.ReLU(True))
-        # bilinear upsample options
-        self._up_kwargs = up_kwargs
-
-    def forward(self, x):
-        _, _, h, w = x.size()
-        feat1 = F.upsample(self.conv1(self.pool1(x)), (h, w), **self._up_kwargs)
-        feat2 = F.upsample(self.conv2(self.pool2(x)), (h, w), **self._up_kwargs)
-        feat3 = F.upsample(self.conv3(self.pool3(x)), (h, w), **self._up_kwargs)
-        feat4 = F.upsample(self.conv4(self.pool4(x)), (h, w), **self._up_kwargs)
-        return torch.cat((x, feat1, feat2, feat3, feat4), 1)
