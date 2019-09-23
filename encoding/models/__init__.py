@@ -46,6 +46,7 @@ from .papnet6 import *
 from .papnet7 import *
 from .psp2 import *
 from .papnet8 import *
+from .papnet9 import *
 from .psp3 import *
 from .psp4 import *
 from .psp5 import *
@@ -104,5 +105,6 @@ def get_segmentation_model(name, **kwargs):
         'psp5': get_PSP5,
         'psp6': get_PSP6,
         'psp7': get_PSP7,
+        'pap9': get_pap9net,
     }
     return models[name.lower()](**kwargs)
