@@ -110,7 +110,7 @@ class psaa_Module(nn.Module):
         
         
         self.global_cont = psaaPooling(out_channels, out_channels, norm_layer, up_kwargs)
-
+        self.softmax = nn.Softmax(dim=-1)
 
         self.project = nn.Sequential(
             nn.Conv2d(out_channels, 512, 1, bias=False),
