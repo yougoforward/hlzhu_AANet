@@ -135,7 +135,8 @@ class psaa2_Module(nn.Module):
 
         y = torch.stack((feat0, feat1, feat2, feat3, feat4), 1)
         
-        query = self.global_cont(y1)+y1
+        # query = self.global_cont(y1)+y1
+        query = y1
         m_batchsize, C, height, width = query.size()
         proj_query = query.view(m_batchsize, C, -1).permute(0,2,1).contiguous()
         proj_key = y.view(m_batchsize, 5, C, -1).permute(0, 3, 2, 1).contiguous().view(-1,C,5)
