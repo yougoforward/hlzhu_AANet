@@ -111,6 +111,6 @@ def get_segmentation_model(name, **kwargs):
         'pap9': get_pap9net,
         'psaa': get_psaanet,
         'psaa2': get_psaa2net,
-        'new_psp': get_new_pspnet,
+        'new_psp': get_new_psp,
     }
     return models[name.lower()](**kwargs)
