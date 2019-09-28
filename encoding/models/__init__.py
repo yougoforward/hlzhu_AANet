@@ -54,6 +54,7 @@ from .psp6 import *
 from .psp7 import *
 from .psaa import *
 from .psaa2 import *
+from .new_psp import *
 def get_segmentation_model(name, **kwargs):
     from .fcn import get_fcn
     models = {
@@ -110,5 +111,6 @@ def get_segmentation_model(name, **kwargs):
         'pap9': get_pap9net,
         'psaa': get_psaanet,
         'psaa2': get_psaa2net,
+        'new_psp': get_new_pspnet,
     }
     return models[name.lower()](**kwargs)
