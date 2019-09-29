@@ -41,8 +41,8 @@ class new_pspHead(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, se_loss, up_kwargs):
         super(new_pspHead, self).__init__()
         inter_channels = in_channels // 4
-        self.conv5 = nn.Sequential(PyramidPooling(in_channels, inter_channels, norm_layer, up_kwargs),
-                                   nn.Dropout2d(0.1, False),
+        self.conv5 = PyramidPooling(in_channels, inter_channels, norm_layer, up_kwargs)
+        self.conv6 = nn.Sequential(nn.Dropout2d(0.1, False),
                                    nn.Conv2d(inter_channels, out_channels, 1))
 
         self.se_loss = se_loss
@@ -54,10 +54,10 @@ class new_pspHead(nn.Module):
     def forward(self, x):
         if self.se_loss:
             out, global_cont1, global_cont2=self.conv5(x)
-            outputs = [out]
+            outputs = [self.conv6(out)]
             outputs.append(self.selayer1(torch.squeeze(global_cont1))+self.selayer2(torch.squeeze(global_cont2)))
         else:
-            outputs = [self.conv5(x)[0]]
+            outputs = [self.conv6(self.conv5(x)[0])]
         return tuple(outputs)
 
 def get_new_psp(dataset='pascal_voc', backbone='resnet50', pretrained=False,
