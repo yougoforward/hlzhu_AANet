@@ -18,7 +18,7 @@ from .fcn import FCNHead
 class new_psp(BaseNet):
     def __init__(self, nclass, backbone, aux=True, se_loss=False, norm_layer=nn.BatchNorm2d, **kwargs):
         super(new_psp, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
-        self.head = new_pspHead(2048, nclass, norm_layer, self._up_kwargs)
+        self.head = new_pspHead(2048, nclass, norm_layer, se_loss, self._up_kwargs)
         if aux:
             self.auxlayer = FCNHead(1024, nclass, norm_layer)
 
@@ -27,26 +27,38 @@ class new_psp(BaseNet):
         _, _, c3, c4 = self.base_forward(x)
 
         outputs = []
-        x = self.head(c4)
-        x = upsample(x, (h,w), **self._up_kwargs)
-        outputs.append(x)
+        x = list(self.head(c4))
+        x[0] = upsample(x[0], (h,w), **self._up_kwargs)
+        # outputs.append(x)
         if self.aux:
             auxout = self.auxlayer(c3)
             auxout = upsample(auxout, (h,w), **self._up_kwargs)
-            outputs.append(auxout)
-        return tuple(outputs)
+            x.append(auxout)
+        return tuple(x)
 
 
 class new_pspHead(nn.Module):
-    def __init__(self, in_channels, out_channels, norm_layer, up_kwargs):
+    def __init__(self, in_channels, out_channels, norm_layer, se_loss, up_kwargs):
         super(new_pspHead, self).__init__()
         inter_channels = in_channels // 4
         self.conv5 = nn.Sequential(PyramidPooling(in_channels, inter_channels, norm_layer, up_kwargs),
                                    nn.Dropout2d(0.1, False),
                                    nn.Conv2d(inter_channels, out_channels, 1))
 
+        self.se_loss = se_loss
+        if self.se_loss:
+            self.selayer1 = nn.Linear(inter_channels, out_channels)
+            self.selayer2 = nn.Linear(inter_channels, out_channels)
+
+
     def forward(self, x):
-        return self.conv5(x)
+        if self.se_loss:
+            out, global_cont1, global_cont2=self.conv5(x)
+            outputs = [out]
+            outputs.append(self.selayer1(torch.squeeze(global_cont1))+self.selayer2(torch.squeeze(global_cont2)))
+        else:
+            outputs = [self.conv5(x)]
+        return tuple(outputs)
 
 def get_new_psp(dataset='pascal_voc', backbone='resnet50', pretrained=False,
             root='~/.encoding/models', **kwargs):
@@ -125,11 +137,16 @@ class PyramidPooling(Module):
             nn.ReLU(True),
             nn.Dropout2d(0.1, False))
 
-        self.global_cont = psaa2Pooling(out_channels, out_channels, norm_layer, up_kwargs)
+        self.global_cont1 = psaa2Pooling(out_channels, out_channels, norm_layer, up_kwargs)
+        self.global_cont2 = psaa2Pooling(out_channels, out_channels, norm_layer, up_kwargs)
         self.softmax = nn.Softmax(dim=-1)
+
         self.gamma = nn.Parameter(torch.zeros(1))
         self.se = SE_Module(out_channels, out_channels)
         self.relu = nn.ReLU()
+        self.fc = nn.Sequential(
+            nn.Conv2d(out_channels, out_channels, 1),
+            nn.Sigmoid())
 
     def forward(self, x):
         _, _, h, w = x.size()
@@ -145,8 +162,9 @@ class PyramidPooling(Module):
 
         y = torch.stack((feat1, feat2, feat3, feat4, feat5, feat6), 1)
 
-        # query = self.global_cont(y1)+y1
-        query = y1
+        global_cont1 = self.global_cont1(y1)
+        query = global_cont1+y1
+        # query = y1
         m_batchsize, C, height, width = query.size()
         proj_query = query.view(m_batchsize, C, -1).permute(0, 2, 1).contiguous()
         proj_key = y.view(m_batchsize, 6, C, -1).permute(0, 3, 2, 1).contiguous().view(-1, C, 6)
@@ -157,8 +175,10 @@ class PyramidPooling(Module):
 
         out = torch.bmm(attention, proj_value)
         out = self.gamma * out.view(m_batchsize, height, width, C).permute(0, 3, 1, 2) + query
-        out = self.relu(out + self.se(out) * out)
-        return out
+        global_cont2 = self.global_cont2(out)
+        out = self.relu(out+self.fc(global_cont2)*out)
+        # out = self.relu(out + self.se(out) * out)
+        return out, global_cont1, global_cont2
 
 class psaa2Pooling(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, up_kwargs):
