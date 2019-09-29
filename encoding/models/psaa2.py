@@ -40,8 +40,8 @@ class psaa2NetHead(nn.Module):
         inter_channels = in_channels // 8
 
         self.aa_psaa2 = psaa2_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
-                                    norm_layer(inter_channels), nn.ReLU(True))
+        # self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
+        #                             norm_layer(inter_channels), nn.ReLU(True))
 
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
         self.gap = nn.AdaptiveAvgPool2d(1)
@@ -55,8 +55,8 @@ class psaa2NetHead(nn.Module):
     def forward(self, x):
 
         psaa2_feat = self.aa_psaa2(x)
-        psaa2_conv = self.conv52(psaa2_feat)
-        feat_sum = psaa2_conv
+        # psaa2_conv = self.conv52(psaa2_feat)
+        feat_sum = psaa2_feat
 
         if self.se_loss:
             gap_feat = self.gap(feat_sum)
