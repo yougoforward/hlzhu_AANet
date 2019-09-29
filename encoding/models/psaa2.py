@@ -37,13 +37,13 @@ class psaa2NetHead(nn.Module):
                  atrous_rates=(12, 24, 36)):
         super(psaa2NetHead, self).__init__()
         self.se_loss = se_loss
-        inter_channels = in_channels // 4
+        inter_channels = in_channels // 8
 
-        self.aa_psaa2 = psaa2_Module(in_channels, atrous_rates, norm_layer, up_kwargs)
+        self.aa_psaa2 = psaa2_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
         self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
 
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(512, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
         self.gap = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
             nn.Conv2d(inter_channels, inter_channels, 1),
@@ -95,9 +95,9 @@ class psaa2Pooling(nn.Module):
 
 
 class psaa2_Module(nn.Module):
-    def __init__(self, in_channels, atrous_rates, norm_layer, up_kwargs):
+    def __init__(self, in_channels, out_channels, atrous_rates, norm_layer, up_kwargs):
         super(psaa2_Module, self).__init__()
-        out_channels = in_channels // 8
+        # out_channels = in_channels // 8
         rate1, rate2, rate3 = tuple(atrous_rates)
         self.b0 = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, 1, bias=False),
@@ -116,11 +116,14 @@ class psaa2_Module(nn.Module):
         self.global_cont = psaa2Pooling(out_channels, out_channels, norm_layer, up_kwargs)
         self.softmax = nn.Softmax(dim=-1)
 
-        self.project2 = nn.Sequential(
-            nn.Conv2d(out_channels, 512, 1, bias=False),
-            norm_layer(512),
-            nn.ReLU(True),
-            nn.Dropout2d(0.1, False))
+        # self.project2 = nn.Sequential(
+        #     nn.Conv2d(out_channels, out_channels, 1, bias=False),
+        #     norm_layer(out_channels),
+        #     nn.ReLU(True),
+        #     nn.Dropout2d(0.1, False))
+        self.gamma = nn.Parameter(torch.zeros(1))
+        self.se = SE_Module(out_channels, out_channels)
+        self.relu = nn.ReLU()
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -146,10 +149,27 @@ class psaa2_Module(nn.Module):
         proj_value = proj_key.permute(0,2,1)
 
         out = torch.bmm(attention, proj_value)
-        out = out.view(m_batchsize, height, width, C).permute(0,3,1,2)+query
-        
-        return self.project2(out)
+        out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+query
+        out = self.relu(out+self.se(out)*out)
+        return out
 
+class SE_Module(nn.Module):
+    """ Channel attention module"""
+
+    def __init__(self, in_dim, out_dim):
+        super(SE_Module, self).__init__()
+        self.se = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)),
+                                nn.Conv2d(in_dim, in_dim // 8, kernel_size=1, padding=0, dilation=1,
+                                          bias=True),
+                                nn.ReLU(),
+                                nn.Conv2d(in_dim // 8, out_dim, kernel_size=1, padding=0, dilation=1,
+                                          bias=True),
+                                nn.Sigmoid()
+                                )
+
+    def forward(self, x):
+        out = self.se(x)
+        return out
 
 def get_psaa2net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
               root='~/.encoding/models', **kwargs):
