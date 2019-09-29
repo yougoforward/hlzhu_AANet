@@ -57,7 +57,7 @@ class new_pspHead(nn.Module):
             outputs = [out]
             outputs.append(self.selayer1(torch.squeeze(global_cont1))+self.selayer2(torch.squeeze(global_cont2)))
         else:
-            outputs = [self.conv5(x)]
+            outputs = [self.conv5(x)[0]]
         return tuple(outputs)
 
 def get_new_psp(dataset='pascal_voc', backbone='resnet50', pretrained=False,
