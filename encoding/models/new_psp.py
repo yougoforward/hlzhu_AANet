@@ -42,9 +42,6 @@ class new_pspHead(nn.Module):
         super(new_pspHead, self).__init__()
         inter_channels = in_channels // 4
         self.conv5 = nn.Sequential(PyramidPooling(in_channels, inter_channels, norm_layer, up_kwargs),
-                                   nn.Conv2d(inter_channels * 6, inter_channels, 3, padding=1, bias=False),
-                                   norm_layer(inter_channels),
-                                   nn.ReLU(True),
                                    nn.Dropout2d(0.1, False),
                                    nn.Conv2d(inter_channels, out_channels, 1))
 
@@ -122,6 +119,18 @@ class PyramidPooling(Module):
         # bilinear upsample options
         self._up_kwargs = up_kwargs
 
+        self.project = nn.Sequential(
+            nn.Conv2d(6 * out_channels, out_channels, 1, bias=False),
+            norm_layer(out_channels),
+            nn.ReLU(True),
+            nn.Dropout2d(0.1, False))
+
+        self.global_cont = psaa2Pooling(out_channels, out_channels, norm_layer, up_kwargs)
+        self.softmax = nn.Softmax(dim=-1)
+        self.gamma = nn.Parameter(torch.zeros(1))
+        self.se = SE_Module(out_channels, out_channels)
+        self.relu = nn.ReLU()
+
     def forward(self, x):
         _, _, h, w = x.size()
         feat1 = F.upsample(self.conv1(self.pool1(x)), (h, w), **self._up_kwargs)
@@ -131,4 +140,54 @@ class PyramidPooling(Module):
         feat5 = F.upsample(self.conv5(self.pool5(x)), (h, w), **self._up_kwargs)
         feat6 = self.conv6(x)
 
-        return torch.cat((feat1, feat2, feat3, feat4, feat5, feat6), 1)
+        y1 = torch.cat((feat1, feat2, feat3, feat4, feat5, feat6), 1)
+        y1 = self.project(y1)
+
+        y = torch.stack((feat1, feat2, feat3, feat4, feat5, feat6), 1)
+
+        # query = self.global_cont(y1)+y1
+        query = y1
+        m_batchsize, C, height, width = query.size()
+        proj_query = query.view(m_batchsize, C, -1).permute(0, 2, 1).contiguous()
+        proj_key = y.view(m_batchsize, 6, C, -1).permute(0, 3, 2, 1).contiguous().view(-1, C, 6)
+        energy = torch.bmm(proj_query.view(-1, 1, C), proj_key)
+        energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy) - energy
+        attention = self.softmax(energy_new)
+        proj_value = proj_key.permute(0, 2, 1)
+
+        out = torch.bmm(attention, proj_value)
+        out = self.gamma * out.view(m_batchsize, height, width, C).permute(0, 3, 1, 2) + query
+        out = self.relu(out + self.se(out) * out)
+        return out
+
+class psaa2Pooling(nn.Module):
+    def __init__(self, in_channels, out_channels, norm_layer, up_kwargs):
+        super(psaa2Pooling, self).__init__()
+        self._up_kwargs = up_kwargs
+        self.gap = nn.Sequential(nn.AdaptiveAvgPool2d(1),
+                                 nn.Conv2d(in_channels, out_channels, 1, bias=False),
+                                 norm_layer(out_channels),
+                                 nn.ReLU(True))
+
+    def forward(self, x):
+        _, _, h, w = x.size()
+        pool = self.gap(x)
+
+        return F.interpolate(pool, (h, w), **self._up_kwargs)
+class SE_Module(nn.Module):
+    """ Channel attention module"""
+
+    def __init__(self, in_dim, out_dim):
+        super(SE_Module, self).__init__()
+        self.se = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)),
+                                nn.Conv2d(in_dim, in_dim // 8, kernel_size=1, padding=0, dilation=1,
+                                          bias=True),
+                                nn.ReLU(),
+                                nn.Conv2d(in_dim // 8, out_dim, kernel_size=1, padding=0, dilation=1,
+                                          bias=True),
+                                nn.Sigmoid()
+                                )
+
+    def forward(self, x):
+        out = self.se(x)
+        return out

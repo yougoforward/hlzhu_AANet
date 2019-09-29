@@ -115,15 +115,15 @@ class psaa2_Module(nn.Module):
         
         self.global_cont = psaa2Pooling(out_channels, out_channels, norm_layer, up_kwargs)
         self.softmax = nn.Softmax(dim=-1)
-
+        self.gamma = nn.Parameter(torch.zeros(1))
+        self.se = SE_Module(out_channels, out_channels)
+        self.relu = nn.ReLU()
         # self.project2 = nn.Sequential(
         #     nn.Conv2d(out_channels, out_channels, 1, bias=False),
         #     norm_layer(out_channels),
         #     nn.ReLU(True),
         #     nn.Dropout2d(0.1, False))
-        self.gamma = nn.Parameter(torch.zeros(1))
-        self.se = SE_Module(out_channels, out_channels)
-        self.relu = nn.ReLU()
+
 
     def forward(self, x):
         feat0 = self.b0(x)
