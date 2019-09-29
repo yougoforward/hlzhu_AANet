@@ -192,8 +192,8 @@ class psaa2Pooling(nn.Module):
     def forward(self, x):
         _, _, h, w = x.size()
         pool = self.gap(x)
-
-        return F.interpolate(pool, (h, w), **self._up_kwargs)
+        return pool
+        # return F.interpolate(pool, (h, w), **self._up_kwargs)
 class SE_Module(nn.Module):
     """ Channel attention module"""
 
