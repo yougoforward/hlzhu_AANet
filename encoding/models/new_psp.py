@@ -47,7 +47,7 @@ class new_pspHead(nn.Module):
 
         self.se_loss = se_loss
         if self.se_loss:
-            self.selayer1 = nn.Linear(inter_channels, out_channels)
+            # self.selayer1 = nn.Linear(inter_channels, out_channels)
             self.selayer2 = nn.Linear(inter_channels, out_channels)
 
 
@@ -55,7 +55,9 @@ class new_pspHead(nn.Module):
         if self.se_loss:
             out, global_cont1, global_cont2=self.conv5(x)
             outputs = [self.conv6(out)]
-            outputs.append(self.selayer1(torch.squeeze(global_cont1))+self.selayer2(torch.squeeze(global_cont2)))
+            # outputs.append(self.selayer1(torch.squeeze(global_cont1))+self.selayer2(torch.squeeze(global_cont2)))
+            outputs.append(self.selayer2(torch.squeeze(global_cont2)))
+
         else:
             outputs = [self.conv6(self.conv5(x)[0])]
         return tuple(outputs)
