@@ -40,7 +40,6 @@ class psaa3NetHead(nn.Module):
         super(psaa3NetHead, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 8
-
         self.aa_psaa3 = psaa3_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
         self.conv52 = nn.Sequential(nn.Conv2d(inter_channels + in_channels, inter_channels, 1, padding=0, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
@@ -50,7 +49,6 @@ class psaa3NetHead(nn.Module):
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
 
     def forward(self, x):
-
         psaa3_feat, guide = self.aa_psaa3(x)
         feat_cat = torch.cat([psaa3_feat, x], dim=1)
         feat_sum = self.conv52(feat_cat)
@@ -103,22 +101,6 @@ class psaa3_Module(nn.Module):
             nn.Conv2d(in_channels, out_channels, 1, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True))
-        self.project = nn.Sequential(
-            nn.Conv2d(5 * out_channels, out_channels, 1, bias=False),
-            norm_layer(out_channels),
-            nn.ReLU(True),
-            nn.Dropout2d(0.1, False))
-
-        self.global_cont = psaa3Pooling(out_channels, out_channels, norm_layer, up_kwargs)
-        self.softmax = nn.Softmax(dim=-1)
-        self.gamma = nn.Parameter(torch.zeros(1))
-        # self.se = SE_Module(out_channels, out_channels)
-        self.relu = nn.ReLU()
-        # self.project2 = nn.Sequential(
-        #     nn.Conv2d(out_channels, out_channels, 1, bias=False),
-        #     norm_layer(out_channels),
-        #     nn.ReLU(True),
-        #     nn.Dropout2d(0.1, False))
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -138,7 +120,6 @@ class psaa3_Module(nn.Module):
         proj_value = proj_key.permute(0, 2, 1)
 
         out = torch.bmm(attention, proj_value)
-
         out = self.gamma * out.view(m_batchsize, height, width, C).permute(0, 3, 1, 2) + guide
         return out, guide
 
