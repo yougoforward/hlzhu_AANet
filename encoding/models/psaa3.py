@@ -25,6 +25,8 @@ class psaa3Net(BaseNet):
 
         x = list(self.head(c4))
         x[0] = F.interpolate(x[0], (h, w), **self._up_kwargs)
+        x[1] = F.interpolate(x[1], (h, w), **self._up_kwargs)
+
         if self.aux:
             auxout = self.auxlayer(c3)
             auxout = F.interpolate(auxout, (h, w), **self._up_kwargs)
