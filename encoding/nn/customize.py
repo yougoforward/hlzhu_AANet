@@ -19,7 +19,7 @@ from torch.autograd import Variable
 
 torch_ver = torch.__version__[:3]
 
-__all__ = ['SegmentationLosses', 'PyramidPooling', 'JPU', 'Mean', 'JFPU', 'SegmentationMultiLosses', 'JSFPU', 'metric_SegmentationLosses']
+__all__ = ['SegmentationLosses', 'PyramidPooling', 'JPU', 'Mean', 'JFPU', 'SegmentationMultiLosses', 'JSFPU', 'metric_SegmentationLosses', 'SegmentationGuideLosses']
 
 class SegmentationLosses(CrossEntropyLoss):
     """2D Cross Entropy Loss with Auxilary Loss"""
