@@ -148,6 +148,29 @@ class SegmentationMultiLosses(CrossEntropyLoss):
         loss = 0.2*(loss1 + loss2 + loss3 + loss4)
         return loss
 
+
+class SegmentationGuideLosses(CrossEntropyLoss):
+    """2D Cross Entropy Loss with Multi-L1oss"""
+
+    def __init__(self, nclass=-1, weight=None, size_average=True, ignore_index=-1):
+        super(SegmentationGuideLosses, self).__init__(weight, size_average, ignore_index)
+        self.nclass = nclass
+
+    def forward(self, *inputs):
+        # *preds, target = tuple(inputs)
+        # pred1 = preds[0][0]
+        # loss = super(SegmentationMultiLosses, self).forward(pred1, target)
+
+        *preds, target = tuple(inputs)
+        pred1, pred2, pred3 = tuple(preds)
+
+        loss1 = super(SegmentationGuideLosses, self).forward(pred1, target)
+        loss2 = super(SegmentationGuideLosses, self).forward(pred2, target)
+        loss3 = super(SegmentationGuideLosses, self).forward(pred3, target)
+
+        loss = loss1 + 0.4*loss2 + 0.4*loss3
+        return loss
+
 class Normalize(Module):
     r"""Performs :math:`L_p` normalization of inputs over specified dimension.
 

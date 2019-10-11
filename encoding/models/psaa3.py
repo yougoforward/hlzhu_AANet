@@ -40,32 +40,21 @@ class psaa3NetHead(nn.Module):
         inter_channels = in_channels // 8
 
         self.aa_psaa3 = psaa3_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        # self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
-        #                             norm_layer(inter_channels), nn.ReLU(True))
+        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels + in_channels, inter_channels, 1, padding=0, bias=False),
+                                    norm_layer(inter_channels), nn.ReLU(True))
+
+        self.guide_pred = nn.Sequential(nn.Conv2d(inter_channels, out_channels, 1))
 
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
-        self.gap = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Sequential(
-            nn.Conv2d(inter_channels, inter_channels, 1),
-            nn.Sigmoid())
-
-        if self.se_loss:
-            self.selayer = nn.Linear(inter_channels, out_channels)
 
     def forward(self, x):
 
-        psaa3_feat = self.aa_psaa3(x)
-        # psaa3_conv = self.conv52(psaa3_feat)
-        feat_sum = psaa3_feat
-
-        if self.se_loss:
-            gap_feat = self.gap(feat_sum)
-            gamma = self.fc(gap_feat)
-            outputs = [self.conv8(F.relu_(feat_sum + feat_sum * gamma))]
-            outputs.append(self.selayer(torch.squeeze(gap_feat)))
-        else:
-            outputs = [self.conv8(feat_sum)]
-
+        psaa3_feat, guide = self.aa_psaa3(x)
+        feat_cat = torch.cat([psaa3_feat, x], dim=1)
+        feat_sum = self.conv52(feat_cat)
+        guide_pred = self.guide_pred(guide)
+        outputs = [self.conv8(feat_sum)]
+        outputs.append(guide_pred)
         return tuple(outputs)
 
 
@@ -149,7 +138,7 @@ class psaa3_Module(nn.Module):
         out = torch.bmm(attention, proj_value)
 
         out = self.gamma * out.view(m_batchsize, height, width, C).permute(0, 3, 1, 2) + guide
-        return out
+        return out, guide
 
 
 class SE_Module(nn.Module):
