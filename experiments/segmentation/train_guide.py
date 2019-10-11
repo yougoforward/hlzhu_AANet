@@ -66,7 +66,7 @@ class Trainer():
         optimizer = torch.optim.SGD(params_list, lr=args.lr,
                                     momentum=args.momentum, weight_decay=args.weight_decay)
         # criterions
-        self.criterion = SegmentationMultiLosses(nclass=self.nclass)
+        self.criterion = SegmentationGuideLosses(nclass=self.nclass)
 
         self.model, self.optimizer = model, optimizer
         # using cuda
