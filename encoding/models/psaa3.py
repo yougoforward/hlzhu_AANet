@@ -101,6 +101,8 @@ class psaa3_Module(nn.Module):
             nn.Conv2d(in_channels, out_channels, 1, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True))
+        self.softmax = nn.Softmax(dim=-1)
+        self.gamma = nn.Parameter(torch.zeros(1))
 
     def forward(self, x):
         feat0 = self.b0(x)

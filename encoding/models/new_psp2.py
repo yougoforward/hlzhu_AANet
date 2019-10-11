@@ -133,6 +133,8 @@ class PyramidPooling(Module):
             nn.ReLU(True))
         # bilinear upsample options
         self._up_kwargs = up_kwargs
+        self.softmax = nn.Softmax(dim=-1)
+        self.gamma = nn.Parameter(torch.zeros(1))
     def forward(self, x):
         _, _, h, w = x.size()
         feat0 = F.upsample(self.conv0(self.pool1(x)), (h, w), **self._up_kwargs)
