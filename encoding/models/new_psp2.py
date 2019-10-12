@@ -42,7 +42,7 @@ class new_psp2Head(nn.Module):
         super(new_psp2Head, self).__init__()
         inter_channels = in_channels // 4
         self.aa_psaa3 = PyramidPooling(in_channels, inter_channels, norm_layer, up_kwargs)
-        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels + in_channels, inter_channels, 1, padding=0, bias=False),
+        self.conv52 = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, padding=0, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
 
         self.guide_pred = nn.Sequential(nn.Conv2d(inter_channels, out_channels, 1))
@@ -51,8 +51,8 @@ class new_psp2Head(nn.Module):
 
     def forward(self, x):
         psaa3_feat, guide = self.aa_psaa3(x)
-        feat_cat = torch.cat([psaa3_feat, x], dim=1)
-        feat_sum = self.conv52(feat_cat)
+        # feat_cat = torch.cat([psaa3_feat, x], dim=1)
+        feat_sum = self.conv52(psaa3_feat)
         guide_pred = self.guide_pred(guide)
         outputs = [self.conv8(feat_sum)]
         outputs.append(guide_pred)

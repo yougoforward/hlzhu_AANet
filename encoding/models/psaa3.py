@@ -41,7 +41,7 @@ class psaa3NetHead(nn.Module):
         self.se_loss = se_loss
         inter_channels = in_channels // 8
         self.aa_psaa3 = psaa3_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels + in_channels, inter_channels, 1, padding=0, bias=False),
+        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
 
         self.guide_pred = nn.Sequential(nn.Conv2d(inter_channels, out_channels, 1))
@@ -50,8 +50,8 @@ class psaa3NetHead(nn.Module):
 
     def forward(self, x):
         psaa3_feat, guide = self.aa_psaa3(x)
-        feat_cat = torch.cat([psaa3_feat, x], dim=1)
-        feat_sum = self.conv52(feat_cat)
+        # feat_cat = torch.cat([psaa3_feat, x], dim=1)
+        feat_sum = self.conv52(psaa3_feat)
         guide_pred = self.guide_pred(guide)
         outputs = [self.conv8(feat_sum)]
         outputs.append(guide_pred)
@@ -102,7 +102,7 @@ class psaa3_Module(nn.Module):
             norm_layer(out_channels),
             nn.ReLU(True))
         self.softmax = nn.Softmax(dim=-1)
-        # self.gamma = nn.Parameter(torch.zeros(1))
+        self.gamma = nn.Parameter(torch.zeros(1))
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -122,7 +122,7 @@ class psaa3_Module(nn.Module):
         proj_value = proj_key.permute(0, 2, 1)
 
         out = torch.bmm(attention, proj_value)
-        out = out.view(m_batchsize, height, width, C).permute(0, 3, 1, 2)
+        out = out.view(m_batchsize, height, width, C).permute(0, 3, 1, 2)+self.gamma*guide
         return out, guide
 
 
