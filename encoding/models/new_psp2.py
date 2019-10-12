@@ -135,6 +135,8 @@ class PyramidPooling(Module):
         self._up_kwargs = up_kwargs
         self.softmax = nn.Softmax(dim=-1)
         self.gamma = nn.Parameter(torch.zeros(1))
+        self.cam = CAM_Module(out_channels)
+
     def forward(self, x):
         _, _, h, w = x.size()
         feat0 = F.upsample(self.conv0(self.pool1(x)), (h, w), **self._up_kwargs)
@@ -155,8 +157,10 @@ class PyramidPooling(Module):
         attention = self.softmax(energy)
         proj_value = proj_key.permute(0, 2, 1)
 
-        out = torch.bmm(attention, proj_value)
-        out = self.gamma * out.view(m_batchsize, height, width, C).permute(0, 3, 1, 2) + guide
+        out = torch.bmm(attention, proj_value).view(m_batchsize, height, width, C).permute(0, 3, 1, 2)
+        out = self.cam(out)
+
+        out = self.gamma * out + guide
         return out, guide
 
 
@@ -176,4 +180,36 @@ class SE_Module(nn.Module):
 
     def forward(self, x):
         out = self.se(x)
+        return out
+
+
+class CAM_Module(nn.Module):
+    """ Channel attention module"""
+    def __init__(self, in_dim):
+        super(CAM_Module, self).__init__()
+        self.chanel_in = in_dim
+
+
+        self.gamma = nn.Parameter(torch.zeros(1))
+        self.softmax  = nn.Softmax(dim=-1)
+    def forward(self,x):
+        """
+            inputs :
+                x : input feature maps( B X C X H X W)
+            returns :
+                out : attention value + input feature
+                attention: B X C X C
+        """
+        m_batchsize, C, height, width = x.size()
+        proj_query = x.view(m_batchsize, C, -1)
+        proj_key = x.view(m_batchsize, C, -1).permute(0, 2, 1)
+        energy = torch.bmm(proj_query, proj_key)
+        energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy)-energy
+        attention = self.softmax(energy_new)
+        proj_value = x.view(m_batchsize, C, -1)
+
+        out = torch.bmm(attention, proj_value)
+        out = out.view(m_batchsize, C, height, width)
+
+        out = self.gamma*out + x
         return out
