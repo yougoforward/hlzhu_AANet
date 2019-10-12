@@ -177,4 +177,5 @@ if __name__ == "__main__":
     for epoch in range(trainer.args.start_epoch, trainer.args.epochs):
         trainer.training(epoch)
         if not trainer.args.no_val:
-            trainer.validation(epoch)
+            if epoch%10==0 or epoch > trainer.args.epochs-10:
+                trainer.validation(epoch)

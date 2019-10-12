@@ -124,7 +124,6 @@ class Trainer():
                 'best_pred': self.best_pred,
             }, self.args, is_best)
 
-
     def validation(self, epoch):
         # Fast test during the training
         def eval_batch(model, image, target):
@@ -179,5 +178,5 @@ if __name__ == "__main__":
     for epoch in range(trainer.args.start_epoch, trainer.args.epochs):
         trainer.training(epoch)
         if not trainer.args.no_val:
-            if epoch%10==0 or epoch > trainer.args.epochs*0.8:
+            if epoch%10==0 or epoch > trainer.args.epochs-10:
                 trainer.validation(epoch)
