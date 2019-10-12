@@ -102,7 +102,7 @@ class psaa3_Module(nn.Module):
             norm_layer(out_channels),
             nn.ReLU(True))
         self.softmax = nn.Softmax(dim=-1)
-        self.gamma = nn.Parameter(torch.zeros(1))
+        # self.gamma = nn.Parameter(torch.zeros(1))
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -122,7 +122,7 @@ class psaa3_Module(nn.Module):
         proj_value = proj_key.permute(0, 2, 1)
 
         out = torch.bmm(attention, proj_value)
-        out = self.gamma * out.view(m_batchsize, height, width, C).permute(0, 3, 1, 2) + guide
+        out = out.view(m_batchsize, height, width, C).permute(0, 3, 1, 2)
         return out, guide
 
 
