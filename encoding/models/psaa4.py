@@ -25,6 +25,8 @@ class psaa4Net(BaseNet):
 
         x = list(self.head(c4))
         x[0] = F.interpolate(x[0], (h, w), **self._up_kwargs)
+        x[1] = F.interpolate(x[1], (h, w), **self._up_kwargs)
+
         if self.aux:
             auxout = self.auxlayer(c3)
             auxout = F.interpolate(auxout, (h, w), **self._up_kwargs)
@@ -38,34 +40,21 @@ class psaa4NetHead(nn.Module):
         super(psaa4NetHead, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 8
-
         self.aa_psaa4 = psaa4_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        # self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
-        #                             norm_layer(inter_channels), nn.ReLU(True))
+        self.conv52 = nn.Sequential(nn.Conv2d(2*inter_channels, inter_channels, 1, padding=0, bias=False),
+                                    norm_layer(inter_channels), nn.ReLU(True))
+
+        self.guide_pred = nn.Sequential(nn.Conv2d(inter_channels, out_channels, 1))
 
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
-        self.gap = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Sequential(
-            nn.Conv2d(inter_channels, inter_channels, 1),
-            nn.Sigmoid())
-
-        if self.se_loss:
-            self.selayer = nn.Linear(inter_channels, out_channels)
 
     def forward(self, x):
-
-        psaa4_feat = self.aa_psaa4(x)
-        # psaa4_conv = self.conv52(psaa4_feat)
-        feat_sum = psaa4_feat
-
-        if self.se_loss:
-            gap_feat = self.gap(feat_sum)
-            gamma = self.fc(gap_feat)
-            outputs = [self.conv8(F.relu_(feat_sum + feat_sum * gamma))]
-            outputs.append(self.selayer(torch.squeeze(gap_feat)))
-        else:
-            outputs = [self.conv8(feat_sum)]
-
+        psaa4_feat, guide = self.aa_psaa4(x)
+        # feat_cat = torch.cat([psaa4_feat, x], dim=1)
+        feat_sum = self.conv52(psaa4_feat)
+        guide_pred = self.guide_pred(guide)
+        outputs = [self.conv8(feat_sum)]
+        outputs.append(guide_pred)
         return tuple(outputs)
 
 
@@ -112,12 +101,10 @@ class psaa4_Module(nn.Module):
             nn.Conv2d(in_channels, out_channels, 1, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True))
-        self.project = nn.Sequential(
-            nn.Conv2d(in_channels + out_channels, out_channels, 1, bias=False),
-            norm_layer(out_channels),
-            nn.ReLU(True),
-            nn.Dropout2d(0.1, False))
         self.softmax = nn.Softmax(dim=-1)
+        self.gamma = nn.Parameter(torch.zeros(1))
+        self.cam = CAM_Module(out_channels)
+
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -136,11 +123,11 @@ class psaa4_Module(nn.Module):
         attention = self.softmax(energy)
         proj_value = proj_key.permute(0, 2, 1)
 
-        out = torch.bmm(attention, proj_value).out.view(m_batchsize, height, width, C).permute(0, 3, 1, 2)
+        out = torch.bmm(attention, proj_value).view(m_batchsize, height, width, C).permute(0, 3, 1, 2)
+        # out = self.cam(out)
 
-        out = torch.cat([out, x], dim=1)
-        out =self.project(out)
-        return out
+        out = torch.cat([out, guide], dim=1)
+        return out, guide
 
 
 class SE_Module(nn.Module):
@@ -174,3 +161,33 @@ def get_psaa4net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
 
 
 
+class CAM_Module(nn.Module):
+    """ Channel attention module"""
+    def __init__(self, in_dim):
+        super(CAM_Module, self).__init__()
+        self.chanel_in = in_dim
+
+
+        self.gamma = nn.Parameter(torch.zeros(1))
+        self.softmax  = nn.Softmax(dim=-1)
+    def forward(self,x):
+        """
+            inputs :
+                x : input feature maps( B X C X H X W)
+            returns :
+                out : attention value + input feature
+                attention: B X C X C
+        """
+        m_batchsize, C, height, width = x.size()
+        proj_query = x.view(m_batchsize, C, -1)
+        proj_key = x.view(m_batchsize, C, -1).permute(0, 2, 1)
+        energy = torch.bmm(proj_query, proj_key)
+        energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy)-energy
+        attention = self.softmax(energy_new)
+        proj_value = x.view(m_batchsize, C, -1)
+
+        out = torch.bmm(attention, proj_value)
+        out = out.view(m_batchsize, C, height, width)
+
+        out = self.gamma*out + x
+        return out

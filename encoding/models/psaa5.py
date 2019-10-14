@@ -25,6 +25,8 @@ class psaa5Net(BaseNet):
 
         x = list(self.head(c4))
         x[0] = F.interpolate(x[0], (h, w), **self._up_kwargs)
+        x[1] = F.interpolate(x[1], (h, w), **self._up_kwargs)
+
         if self.aux:
             auxout = self.auxlayer(c3)
             auxout = F.interpolate(auxout, (h, w), **self._up_kwargs)
@@ -38,34 +40,21 @@ class psaa5NetHead(nn.Module):
         super(psaa5NetHead, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 8
-
         self.aa_psaa5 = psaa5_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        # self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
-        #                             norm_layer(inter_channels), nn.ReLU(True))
+        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
+                                    norm_layer(inter_channels), nn.ReLU(True))
+
+        self.guide_pred = nn.Sequential(nn.Conv2d(inter_channels, out_channels, 1))
 
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
-        self.gap = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Sequential(
-            nn.Conv2d(inter_channels, inter_channels, 1),
-            nn.Sigmoid())
-
-        if self.se_loss:
-            self.selayer = nn.Linear(inter_channels, out_channels)
 
     def forward(self, x):
-
-        psaa5_feat = self.aa_psaa5(x)
-        # psaa5_conv = self.conv52(psaa5_feat)
-        feat_sum = psaa5_feat
-
-        if self.se_loss:
-            gap_feat = self.gap(feat_sum)
-            gamma = self.fc(gap_feat)
-            outputs = [self.conv8(F.relu_(feat_sum + feat_sum * gamma))]
-            outputs.append(self.selayer(torch.squeeze(gap_feat)))
-        else:
-            outputs = [self.conv8(feat_sum)]
-
+        psaa5_feat, guide = self.aa_psaa5(x)
+        # feat_cat = torch.cat([psaa5_feat, x], dim=1)
+        feat_sum = self.conv52(psaa5_feat)
+        guide_pred = self.guide_pred(guide)
+        outputs = [self.conv8(feat_sum)]
+        outputs.append(guide_pred)
         return tuple(outputs)
 
 
@@ -109,17 +98,13 @@ class psaa5_Module(nn.Module):
         self.b4 = psaa5Pooling(in_channels, out_channels, norm_layer, up_kwargs)
 
         self.conv6 = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 1, bias=False),
+            nn.Conv2d(5*in_channels, out_channels, 1, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True))
-        self.project = nn.Sequential(
-            nn.Conv2d(in_channels + out_channels, out_channels, 1, bias=False),
-            norm_layer(out_channels),
-            nn.ReLU(True),
-            nn.Dropout2d(0.1, False))
         self.softmax = nn.Softmax(dim=-1)
-
+        self.gamma = nn.Parameter(torch.zeros(1))
         self.cam = CAM_Module(out_channels)
+
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -127,8 +112,10 @@ class psaa5_Module(nn.Module):
         feat2 = self.b2(x)
         feat3 = self.b3(x)
         feat4 = self.b4(x)
+        
+        feat_cat = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
 
-        guide = self.conv6(x)
+        guide = self.conv6(feat_cat)
         y = torch.stack((feat0, feat1, feat2, feat3, feat4), 1)
 
         m_batchsize, C, height, width = guide.size()
@@ -138,13 +125,11 @@ class psaa5_Module(nn.Module):
         attention = self.softmax(energy)
         proj_value = proj_key.permute(0, 2, 1)
 
-        out = torch.bmm(attention, proj_value).out.view(m_batchsize, height, width, C).permute(0, 3, 1, 2)
-        
-        out = self.cam(out)
-        
-        out = torch.cat([out, x], dim=1)
-        out =self.project(out)
-        return out
+        out = torch.bmm(attention, proj_value).view(m_batchsize, height, width, C).permute(0, 3, 1, 2)
+        # out = self.cam(out)
+
+        out = out+self.gamma*guide
+        return out, guide
 
 
 class SE_Module(nn.Module):
