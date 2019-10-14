@@ -98,7 +98,7 @@ class psaa5_Module(nn.Module):
         self.b4 = psaa5Pooling(in_channels, out_channels, norm_layer, up_kwargs)
 
         self.conv6 = nn.Sequential(
-            nn.Conv2d(5*in_channels, out_channels, 1, bias=False),
+            nn.Conv2d(5*out_channels, out_channels, 1, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True))
         self.softmax = nn.Softmax(dim=-1)
