@@ -158,7 +158,7 @@ class PyramidPooling(Module):
         proj_value = proj_key.permute(0, 2, 1)
 
         out = torch.bmm(attention, proj_value).view(m_batchsize, height, width, C).permute(0, 3, 1, 2)
-        out = self.cam(out)
+        # out = self.cam(out)
 
         out = self.gamma * out + guide
         return out, guide
