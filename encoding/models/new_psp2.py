@@ -48,7 +48,8 @@ class new_psp2Head(nn.Module):
         self.guide_pred = nn.Sequential(nn.Conv2d(inter_channels, out_channels, 1))
 
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
-        self.alpha = nn.parameter(torch.ones(1))
+        self.alpha = nn.Parameter(torch.zeros(1))
+
 
     def forward(self, x):
         psaa3_feat, guide = self.aa_psaa3(x)
@@ -136,7 +137,7 @@ class PyramidPooling(Module):
         # bilinear upsample options
         self._up_kwargs = up_kwargs
         self.softmax = nn.Softmax(dim=-1)
-        self.gamma = nn.Parameter(torch.zeros(1))
+        # self.gamma = nn.Parameter(torch.zeros(1))
         self.cam = CAM_Module(out_channels)
 
     def forward(self, x):
