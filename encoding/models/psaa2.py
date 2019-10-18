@@ -113,18 +113,10 @@ class psaa2_Module(nn.Module):
             nn.ReLU(True),
             nn.Dropout2d(0.1, False))
         
-        self.global_cont = psaa2Pooling(out_channels, out_channels, norm_layer, up_kwargs)
         self.softmax = nn.Softmax(dim=-1)
         self.gamma = nn.Parameter(torch.zeros(1))
         self.se = SE_Module(out_channels, out_channels)
         self.relu = nn.ReLU()
-        # self.project2 = nn.Sequential(
-        #     nn.Conv2d(out_channels, out_channels, 1, bias=False),
-        #     norm_layer(out_channels),
-        #     nn.ReLU(True),
-        #     nn.Dropout2d(0.1, False))
-
-
     def forward(self, x):
         feat0 = self.b0(x)
         feat1 = self.b1(x)
@@ -133,13 +125,10 @@ class psaa2_Module(nn.Module):
         feat4 = self.b4(x)
 
         y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
-        y1=self.project(y1)
-
+        query=self.project(y1)
 
         y = torch.stack((feat0, feat1, feat2, feat3, feat4), 1)
-        
-        # query = self.global_cont(y1)+y1
-        query = y1
+
         m_batchsize, C, height, width = query.size()
         proj_query = query.view(m_batchsize, C, -1).permute(0,2,1).contiguous()
         proj_key = y.view(m_batchsize, 5, C, -1).permute(0, 3, 2, 1).contiguous().view(-1,C,5)
@@ -149,8 +138,8 @@ class psaa2_Module(nn.Module):
         proj_value = proj_key.permute(0,2,1)
 
         out = torch.bmm(attention, proj_value)
-        out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+query
-        out = self.relu(out+self.se(out)*out)
+        out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+self.se(query)*query
+        # out = self.relu(out+self.se(out)*out)
         return out
 
 class SE_Module(nn.Module):
