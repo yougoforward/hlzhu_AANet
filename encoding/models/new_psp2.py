@@ -125,7 +125,7 @@ class PyramidPooling(Module):
         self.se = SE_Module(out_channels, out_channels)
         self.softmax = nn.Softmax(dim=-1)
         self.gamma = nn.Parameter(torch.zeros(1))
-
+        # self.relu = nn.ReLU()
 
     def forward(self, x):
         _, _, h, w = x.size()
@@ -149,6 +149,7 @@ class PyramidPooling(Module):
 
         out = torch.bmm(attention, proj_value)
         out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+self.se(query)*query
+        # out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+query
         # out = self.relu(out+self.se(out)*out)
         return out
 
