@@ -148,9 +148,9 @@ class PyramidPooling(Module):
         proj_value = proj_key.permute(0, 2, 1)
 
         out = torch.bmm(attention, proj_value)
-        out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+self.se(query)*query
-        # out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+query
-        # out = self.relu(out+self.se(out)*out)
+        # out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+self.se(query)*query
+        out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+query
+        out = self.relu(out+self.se(out)*out)
         return out
 
 
