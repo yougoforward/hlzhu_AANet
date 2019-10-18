@@ -116,7 +116,7 @@ class psaa2_Module(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
         self.gamma = nn.Parameter(torch.zeros(1))
         self.se = SE_Module(out_channels, out_channels)
-        self.relu = nn.ReLU()
+        # self.relu = nn.ReLU()
     def forward(self, x):
         feat0 = self.b0(x)
         feat1 = self.b1(x)

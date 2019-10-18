@@ -28,7 +28,7 @@ class new_psp2(BaseNet):
 
         x = list(self.head(c4))
         x[0] = F.interpolate(x[0], (h, w), **self._up_kwargs)
-        x[1] = F.interpolate(x[1], (h, w), **self._up_kwargs)
+        # x[1] = F.interpolate(x[1], (h, w), **self._up_kwargs)
 
         if self.aux:
             auxout = self.auxlayer(c3)
@@ -41,24 +41,12 @@ class new_psp2Head(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, se_loss, up_kwargs):
         super(new_psp2Head, self).__init__()
         inter_channels = in_channels // 4
-        self.aa_psaa3 = PyramidPooling(in_channels, inter_channels, norm_layer, up_kwargs)
-        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
-                                    norm_layer(inter_channels), nn.ReLU(True))
-
-        self.guide_pred = nn.Sequential(nn.Conv2d(inter_channels, out_channels, 1))
-
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
-        self.alpha = nn.Parameter(torch.zeros(1))
+        self.conv5 = PyramidPooling(in_channels, inter_channels, norm_layer, up_kwargs)
+        self.conv6 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
 
 
     def forward(self, x):
-        psaa3_feat, guide = self.aa_psaa3(x)
-        # feat_cat = torch.cat([psaa3_feat, x], dim=1)
-        feat_sum = self.conv52(psaa3_feat)
-        feat_sum = self.alpha*feat_sum+guide
-        guide_pred = self.guide_pred(guide)
-        outputs = [self.conv8(feat_sum)]
-        outputs.append(guide_pred)
+        outputs = [self.conv6(self.conv5(x))]
         return tuple(outputs)
 
 def get_new_psp2(dataset='pascal_voc', backbone='resnet50', pretrained=False,
@@ -105,15 +93,10 @@ class PyramidPooling(Module):
         super(PyramidPooling, self).__init__()
         self.pool1 = AdaptiveAvgPool2d(1)
         self.pool2 = AdaptiveAvgPool2d(2)
-        self.pool3 = AdaptiveAvgPool2d(3)
-        self.pool4 = AdaptiveAvgPool2d(6)
-        self.pool5 = AdaptiveAvgPool2d(12)
-
+        self.pool3 = AdaptiveAvgPool2d(4)
+        self.pool4 = AdaptiveAvgPool2d(8)
 
         # out_channels = int(in_channels/4)
-        self.conv0 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
-                                norm_layer(out_channels),
-                                ReLU(True))
         self.conv1 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
                                 norm_layer(out_channels),
                                 ReLU(True))
@@ -126,19 +109,23 @@ class PyramidPooling(Module):
         self.conv4 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
                                 norm_layer(out_channels),
                                 ReLU(True))
+
         self.conv5 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
                                 norm_layer(out_channels),
                                 ReLU(True))
 
-        self.conv6 = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 1, bias=False),
-            norm_layer(out_channels),
-            nn.ReLU(True))
         # bilinear upsample options
         self._up_kwargs = up_kwargs
+
+        self.project = nn.Sequential(
+            nn.Conv2d(5 * out_channels, out_channels, 1, bias=False),
+            norm_layer(out_channels),
+            nn.ReLU(True),
+            nn.Dropout2d(0.1, False))
+        self.se = SE_Module(out_channels, out_channels)
         self.softmax = nn.Softmax(dim=-1)
-        # self.gamma = nn.Parameter(torch.zeros(1))
-        self.cam = CAM_Module(out_channels)
+        self.gamma = nn.Parameter(torch.zeros(1))
+
 
     def forward(self, x):
         _, _, h, w = x.size()
@@ -148,23 +135,22 @@ class PyramidPooling(Module):
         feat3 = F.upsample(self.conv3(self.pool4(x)), (h, w), **self._up_kwargs)
         feat4 = F.upsample(self.conv4(self.pool5(x)), (h, w), **self._up_kwargs)
         feat5 = self.conv5(x)
+        y1 = torch.cat((feat1, feat2, feat3, feat4, feat5), 1)
+        query = self.project(y1)
 
-
-        guide = self.conv6(x)
         y = torch.stack((feat0, feat1, feat2, feat3, feat4, feat5), 1)
 
-        m_batchsize, C, height, width = guide.size()
-        proj_query = guide.view(m_batchsize, C, -1).permute(0, 2, 1).contiguous()
-        proj_key = y.view(m_batchsize, 6, C, -1).permute(0, 3, 2, 1).contiguous().view(-1, C, 6)
+        m_batchsize, C, height, width = query.size()
+        proj_query = query.view(m_batchsize, C, -1).permute(0, 2, 1).contiguous()
+        proj_key = y.view(m_batchsize, 5, C, -1).permute(0, 3, 2, 1).contiguous().view(-1, C, 5)
         energy = torch.bmm(proj_query.view(-1, 1, C), proj_key)
         attention = self.softmax(energy)
         proj_value = proj_key.permute(0, 2, 1)
 
-        out = torch.bmm(attention, proj_value).view(m_batchsize, height, width, C).permute(0, 3, 1, 2)
-        # out = self.cam(out)
-
-        # out = self.gamma * out + guide
-        return out, guide
+        out = torch.bmm(attention, proj_value)
+        out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+self.se(query)*query
+        # out = self.relu(out+self.se(out)*out)
+        return out
 
 
 class SE_Module(nn.Module):
