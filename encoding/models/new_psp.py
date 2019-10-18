@@ -93,9 +93,8 @@ class PyramidPooling(Module):
         super(PyramidPooling, self).__init__()
         self.pool1 = AdaptiveAvgPool2d(1)
         self.pool2 = AdaptiveAvgPool2d(2)
-        self.pool3 = AdaptiveAvgPool2d(3)
-        self.pool4 = AdaptiveAvgPool2d(6)
-        self.pool5 = AdaptiveAvgPool2d(12)
+        self.pool3 = AdaptiveAvgPool2d(4)
+        self.pool4 = AdaptiveAvgPool2d(8)
 
 
         # out_channels = int(in_channels/4)
@@ -111,17 +110,15 @@ class PyramidPooling(Module):
         self.conv4 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
                                 norm_layer(out_channels),
                                 ReLU(True))
+
         self.conv5 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
-                                norm_layer(out_channels),
-                                ReLU(True))
-        self.conv6 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
                                 norm_layer(out_channels),
                                 ReLU(True))
         # bilinear upsample options
         self._up_kwargs = up_kwargs
 
         self.project = nn.Sequential(
-            nn.Conv2d(6 * out_channels, out_channels, 1, bias=False),
+            nn.Conv2d(5 * out_channels, out_channels, 1, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True),
             nn.Dropout2d(0.1, False))
@@ -133,41 +130,8 @@ class PyramidPooling(Module):
         feat2 = F.upsample(self.conv2(self.pool2(x)), (h, w), **self._up_kwargs)
         feat3 = F.upsample(self.conv3(self.pool3(x)), (h, w), **self._up_kwargs)
         feat4 = F.upsample(self.conv4(self.pool4(x)), (h, w), **self._up_kwargs)
-        feat5 = F.upsample(self.conv5(self.pool5(x)), (h, w), **self._up_kwargs)
-        feat6 = self.conv6(x)
+        feat5 = self.conv5(x)
 
-        y1 = torch.cat((feat1, feat2, feat3, feat4, feat5, feat6), 1)
+        y1 = torch.cat((feat1, feat2, feat3, feat4, feat5), 1)
         out = self.project(y1)
-        return out
-
-class psaa2Pooling(nn.Module):
-    def __init__(self, in_channels, out_channels, norm_layer, up_kwargs):
-        super(psaa2Pooling, self).__init__()
-        self._up_kwargs = up_kwargs
-        self.gap = nn.Sequential(nn.AdaptiveAvgPool2d(1),
-                                 nn.Conv2d(in_channels, out_channels, 1, bias=False),
-                                 norm_layer(out_channels),
-                                 nn.ReLU(True))
-
-    def forward(self, x):
-        _, _, h, w = x.size()
-        pool = self.gap(x)
-        return pool
-        # return F.interpolate(pool, (h, w), **self._up_kwargs)
-class SE_Module(nn.Module):
-    """ Channel attention module"""
-
-    def __init__(self, in_dim, out_dim):
-        super(SE_Module, self).__init__()
-        self.se = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)),
-                                nn.Conv2d(in_dim, in_dim // 8, kernel_size=1, padding=0, dilation=1,
-                                          bias=True),
-                                nn.ReLU(),
-                                nn.Conv2d(in_dim // 8, out_dim, kernel_size=1, padding=0, dilation=1,
-                                          bias=True),
-                                nn.Sigmoid()
-                                )
-
-    def forward(self, x):
-        out = self.se(x)
         return out
