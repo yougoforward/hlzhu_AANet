@@ -119,6 +119,9 @@ class psaa4_Module(nn.Module):
         # self.relu = nn.ReLU()
         self.pam = PAM_Module(out_channels, out_channels//4, out_channels)
         self.cam = CAM_Module(out_channels)
+        self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, bias=False),
+            norm_layer(out_channels),
+            nn.ReLU(True))
 
     def forward(self, x):
         feat0 = self.b0(x)
