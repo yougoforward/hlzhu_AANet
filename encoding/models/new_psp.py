@@ -93,8 +93,8 @@ class PyramidPooling(Module):
         super(PyramidPooling, self).__init__()
         self.pool1 = AdaptiveAvgPool2d(1)
         self.pool2 = AdaptiveAvgPool2d(2)
-        self.pool3 = AdaptiveAvgPool2d(4)
-        self.pool4 = AdaptiveAvgPool2d(8)
+        self.pool3 = AdaptiveAvgPool2d(3)
+        self.pool4 = AdaptiveAvgPool2d(6)
 
 
         # out_channels = int(in_channels/4)
