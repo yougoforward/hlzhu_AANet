@@ -93,10 +93,13 @@ class PyramidPooling(Module):
         super(PyramidPooling, self).__init__()
         self.pool1 = AdaptiveAvgPool2d(1)
         self.pool2 = AdaptiveAvgPool2d(2)
-        self.pool3 = AdaptiveAvgPool2d(4)
-        self.pool4 = AdaptiveAvgPool2d(8)
+        self.pool3 = AdaptiveAvgPool2d(3)
+        self.pool4 = AdaptiveAvgPool2d(6)
 
         # out_channels = int(in_channels/4)
+        self.conv0 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
+                                norm_layer(out_channels),
+                                ReLU(True))
         self.conv1 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
                                 norm_layer(out_channels),
                                 ReLU(True))
@@ -106,11 +109,8 @@ class PyramidPooling(Module):
         self.conv3 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
                                 norm_layer(out_channels),
                                 ReLU(True))
-        self.conv4 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
-                                norm_layer(out_channels),
-                                ReLU(True))
 
-        self.conv5 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
+        self.conv4 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
                                 norm_layer(out_channels),
                                 ReLU(True))
 
@@ -141,12 +141,11 @@ class PyramidPooling(Module):
         feat1 = F.upsample(self.conv1(self.pool2(x)), (h, w), **self._up_kwargs)
         feat2 = F.upsample(self.conv2(self.pool3(x)), (h, w), **self._up_kwargs)
         feat3 = F.upsample(self.conv3(self.pool4(x)), (h, w), **self._up_kwargs)
-        feat4 = F.upsample(self.conv4(self.pool5(x)), (h, w), **self._up_kwargs)
-        feat5 = self.conv5(x)
-        y1 = torch.cat((feat1, feat2, feat3, feat4, feat5), 1)
+        feat4 = self.conv4(x)
+        y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         query = self.project(y1)
 
-        y = torch.stack((feat0, feat1, feat2, feat3, feat4, feat5), 1)
+        y = torch.stack((feat0, feat1, feat2, feat3, feat4), 1)
 
         m_batchsize, C, height, width = query.size()
         proj_query = query.view(m_batchsize, C, -1).permute(0, 2, 1).contiguous()
