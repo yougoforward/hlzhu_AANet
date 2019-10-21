@@ -40,8 +40,8 @@ class psaa5NetHead(nn.Module):
         inter_channels = in_channels // 8
 
         self.aa_psaa5 = psaa5_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        # self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
-        #                             norm_layer(inter_channels), nn.ReLU(True))
+        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
+                                    norm_layer(inter_channels), nn.ReLU(True))
 
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
         self.gap = nn.AdaptiveAvgPool2d(1)
@@ -55,8 +55,8 @@ class psaa5NetHead(nn.Module):
     def forward(self, x):
 
         psaa5_feat = self.aa_psaa5(x)
-        # psaa5_conv = self.conv52(psaa5_feat)
-        feat_sum = psaa5_feat
+        feat_sum = self.conv52(psaa5_feat)
+        # feat_sum = psaa5_feat
 
         if self.se_loss:
             gap_feat = self.gap(feat_sum)
@@ -123,9 +123,12 @@ class psaa5_Module(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
         self.gamma = nn.Parameter(torch.zeros(1))
         self.se = SE_Module(out_channels, out_channels)
-        # self.relu = nn.ReLU()
+        self.relu = nn.ReLU()
         self.pam = PAM_Module(out_channels, out_channels//4, out_channels)
         self.cam = CAM_Module(out_channels)
+        self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, bias=False),
+            norm_layer(out_channels),
+            nn.ReLU(True))
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -152,7 +155,9 @@ class psaa5_Module(nn.Module):
         out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+query
         # out = self.relu(out+self.se(out)*out)
         out = self.pam(out)
-        out = self.cam(out)
+        out = self.fuse_conv(out)
+        out = self.relu(out+self.se(out)*out)
+        # out = self.cam(out)
         return out
 
 
