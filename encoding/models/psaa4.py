@@ -145,7 +145,9 @@ class psaa4_Module(nn.Module):
         out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+query
         # out = self.relu(out+self.se(out)*out)
         out = self.pam(out)
-        out = self.cam(out)
+        out = self.fuse_conv(out)
+        out = self.relu(out + self.se(out) * out)
+        # out = self.cam(out)
         return out, query
 
 
