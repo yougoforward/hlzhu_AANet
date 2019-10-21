@@ -116,7 +116,7 @@ class psaa4_Module(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
         self.gamma = nn.Parameter(torch.zeros(1))
         self.se = SE_Module(out_channels, out_channels)
-        # self.relu = nn.ReLU()
+        self.relu = nn.ReLU()
         self.pam = PAM_Module(out_channels, out_channels//4, out_channels)
         self.cam = CAM_Module(out_channels)
         self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, bias=False),
