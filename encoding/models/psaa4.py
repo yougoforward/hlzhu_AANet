@@ -136,8 +136,7 @@ class psaa4_Module(nn.Module):
         proj_query = query.view(m_batchsize, C, -1).permute(0, 2, 1).contiguous()
         proj_key = y.view(m_batchsize, 5, C, -1).permute(0, 3, 2, 1).contiguous().view(-1, C, 5)
         energy = torch.bmm(proj_query.view(-1, 1, C), proj_key)
-        energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy) - energy
-        attention = self.softmax(energy_new)
+        attention = self.softmax(energy)
         proj_value = proj_key.permute(0, 2, 1)
 
         out = torch.bmm(attention, proj_value)

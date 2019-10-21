@@ -140,21 +140,20 @@ class psaa5_Module(nn.Module):
         y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         query = self.project(y1)
 
-        y = torch.stack((feat0, feat1, feat2, feat3, feat4), 1)
+        y = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
 
         m_batchsize, C, height, width = query.size()
         proj_query = query.view(m_batchsize, C, -1).permute(0, 2, 1).contiguous()
-        proj_key = y.view(m_batchsize, 5, C, -1).permute(0, 3, 2, 1).contiguous().view(-1, C, 5)
-        energy = torch.bmm(proj_query.view(-1, 1, C), proj_key)
-        energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy) - energy
-        attention = self.softmax(energy_new)
+        proj_key = y.view(m_batchsize, C, -1).contiguous()
+        energy = torch.bmm(proj_query, proj_key)
+        attention = self.softmax(energy)
         proj_value = proj_key.permute(0, 2, 1)
 
         out = torch.bmm(attention, proj_value)
         # out = self.gamma * out.view(m_batchsize, height, width, C).permute(0, 3, 1, 2) + self.se(query) * query
         out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+query
         # out = self.relu(out+self.se(out)*out)
-        out = self.pam(out)
+        # out = self.pam(out)
         out = self.fuse_conv(out)
         out = self.relu(out+self.se(out)*out)
         # out = self.cam(out)
