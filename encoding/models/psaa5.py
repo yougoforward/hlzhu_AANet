@@ -154,14 +154,15 @@ class psaa5_Module(nn.Module):
 
         out = torch.bmm(attention, proj_value)
         # out = self.gamma * out.view(m_batchsize, height, width, C).permute(0, 3, 1, 2) + self.se(query) * query
-        # out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+query
+        out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+query
         # out = self.relu(out+self.se(out)*out)
         # out = self.pam(out)
-        out = out.view(m_batchsize, height, width, C).permute(0,3,1,2)
+        # out = out.view(m_batchsize, height, width, C).permute(0,3,1,2)
         out = self.fuse_conv(out)
-        out = out+query
-        out = self.relu(out+self.se(out)*out)
+        # out = out+query
+        # out = self.relu(out+self.se(out)*out)
         # out = self.cam(out)
+        out = out+self.se(out)*out
         return out
 
 
