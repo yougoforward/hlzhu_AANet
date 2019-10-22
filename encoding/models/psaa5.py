@@ -55,8 +55,8 @@ class psaa5NetHead(nn.Module):
     def forward(self, x):
 
         psaa5_feat = self.aa_psaa5(x)
-        feat_sum = self.conv52(psaa5_feat)
-        # feat_sum = psaa5_feat
+        # feat_sum = self.conv52(psaa5_feat)
+        feat_sum = psaa5_feat
 
         if self.se_loss:
             gap_feat = self.gap(feat_sum)
