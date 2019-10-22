@@ -53,7 +53,8 @@ class psaa4NetHead(nn.Module):
     def forward(self, x):
 
         psaa4_feat, guide = self.aa_psaa4(x)
-        feat_sum = self.conv52(psaa4_feat)
+        # feat_sum = self.conv52(psaa4_feat)
+        feat_sum = psaa4_feat
 
         guide_pred = self.guide_pred(guide)
         outputs = [self.conv8(feat_sum)]
@@ -148,7 +149,8 @@ class psaa4_Module(nn.Module):
         # out = self.relu(out+self.se(out)*out)
         out = self.pam(out)
         out = self.fuse_conv(out)
-        out = self.relu(out + self.se(out) * out)
+        out = out + self.se(out) * out
+        # out = self.relu(out + self.se(out) * out)
         # out = self.cam(out)
         return out, query
 
