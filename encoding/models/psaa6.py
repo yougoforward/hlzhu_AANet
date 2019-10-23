@@ -55,8 +55,8 @@ class psaa6NetHead(nn.Module):
     def forward(self, x):
 
         psaa6_feat = self.aa_psaa6(x)
-        feat_sum = self.conv52(psaa6_feat)
-        # feat_sum = psaa6_feat
+        # feat_sum = self.conv52(psaa6_feat)
+        feat_sum = psaa6_feat
 
         if self.se_loss:
             gap_feat = self.gap(feat_sum)
@@ -141,8 +141,10 @@ class psaa6_Module(nn.Module):
         y = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
         out = torch.matmul(y.view(n, c, h*w, 5).permute(0,2,1,3), attention.view(n, 5, h*w).permute(0,2,1).unsqueeze(dim=3))
         out = out.squeeze(dim=3).permute(0,2,1).view(n,c,h,w)
-        out = self.fuse_conv(out)
         out = self.pam(out)
+        out = self.fuse_conv(out)
+        out = out+self.se(out)*out
+
         return out
 
 
