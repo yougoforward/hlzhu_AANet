@@ -139,7 +139,7 @@ class psaa6_Module(nn.Module):
         energy = self.project(y1)
         attention = self.softmax(energy)
         y = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
-        out = torch.bmm(y.view(n, c, h*w, 5).permute(0,2,1,3), attention.view(n, 5, h*w).permute(0,2,1).unsqueeze(dim=3))
+        out = torch.matmul(y.view(n, c, h*w, 5).permute(0,2,1,3), attention.view(n, 5, h*w).permute(0,2,1).unsqueeze(dim=3))
         out = out.squeeze(dim=3).permute(0,2,1).view(n,c,h,w)
         out = self.fuse_conv(out)
         out = self.pam(out)
