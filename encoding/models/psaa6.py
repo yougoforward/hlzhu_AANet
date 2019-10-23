@@ -52,11 +52,25 @@ class psaa6NetHead(nn.Module):
         if self.se_loss:
             self.selayer = nn.Linear(inter_channels, out_channels)
 
+        self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 1, padding=0, bias=False),
+                                    norm_layer(inter_channels),
+                                    nn.ReLU(inplace=True))
+        self.conv53 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
+                                    norm_layer(inter_channels), nn.ReLU(True))
+
     def forward(self, x):
 
         psaa6_feat = self.aa_psaa6(x)
         # feat_sum = self.conv52(psaa6_feat)
         feat_sum = psaa6_feat
+
+        # sec
+        feat2 = self.conv5c(x)
+        sec_feat = self.sec(feat2)
+        sec_conv = self.conv53(sec_feat)
+
+        # fuse
+        feat_sum = feat_sum + sec_conv
 
         if self.se_loss:
             gap_feat = self.gap(feat_sum)
