@@ -59,6 +59,7 @@ from .psaa3 import *
 from .psaa4 import *
 from .psaa5 import *
 from .psaa6 import *
+from .psaa7 import *
 
 from .new_psp2 import *
 def get_segmentation_model(name, **kwargs):
@@ -122,6 +123,7 @@ def get_segmentation_model(name, **kwargs):
         'psaa4': get_psaa4net,
         'psaa5': get_psaa5net,
         'psaa6': get_psaa6net,
+        'psaa7': get_psaa7net,
         'new_psp2': get_new_psp2,
 
     }
