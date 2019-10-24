@@ -101,10 +101,10 @@ class psaa6_Module(nn.Module):
         self.se = SE_Module(out_channels, out_channels)
         self.pam = PAM_Module(out_channels, out_channels//4, out_channels, out_channels, norm_layer)
 
-        self.skip_conv = nn.Sequential(nn.Conv2d(in_channels+out_channels, out_channels, 1, padding=0, bias=False),
+        self.skip_conv = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, padding=0, bias=False),
                                        norm_layer(out_channels),
                                        nn.ReLU(True))
-        # self.guided_cam = guided_CAM_Module(512, out_channels, out_channels, norm_layer)
+        self.guided_cam = guided_CAM_Module(out_channels, out_channels, out_channels, norm_layer)
 
 
     def forward(self, x):
@@ -123,8 +123,8 @@ class psaa6_Module(nn.Module):
         out = out.squeeze(dim=3).permute(0,2,1).view(n,c,h,w)
 
         out = self.pam(out)
-        out = self.skip_conv(torch.cat([x, out], dim=1))
-        # out = self.guided_cam(self.skip_conv(x), out)
+        # out = self.skip_conv(torch.cat([x, out], dim=1))
+        out = self.guided_cam(self.skip_conv(x), out)
         out = out+self.se(out)*out
         return out
 
