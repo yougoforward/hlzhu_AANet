@@ -105,10 +105,13 @@ class psaa7_Module(nn.Module):
         self.se = SE_Module(out_channels, out_channels)
         self.pam = PAM_Module(out_channels, out_channels//4, out_channels, out_channels, norm_layer)
 
-        self.skip_conv = nn.Sequential(nn.Conv2d(in_channels+2*out_channels, out_channels, 1, padding=0, bias=False),
+        self.skip_conv = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, padding=0, bias=False),
                                        norm_layer(out_channels),
                                        nn.ReLU(True))
-        # self.guided_cam = guided_CAM_Module(512, out_channels, out_channels, norm_layer)
+        self.reduce_conv = nn.Sequential(nn.Conv2d(in_channels+2*out_channels, out_channels, 1, padding=0, bias=False),
+                                       norm_layer(out_channels),
+                                       nn.ReLU(True))
+        self.guided_cam = guided_CAM_Module(out_channels, out_channels, out_channels, norm_layer)
 
 
     def forward(self, x):
@@ -119,6 +122,7 @@ class psaa7_Module(nn.Module):
         feat4 = self.b4(x)
         n, c, h, w = feat0.size()
 
+        #psaa
         y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         energy = self.project(y1)
         attention = self.softmax(energy)
@@ -126,10 +130,12 @@ class psaa7_Module(nn.Module):
         out = torch.matmul(y.view(n, c, h*w, 5).permute(0,2,1,3), attention.view(n, 5, h*w).permute(0,2,1).unsqueeze(dim=3))
         out = out.squeeze(dim=3).permute(0,2,1).view(n,c,h,w)
 
-        # out = self.pam(out)
+        # gcam
         gap =self.gap(x)
-        out = self.skip_conv(torch.cat([x, gap, out], dim=1))
-        # out = self.guided_cam(self.skip_conv(x), out)
+        out = self.guided_cam(self.skip_conv(x), out)
+        out = self.reduce_conv(torch.cat([x, gap, out], dim=1))
+
+        # se
         out = out+self.se(out)*out
         return out
 
