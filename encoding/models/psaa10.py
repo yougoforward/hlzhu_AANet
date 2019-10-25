@@ -100,15 +100,8 @@ class psaa10_Module(nn.Module):
         
         self.psaa = Psaa_Module(out_channels, norm_layer)
 
-        self.project = nn.Sequential(nn.Conv2d(5 * out_channels, 5, 1, bias=True))
 
-        self.softmax = nn.Softmax(dim=1)
         self.se = SE_Module(out_channels, out_channels)
-        self.pam = PAM_Module(out_channels, out_channels // 4, out_channels, out_channels, norm_layer)
-
-        self.skip_conv = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, padding=0, bias=False),
-                                       norm_layer(out_channels),
-                                       nn.ReLU(True))
         self.reduce_conv = nn.Sequential(
             nn.Conv2d(2 * out_channels, out_channels, 1, padding=0, bias=False),
             norm_layer(out_channels),
@@ -289,7 +282,7 @@ class Psaa_Module(nn.Module):
                 out : attention value + input feature
                 attention: B X (HxW) X (HxW)
         """
-        n, c, h, w = cat.size()
+        n, c, h, w, s = stack.size()
 
         energy = self.project(cat)
         attention = torch.softmax(energy, dim=1)
