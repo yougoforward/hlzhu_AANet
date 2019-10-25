@@ -108,11 +108,14 @@ class psaa7_Module(nn.Module):
         self.skip_conv = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, padding=0, bias=False),
                                        norm_layer(out_channels),
                                        nn.ReLU(True))
-        self.reduce_conv = nn.Sequential(nn.Conv2d(in_channels+2*out_channels, out_channels, 1, padding=0, bias=False),
+        self.reduce_conv = nn.Sequential(nn.Conv2d(2*out_channels, out_channels, 1, padding=0, bias=False),
                                        norm_layer(out_channels),
                                        nn.ReLU(True))
         self.guided_cam = guided_CAM_Module(out_channels, out_channels, out_channels, norm_layer)
 
+        self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, padding=0, bias=False),
+                                       norm_layer(out_channels),
+                                       nn.ReLU(True))
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -130,10 +133,14 @@ class psaa7_Module(nn.Module):
         out = torch.matmul(y.view(n, c, h*w, 5).permute(0,2,1,3), attention.view(n, 5, h*w).permute(0,2,1).unsqueeze(dim=3))
         out = out.squeeze(dim=3).permute(0,2,1).view(n,c,h,w)
 
+        #
+        out = self.fuse_conv(out)
+
+
         # gcam
         gap =self.gap(x)
-        out = self.guided_cam(self.skip_conv(x), out)
-        out = self.reduce_conv(torch.cat([x, gap, out], dim=1))
+        # out = self.guided_cam(self.skip_conv(x), out)
+        out = self.reduce_conv(torch.cat([gap, out], dim=1))
 
         # se
         out = out+self.se(out)*out

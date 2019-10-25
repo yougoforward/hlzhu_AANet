@@ -108,7 +108,7 @@ class psaa8_Module(nn.Module):
                                        norm_layer(out_channels),
                                        nn.ReLU(True))
         self.reduce_conv = nn.Sequential(
-            nn.Conv2d(in_channels + 2 * out_channels, out_channels, 1, padding=0, bias=False),
+            nn.Conv2d(2 * out_channels, out_channels, 1, padding=0, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True))
         self.guided_cam = guided_CAM_Module(out_channels, out_channels, out_channels, norm_layer)
@@ -150,8 +150,8 @@ class psaa8_Module(nn.Module):
 
         # gcam
         gap = self.gap(x)
-        out = self.guided_cam(self.skip_conv(x), out)
-        out = self.reduce_conv(torch.cat([x, gap, out], dim=1))
+        # out = self.guided_cam(self.skip_conv(x), out)
+        out = self.reduce_conv(torch.cat([gap, out], dim=1))
 
         # se
         out = out + self.se(out) * out
