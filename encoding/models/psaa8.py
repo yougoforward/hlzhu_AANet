@@ -40,7 +40,7 @@ class psaa8NetHead(nn.Module):
         inter_channels = in_channels // 8
 
         self.aa_psaa8 = psaa8_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
 
     def forward(self, x):
         psaa8_feat = self.aa_psaa8(x)
@@ -147,14 +147,14 @@ class psaa8_Module(nn.Module):
 
         out = guided_fuse+out
         out = self.fuse_conv(out)
-
         # gcam
         gap = self.gap(x)
         # out = self.guided_cam(self.skip_conv(x), out)
-        out = self.reduce_conv(torch.cat([gap, out], dim=1))
+        # out = self.reduce_conv(torch.cat([gap, out], dim=1))
 
         # se
-        out = out + self.se(out) * out
+        # out = out + self.se(out) * out
+        out = torch.cat([gap, out], dim=1)
         return out
 
 
