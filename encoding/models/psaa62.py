@@ -61,7 +61,7 @@ class psaa62NetHead(nn.Module):
         psaa62_feat = self.aa_psaa62(x)
         coarse = self.conv7(psaa62_feat)
         psaa62_feat_reduce = self.reduce_conv(psaa62_feat)
-        p_att_list = torch.split(torch.softmax(coarse, dim=1))
+        p_att_list = torch.split(torch.softmax(coarse, dim=1), 1, dim=1)
         center_list = [torch.sum(psaa62_feat_reduce * p_att_list[i], (2, 3), keepdim=False) / torch.sum(p_att_list[i], (2, 3), keepdim=False) for i in range(self.cls)]
         center_fea = torch.stack(center_list, dim=-1)  # n x in_dim x cls_p
         center_energy = torch.bmm(psaa62_feat_reduce.view(n , self.inter, h*w).permute(0,2,1), center_fea)
