@@ -150,7 +150,7 @@ class psaa62_Module(nn.Module):
         y = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
         out = torch.matmul(y.view(n, c, h*w, 5).permute(0,2,1,3), attention.view(n, 5, h*w).permute(0,2,1).unsqueeze(dim=3))
         out = out.squeeze(dim=3).permute(0,2,1).view(n,c,h,w)
-        out = self.pam(out)
+        # out = self.pam(out)
 
 
         # out = self.guided_cam(self.skip_conv(x), out)
