@@ -76,8 +76,8 @@ class psaa6Pooling(nn.Module):
         _, _, h, w = x.size()
         pool = self.gap(x)
 
-        return F.interpolate(pool, (h, w), **self._up_kwargs)
-
+        # return F.interpolate(pool, (h, w), **self._up_kwargs)
+        return pool.expand(1,1,h,w)
 
 class psaa6_Module(nn.Module):
     def __init__(self, in_channels, out_channels, atrous_rates, norm_layer, up_kwargs):
