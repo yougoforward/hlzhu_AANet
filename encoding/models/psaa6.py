@@ -40,7 +40,7 @@ class psaa6NetHead(nn.Module):
         inter_channels = in_channels // 8
 
         self.aa_psaa6 = psaa6_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
 
     def forward(self, x):
 
@@ -135,8 +135,11 @@ class psaa6_Module(nn.Module):
         # gcam
         gap =self.gap(x)
         # out = self.guided_cam(self.skip_conv(x), out)
-        out = self.reduce_conv(torch.cat([gap, out], dim=1))
-        out = out+self.se(out)*out
+        # out = self.reduce_conv(torch.cat([gap, out], dim=1))
+        # out = out+self.se(out)*out
+
+        out = torch.cat([gap, out], dim=1)
+
         return out
 
 
