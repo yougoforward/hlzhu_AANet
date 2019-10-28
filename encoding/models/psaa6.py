@@ -40,7 +40,7 @@ class psaa6NetHead(nn.Module):
         inter_channels = in_channels // 8
 
         self.aa_psaa6 = psaa6_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
 
     def forward(self, x):
 
@@ -109,7 +109,9 @@ class psaa6_Module(nn.Module):
                                        nn.ReLU(True))
         self.guided_cam = guided_CAM_Module(out_channels, out_channels, out_channels, norm_layer)
         self.gap = psaa6Pooling(in_channels, out_channels, norm_layer, up_kwargs)
-
+        self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, padding=0, bias=False),
+                                       norm_layer(out_channels),
+                                       nn.ReLU(True))
 
 
     def forward(self, x):
@@ -126,22 +128,24 @@ class psaa6_Module(nn.Module):
         y = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
         out = torch.matmul(y.view(n, c, h*w, 5).permute(0,2,1,3), attention.view(n, 5, h*w).permute(0,2,1).unsqueeze(dim=3))
         out = out.squeeze(dim=3).permute(0,2,1).view(n,c,h,w)
-        out = self.pam(out)
+        # out = self.pam(out)
 
 
         # out = self.guided_cam(self.skip_conv(x), out)
         # out = self.reduce_conv(torch.cat([x, out], dim=1))
 
         # gcam
-        gap =self.gap(x)
+        # gap =self.gap(x)
         # out = self.guided_cam(self.skip_conv(x), out)
         # out = self.reduce_conv(torch.cat([gap, out], dim=1))
         # out = out+self.se(out)*out
 
-        out = torch.cat([gap, out], dim=1)
+        # out = torch.cat([gap, out], dim=1)
+        out = self.fuse_conv(out)
 
         return out
-
+# psaa, pam, gap 7872, 5043, 7940, 5135
+#psaa, 
 
 class SE_Module(nn.Module):
     """ Channel attention module"""
