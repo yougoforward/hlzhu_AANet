@@ -145,7 +145,8 @@ class psaa6_Module(nn.Module):
 
         return out
 # psaa, pam, gap 7872, 5043, 7940, 5135
-#psaa, 
+# psaa, pam  7934	5121	7870	5038
+# psaa,
 
 class SE_Module(nn.Module):
     """ Channel attention module"""

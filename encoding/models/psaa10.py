@@ -137,15 +137,14 @@ class psaa10_Module(nn.Module):
         guided_fuse = self.guided_cam_fuse(y1, query)
 
         out = guided_fuse+out
-        # out = self.fuse_conv(out)
+        out = self.fuse_conv(out)
 
-        # gcam
-        gap = self.gap(x)
-        # out = self.guided_cam(self.skip_conv(x), out)
-        out = self.reduce_conv(torch.cat([gap, out], dim=1))
-
-        # se
-        out = out + self.se(out) * out
+        # # gcam
+        # gap = self.gap(x)
+        # # out = self.guided_cam(self.skip_conv(x), out)
+        # out = self.reduce_conv(torch.cat([gap, out], dim=1))
+        # # se
+        # out = out + self.se(out) * out
         return out
 
 
