@@ -90,11 +90,13 @@ class psaa10_Module(nn.Module):
         self.b1 = psaa10Conv(in_channels, out_channels, rate1, norm_layer)
         self.b2 = psaa10Conv(in_channels, out_channels, rate2, norm_layer)
         self.b3 = psaa10Conv(in_channels, out_channels, rate3, norm_layer)
-        self.b4 = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 1, bias=False),
-            norm_layer(out_channels), nn.ReLU(True),
-            PAM_Module(out_channels, out_channels//2, out_channels, out_channels, norm_layer)
-        )
+        self.b4 = psaa10Pooling(in_channels, out_channels, norm_layer, up_kwargs)
+
+        # self.b4 = nn.Sequential(
+        #     nn.Conv2d(in_channels, out_channels, 1, bias=False),
+        #     norm_layer(out_channels), nn.ReLU(True),
+        #     PAM_Module(out_channels, out_channels//2, out_channels, out_channels, norm_layer)
+        # )
 
         self.gap = psaa10Pooling(in_channels, out_channels, norm_layer, up_kwargs)
         
