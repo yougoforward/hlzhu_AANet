@@ -40,7 +40,7 @@ class psaa8NetHead(nn.Module):
         inter_channels = in_channels // 8
 
         self.aa_psaa8 = psaa8_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
 
     def forward(self, x):
         psaa8_feat = self.aa_psaa8(x)
@@ -90,11 +90,12 @@ class psaa8_Module(nn.Module):
         self.b1 = psaa8Conv(in_channels, out_channels, rate1, norm_layer)
         self.b2 = psaa8Conv(in_channels, out_channels, rate2, norm_layer)
         self.b3 = psaa8Conv(in_channels, out_channels, rate3, norm_layer)
-        self.b4 = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 1, bias=False),
-            norm_layer(out_channels), nn.ReLU(True),
-            PAM_Module(out_channels, out_channels // 2, out_channels, out_channels, norm_layer)
-        )
+        self.b4 = psaa8Pooling(in_channels, out_channels, norm_layer, up_kwargs)
+        # self.b4 = nn.Sequential(
+        #     nn.Conv2d(in_channels, out_channels, 1, bias=False),
+        #     norm_layer(out_channels), nn.ReLU(True),
+        #     PAM_Module(out_channels, out_channels // 2, out_channels, out_channels, norm_layer)
+        # )
 
         self.gap = psaa8Pooling(in_channels, out_channels, norm_layer, up_kwargs)
 
@@ -122,6 +123,8 @@ class psaa8_Module(nn.Module):
         self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, padding=0, bias=False),
                                        norm_layer(out_channels),
                                        nn.ReLU(True))
+        self.psaa = Psaa_Module(out_channels, norm_layer)
+
     def forward(self, x):
         feat0 = self.b0(x)
         feat1 = self.b1(x)
@@ -132,12 +135,8 @@ class psaa8_Module(nn.Module):
 
         # psaa
         y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
-        energy = self.project(y1)
-        attention = self.softmax(energy)
         y = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
-        out = torch.matmul(y.view(n, c, h * w, 5).permute(0, 2, 1, 3),
-                           attention.view(n, 5, h * w).permute(0, 2, 1).unsqueeze(dim=3))
-        out = out.squeeze(dim=3).permute(0, 2, 1).view(n, c, h, w)
+        out = self.psaa(y1, y)
 
 
         # cat and project
@@ -145,16 +144,16 @@ class psaa8_Module(nn.Module):
         # guided fuse
         guided_fuse = self.guided_cam_fuse(y1, query)
 
-        out = guided_fuse+out
-        out = self.fuse_conv(out)
+        out = guided_fuse+self.fuse_conv(out)
+        # out = self.fuse_conv(out)
         # gcam
-        gap = self.gap(x)
-        # out = self.guided_cam(self.skip_conv(x), out)
+        # gap = self.gap(x)
+        # # out = self.guided_cam(self.skip_conv(x), out)
         # out = self.reduce_conv(torch.cat([gap, out], dim=1))
 
         # se
         # out = out + self.se(out) * out
-        out = torch.cat([gap, out], dim=1)
+        # out = torch.cat([gap, out], dim=1)
         return out
 
 
@@ -241,9 +240,9 @@ class guided_CAM_Module(nn.Module):
 
         self.gamma = nn.Parameter(torch.zeros(1))
         self.softmax = nn.Softmax(dim=-1)
-        # self.fuse_conv = nn.Sequential(nn.Conv2d(query_dim, out_dim, 1, padding=0, bias=False),
-        #                                norm_layer(out_dim),
-        #                                nn.ReLU(True))
+        self.fuse_conv = nn.Sequential(nn.Conv2d(query_dim, out_dim, 1, padding=0, bias=False),
+                                       norm_layer(out_dim),
+                                       nn.ReLU(True))
 
     def forward(self, x, query):
         """
@@ -266,5 +265,54 @@ class guided_CAM_Module(nn.Module):
         out_c = torch.bmm(attention, x.view(m_batchsize, -1, width * height))
         out_c = out_c.view(m_batchsize, -1, height, width)
         out_c = self.gamma * out_c + proj_c_query
-        # out_c = self.fuse_conv(out_c)
+        out_c = self.fuse_conv(out_c)
         return out_c
+
+class Psaa_Module(nn.Module):
+    """ Position attention module"""
+
+    # Ref from SAGAN
+    def __init__(self, out_channels, norm_layer):
+        super(Psaa_Module, self).__init__()
+        self.project = nn.Sequential(nn.Conv2d(5 * out_channels, 5, 1, bias=True))
+
+        self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, padding=0, bias=False),
+                                       norm_layer(out_channels),
+                                       nn.ReLU(True))
+        self.gamma = nn.Parameter(torch.zeros(1))
+        self.beta = nn.Parameter(torch.zeros(1))
+
+
+        self.fuse_project = nn.Sequential(
+            nn.Conv2d(5 * out_channels, out_channels, 1, padding=0, bias=False),
+            norm_layer(out_channels),
+            nn.ReLU(True))
+
+    def forward(self, cat, stack):
+        """
+            inputs :
+                x : input feature maps( B X C X H X W)
+            returns :
+                out : attention value + input feature
+                attention: B X (HxW) X (HxW)
+        """
+        n, c, h, w, s = stack.size()
+
+        # learned psaa
+        energy = self.project(cat)
+        attention = torch.softmax(energy, dim=1)
+        yv = stack.view(n, c, h * w, 5).permute(0, 2, 1, 3) # n ,hw, c, 5
+        out = torch.matmul(yv, attention.view(n, 5, h * w).permute(0, 2, 1).unsqueeze(dim=3)) # n, hw, c, 1
+        # out = out.squeeze(dim=3).permute(0, 2, 1).view(n, c, h, w)
+
+        # guided psaa
+        query = self.fuse_project(cat)
+        energy = torch.matmul(yv.permute(0, 1, 3, 2), query.view(n, -1, h*w).permute(0, 2, 1).unsqueeze(dim=3)) # n, hw, 5, 1
+        attention = torch.softmax(energy, dim=2)
+        out2 = torch.matmul(yv, attention)# n, hw, c, 1
+        # out2 = out2.squeeze(dim=3).permute(0, 2, 1).view(n, c, h, w)
+
+        out = self.beta * out2 + self.gamma*out
+        out = out.squeeze(dim=3).permute(0, 2, 1).view(n, c, h, w) + query
+        out = self.fuse_conv(out)
+        return out

@@ -40,9 +40,6 @@ class psaa2NetHead(nn.Module):
         inter_channels = in_channels // 8
 
         self.aa_psaa2 = psaa2_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        # self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
-        #                             norm_layer(inter_channels), nn.ReLU(True))
-
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
         self.gap = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
@@ -54,10 +51,7 @@ class psaa2NetHead(nn.Module):
 
     def forward(self, x):
 
-        psaa2_feat = self.aa_psaa2(x)
-        # psaa2_conv = self.conv52(psaa2_feat)
-        feat_sum = psaa2_feat
-
+        feat_sum = self.aa_psaa2(x)
         if self.se_loss:
             gap_feat = self.gap(feat_sum)
             gamma = self.fc(gap_feat)
@@ -115,8 +109,7 @@ class psaa2_Module(nn.Module):
         
         self.softmax = nn.Softmax(dim=-1)
         self.gamma = nn.Parameter(torch.zeros(1))
-        self.se = SE_Module(out_channels, out_channels)
-        # self.relu = nn.ReLU()
+
     def forward(self, x):
         feat0 = self.b0(x)
         feat1 = self.b1(x)
@@ -133,14 +126,11 @@ class psaa2_Module(nn.Module):
         proj_query = query.view(m_batchsize, C, -1).permute(0,2,1).contiguous()
         proj_key = y.view(m_batchsize, 5, C, -1).permute(0, 3, 2, 1).contiguous().view(-1,C,5)
         energy = torch.bmm(proj_query.view(-1,1, C), proj_key)
-        energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy) - energy
-        attention = self.softmax(energy_new)
+        attention = self.softmax(energy)
         proj_value = proj_key.permute(0,2,1)
 
         out = torch.bmm(attention, proj_value)
-        out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+self.se(query)*query
-        # out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+query
-        # out = self.relu(out+self.se(out)*out)
+        out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+ query
         return out
 
 class SE_Module(nn.Module):
