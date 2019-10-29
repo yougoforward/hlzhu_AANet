@@ -71,12 +71,15 @@ class psaa10Pooling(nn.Module):
                                  norm_layer(out_channels),
                                  nn.ReLU(True))
 
+        self.out_chs = out_channels
+
     def forward(self, x):
-        _, _, h, w = x.size()
+        bs, _, h, w = x.size()
         pool = self.gap(x)
 
         # return F.interpolate(pool, (h, w), **self._up_kwargs)
-        return pool.repeat(1,1,h,w)
+        # return pool.repeat(1,1,h,w)
+        return pool.expand(bs, self.out_chs, h, w)
 
 class psaa10_Module(nn.Module):
     def __init__(self, in_channels, out_channels, atrous_rates, norm_layer, up_kwargs):
