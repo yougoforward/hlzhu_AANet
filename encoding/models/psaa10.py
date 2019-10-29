@@ -133,13 +133,13 @@ class psaa10_Module(nn.Module):
         out = self.psaa(y1, y)
 
 
-        # cat and project
-        query = self.fuse_project(y1)
-        # guided fuse
-        guided_fuse = self.guided_cam_fuse(y1, query)
-
-        out = guided_fuse+out
-        out = self.fuse_conv(out)
+        # # cat and project
+        # query = self.fuse_project(y1)
+        # # guided fuse
+        # guided_fuse = self.guided_cam_fuse(y1, query)
+        #
+        # out = guided_fuse+out
+        # out = self.fuse_conv(out)
 
         # # gcam
         # gap = self.gap(x)

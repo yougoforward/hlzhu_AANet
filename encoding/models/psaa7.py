@@ -40,7 +40,7 @@ class psaa7NetHead(nn.Module):
         inter_channels = in_channels // 8
 
         self.aa_psaa7 = psaa7_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
 
     def forward(self, x):
 
@@ -72,12 +72,15 @@ class psaa7Pooling(nn.Module):
                                  norm_layer(out_channels),
                                  nn.ReLU(True))
 
+        self.out_chs = out_channels
+
     def forward(self, x):
-        _, _, h, w = x.size()
+        bs, _, h, w = x.size()
         pool = self.gap(x)
 
         # return F.interpolate(pool, (h, w), **self._up_kwargs)
-        return pool.repeat(1,1,h,w)
+        # return pool.repeat(1,1,h,w)
+        return pool.expand(bs, self.out_chs, h, w)
 
 class psaa7_Module(nn.Module):
     def __init__(self, in_channels, out_channels, atrous_rates, norm_layer, up_kwargs):
@@ -137,15 +140,15 @@ class psaa7_Module(nn.Module):
         out = self.fuse_conv(out)
 
 
-        # gcam
-        gap =self.gap(x)
-        # out = self.guided_cam(self.skip_conv(x), out)
+        # # gcam
+        # gap =self.gap(x)
+        # # out = self.guided_cam(self.skip_conv(x), out)
         # out = self.reduce_conv(torch.cat([gap, out], dim=1))
         #
         # # se
         # out = out+self.se(out)*out
 
-        out = torch.cat([gap, out], dim=1)
+        # out = torch.cat([gap, out], dim=1)
         return out
 
 

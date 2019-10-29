@@ -71,13 +71,15 @@ class psaa6Pooling(nn.Module):
                                  nn.Conv2d(in_channels, out_channels, 1, bias=False),
                                  norm_layer(out_channels),
                                  nn.ReLU(True))
+        self.out_chs = out_channels
 
     def forward(self, x):
-        _, _, h, w = x.size()
+        bs, _, h, w = x.size()
         pool = self.gap(x)
 
         # return F.interpolate(pool, (h, w), **self._up_kwargs)
-        return pool.repeat(1,1,h,w)
+        # return pool.repeat(1,1,h,w)
+        return pool.expand(bs, self.out_chs, h, w)
 
 class psaa6_Module(nn.Module):
     def __init__(self, in_channels, out_channels, atrous_rates, norm_layer, up_kwargs):
@@ -146,7 +148,7 @@ class psaa6_Module(nn.Module):
         return out
 # psaa, pam, gap 7872, 5043, 7940, 5135
 # psaa, pam  7934	5121	7870	5038
-# psaa,
+# psaa, 7920 5088  7847 4975
 
 class SE_Module(nn.Module):
     """ Channel attention module"""
