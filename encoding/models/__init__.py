@@ -64,6 +64,8 @@ from .psaa8 import *
 from .psaa9 import *
 from .psaa10 import *
 from .psaa62 import *
+from .aspoc import *
+from .aspoc_psaa import *
 
 
 
@@ -136,6 +138,8 @@ def get_segmentation_model(name, **kwargs):
         'psaa62': get_psaa62net,
 
         'new_psp2': get_new_psp2,
+        'aspoc': get_aspocnet,
+        'aspoc_psaa':get_aspoc_psaanet,
 
     }
     return models[name.lower()](**kwargs)
