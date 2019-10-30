@@ -37,7 +37,7 @@ class psaaNetHead(nn.Module):
                  atrous_rates=(12, 24, 36)):
         super(psaaNetHead, self).__init__()
         self.se_loss = se_loss
-        inter_channels = in_channels // 8
+        inter_channels = in_channels // 4
 
         self.aa_psaa = psaa_Module(in_channels, atrous_rates, norm_layer, up_kwargs)
         self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
@@ -101,7 +101,7 @@ class psaaPooling(nn.Module):
 class psaa_Module(nn.Module):
     def __init__(self, in_channels, atrous_rates, norm_layer, up_kwargs):
         super(psaa_Module, self).__init__()
-        out_channels = in_channels // 8
+        out_channels = in_channels // 4
         rate1, rate2, rate3 = tuple(atrous_rates)
         self.b0 = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, 1, bias=False),

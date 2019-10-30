@@ -37,7 +37,7 @@ class psaa10NetHead(nn.Module):
                  atrous_rates=(12, 24, 36)):
         super(psaa10NetHead, self).__init__()
         self.se_loss = se_loss
-        inter_channels = in_channels // 8
+        inter_channels = in_channels // 4
 
         self.aa_psaa10 = psaa10_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
