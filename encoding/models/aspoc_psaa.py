@@ -164,7 +164,7 @@ class ASPOC_Module(nn.Module):
         self.atte_branch = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=3, padding=1, dilation=1, bias=False),
                                          norm_layer(out_dim), nn.ReLU(True),
                                          SelfAttentionModule(in_dim=out_dim, out_dim=out_dim, key_dim=out_dim // 2,
-                                                             value_dim=out_dim, scale=scale))
+                                                             value_dim=out_dim, norm_layer=norm_layer, scale=scale))
 
         self.dilation_0 = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=1, padding=0, dilation=1, bias=False),
                                         norm_layer(out_dim), nn.ReLU(True))
