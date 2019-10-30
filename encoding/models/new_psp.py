@@ -40,7 +40,7 @@ class new_psp(BaseNet):
 class new_pspHead(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, se_loss, up_kwargs):
         super(new_pspHead, self).__init__()
-        inter_channels = in_channels // 8
+        inter_channels = in_channels // 4
         self.conv5 = PyramidPooling(in_channels, inter_channels, norm_layer, up_kwargs)
         self.conv6 = nn.Sequential(nn.Dropout2d(0.1, False),
                                    nn.Conv2d(inter_channels, out_channels, 1))
