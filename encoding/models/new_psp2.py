@@ -40,7 +40,7 @@ class new_psp2(BaseNet):
 class new_psp2Head(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, se_loss, up_kwargs):
         super(new_psp2Head, self).__init__()
-        inter_channels = in_channels // 4
+        inter_channels = in_channels // 8
         self.conv5 = PyramidPooling(in_channels, inter_channels, norm_layer, up_kwargs)
         self.conv6 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
 
@@ -113,27 +113,11 @@ class PyramidPooling(Module):
         self.conv4 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
                                 norm_layer(out_channels),
                                 ReLU(True))
+        self.psaa = Psaa_Module(out_channels, norm_layer)
+
 
         # bilinear upsample options
         self._up_kwargs = up_kwargs
-
-        self.project = nn.Sequential(
-            nn.Conv2d(5 * out_channels, out_channels, 1, bias=False),
-            norm_layer(out_channels),
-            nn.ReLU(True),
-            nn.Dropout2d(0.1, False))
-        self.se = SE_Module(out_channels, out_channels)
-        self.softmax = nn.Softmax(dim=-1)
-        self.gamma = nn.Parameter(torch.zeros(1))
-        # self.relu = nn.ReLU()
-        self.conv = nn.Sequential(
-            nn.Conv2d(out_channels, out_channels, 1, bias=False),
-            norm_layer(out_channels),
-            nn.ReLU(True))
-        self.project2 = nn.Sequential(
-            nn.Conv2d(2*out_channels, out_channels, 1, bias=False),
-            norm_layer(out_channels),
-            nn.ReLU(True))
 
     def forward(self, x):
         _, _, h, w = x.size()
@@ -143,72 +127,45 @@ class PyramidPooling(Module):
         feat3 = F.upsample(self.conv3(self.pool4(x)), (h, w), **self._up_kwargs)
         feat4 = self.conv4(x)
         y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
-        query = self.project(y1)
-
         y = torch.stack((feat0, feat1, feat2, feat3, feat4), 1)
-
-        m_batchsize, C, height, width = query.size()
-        proj_query = query.view(m_batchsize, C, -1).permute(0, 2, 1).contiguous()
-        proj_key = y.view(m_batchsize, 5, C, -1).permute(0, 3, 2, 1).contiguous().view(-1, C, 5)
-        energy = torch.bmm(proj_query.view(-1, 1, C), proj_key)
-        attention = self.softmax(energy)
-        proj_value = proj_key.permute(0, 2, 1)
-
-        out = torch.bmm(attention, proj_value)
-        out = self.conv(out.view(m_batchsize, height, width, C).permute(0,3,1,2))
-        # out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+self.se(query)*query
-        # out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+query
-        # out = self.relu(out+self.se(out)*out)
-        out = self.project2(torch.cat([out, query], dim=1))
+        out = self.psaa(y1, y)
         return out
 
 
-class SE_Module(nn.Module):
-    """ Channel attention module"""
+class Psaa_Module(nn.Module):
+    """ Position attention module"""
 
-    def __init__(self, in_dim, out_dim):
-        super(SE_Module, self).__init__()
-        self.se = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)),
-                                nn.Conv2d(in_dim, in_dim // 8, kernel_size=1, padding=0, dilation=1,
-                                          bias=True),
-                                nn.ReLU(),
-                                nn.Conv2d(in_dim // 8, out_dim, kernel_size=1, padding=0, dilation=1,
-                                          bias=True),
-                                nn.Sigmoid()
-                                )
+    # Ref from SAGAN
+    def __init__(self, out_channels, norm_layer):
+        super(Psaa_Module, self).__init__()
+        self.project = nn.Sequential(nn.Conv2d(5 * out_channels, 5, 1, bias=True))
 
-    def forward(self, x):
-        out = self.se(x)
-        return out
-
-
-class CAM_Module(nn.Module):
-    """ Channel attention module"""
-    def __init__(self, in_dim):
-        super(CAM_Module, self).__init__()
-        self.chanel_in = in_dim
-
-
+        self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, padding=0, bias=False),
+                                       norm_layer(out_channels),
+                                       nn.ReLU(True))
         self.gamma = nn.Parameter(torch.zeros(1))
-        self.softmax  = nn.Softmax(dim=-1)
-    def forward(self,x):
+
+    def forward(self, cat, stack):
         """
             inputs :
                 x : input feature maps( B X C X H X W)
             returns :
                 out : attention value + input feature
-                attention: B X C X C
+                attention: B X (HxW) X (HxW)
         """
-        m_batchsize, C, height, width = x.size()
-        proj_query = x.view(m_batchsize, C, -1)
-        proj_key = x.view(m_batchsize, C, -1).permute(0, 2, 1)
-        energy = torch.bmm(proj_query, proj_key)
-        energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy)-energy
-        attention = self.softmax(energy_new)
-        proj_value = x.view(m_batchsize, C, -1)
+        n, c, h, w, s = stack.size()
 
-        out = torch.bmm(attention, proj_value)
-        out = out.view(m_batchsize, C, height, width)
+        energy = self.project(cat)
+        attention = torch.softmax(energy, dim=1)
+        yv = stack.view(n, c, h * w, 5).permute(0, 2, 1, 3)
+        out = torch.matmul(yv, attention.view(n, 5, h * w).permute(0, 2, 1).unsqueeze(dim=3))
 
-        out = self.gamma*out + x
+        energy = torch.matmul(yv.permute(0, 1, 3, 2), out)
+        attention = torch.softmax(energy, dim=2)
+        out2 = torch.matmul(yv, attention)
+
+        out = self.gamma * out2 + out
+        out = out.squeeze(dim=3).permute(0, 2, 1).view(n, c, h, w)
+        out = self.fuse_conv(out)
+
         return out

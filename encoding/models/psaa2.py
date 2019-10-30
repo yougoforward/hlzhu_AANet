@@ -65,7 +65,11 @@ class psaa2NetHead(nn.Module):
 
 def psaa2Conv(in_channels, out_channels, atrous_rate, norm_layer):
     block = nn.Sequential(
-        nn.Conv2d(in_channels, out_channels, 3, padding=atrous_rate,
+        nn.Conv2d(in_channels, 512, 1, padding=0,
+                  dilation=1, bias=False),
+        norm_layer(512),
+        nn.ReLU(True),
+        nn.Conv2d(512, out_channels, 3, padding=atrous_rate,
                   dilation=atrous_rate, bias=False),
         norm_layer(out_channels),
         nn.ReLU(True))
@@ -108,11 +112,13 @@ class psaa2_Module(nn.Module):
         self.project = nn.Sequential(
             nn.Conv2d(5*out_channels, out_channels, 1, bias=False),
             norm_layer(out_channels),
-            nn.ReLU(True),
-            nn.Dropout2d(0.1, False))
+            nn.ReLU(True))
         
         self.softmax = nn.Softmax(dim=-1)
         self.gamma = nn.Parameter(torch.zeros(1))
+        self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, padding=0, bias=False),
+                                       norm_layer(out_channels),
+                                       nn.ReLU(True))
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -135,6 +141,7 @@ class psaa2_Module(nn.Module):
 
         out = torch.bmm(attention, proj_value)
         out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+ query
+        out = self.fuse_conv(out)
         return out
 
 class SE_Module(nn.Module):

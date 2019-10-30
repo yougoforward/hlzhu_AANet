@@ -37,13 +37,13 @@ class ASPPNetHead(nn.Module):
                  atrous_rates=(12, 24, 36)):
         super(ASPPNetHead, self).__init__()
         self.se_loss = se_loss
-        inter_channels = in_channels // 4
+        inter_channels = in_channels // 8
 
         self.aa_aspp = ASPP_Module(in_channels, atrous_rates, norm_layer, up_kwargs)
         self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
 
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(512, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
         self.gap = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
             nn.Conv2d(inter_channels, inter_channels, 1),
@@ -54,9 +54,7 @@ class ASPPNetHead(nn.Module):
 
     def forward(self, x):
 
-        aspp_feat = self.aa_aspp(x)
-        aspp_conv = self.conv52(aspp_feat)
-        feat_sum = aspp_conv
+        feat_sum = self.aa_aspp(x)
 
         if self.se_loss:
             gap_feat = self.gap(feat_sum)
@@ -109,10 +107,9 @@ class ASPP_Module(nn.Module):
         self.b4 = AsppPooling(in_channels, out_channels, norm_layer, up_kwargs)
 
         self.project = nn.Sequential(
-            nn.Conv2d(5 * out_channels, 2*out_channels, 1, bias=False),
-            norm_layer(2*out_channels),
-            nn.ReLU(True),
-            nn.Dropout2d(0.5, False))
+            nn.Conv2d(5 * out_channels, out_channels, 1, bias=False),
+            norm_layer(out_channels),
+            nn.ReLU(True))
 
     def forward(self, x):
         feat0 = self.b0(x)

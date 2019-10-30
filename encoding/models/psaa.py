@@ -37,13 +37,13 @@ class psaaNetHead(nn.Module):
                  atrous_rates=(12, 24, 36)):
         super(psaaNetHead, self).__init__()
         self.se_loss = se_loss
-        inter_channels = in_channels // 4
+        inter_channels = in_channels // 8
 
         self.aa_psaa = psaa_Module(in_channels, atrous_rates, norm_layer, up_kwargs)
         self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
                                     norm_layer(inter_channels), nn.ReLU(True))
 
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(512, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
         self.gap = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
             nn.Conv2d(inter_channels, inter_channels, 1),
@@ -54,10 +54,7 @@ class psaaNetHead(nn.Module):
 
     def forward(self, x):
 
-        psaa_feat = self.aa_psaa(x)
-        psaa_conv = self.conv52(psaa_feat)
-        feat_sum = psaa_conv
-
+        feat_sum = self.aa_psaa(x)
         if self.se_loss:
             gap_feat = self.gap(feat_sum)
             gamma = self.fc(gap_feat)
@@ -71,12 +68,15 @@ class psaaNetHead(nn.Module):
 
 def psaaConv(in_channels, out_channels, atrous_rate, norm_layer):
     block = nn.Sequential(
-        nn.Conv2d(in_channels, out_channels, 3, padding=atrous_rate,
+        nn.Conv2d(in_channels, 512, 1, padding=0,
+                  dilation=1, bias=False),
+        norm_layer(512),
+        nn.ReLU(True),
+        nn.Conv2d(512, out_channels, 3, padding=atrous_rate,
                   dilation=atrous_rate, bias=False),
         norm_layer(out_channels),
         nn.ReLU(True))
     return block
-
 
 class psaaPooling(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, up_kwargs):
@@ -87,11 +87,15 @@ class psaaPooling(nn.Module):
                                  norm_layer(out_channels),
                                  nn.ReLU(True))
 
+        self.out_chs = out_channels
+
     def forward(self, x):
-        _, _, h, w = x.size()
+        bs, _, h, w = x.size()
         pool = self.gap(x)
 
-        return F.interpolate(pool, (h, w), **self._up_kwargs)
+        # return F.interpolate(pool, (h, w), **self._up_kwargs)
+        # return pool.repeat(1,1,h,w)
+        return pool.expand(bs, self.out_chs, h, w)
 
 
 class psaa_Module(nn.Module):
@@ -107,16 +111,11 @@ class psaa_Module(nn.Module):
         self.b2 = psaaConv(in_channels, out_channels, rate2, norm_layer)
         self.b3 = psaaConv(in_channels, out_channels, rate3, norm_layer)
         self.b4 = psaaPooling(in_channels, out_channels, norm_layer, up_kwargs)
-        
-        
-        self.global_cont = psaaPooling(out_channels, out_channels, norm_layer, up_kwargs)
-        self.softmax = nn.Softmax(dim=-1)
 
         self.project = nn.Sequential(
-            nn.Conv2d(out_channels, 512, 1, bias=False),
-            norm_layer(512),
-            nn.ReLU(True),
-            nn.Dropout2d(0.1, False))
+            nn.Conv2d(5*out_channels, out_channels, 1, bias=False),
+            norm_layer(out_channels),
+            nn.ReLU(True))
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -125,20 +124,7 @@ class psaa_Module(nn.Module):
         feat3 = self.b3(x)
         feat4 = self.b4(x)
 
-        # y = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
-        y = torch.stack((feat0, feat1, feat2, feat3, feat4), 1)
-        
-        query = self.global_cont(feat0)+feat0
-        m_batchsize, C, height, width = query.size()
-        proj_query = query.view(m_batchsize, C, -1).permute(0,2,1).contiguous()
-        proj_key = y.view(m_batchsize, 5, C, -1).permute(0, 3, 2, 1).contiguous().view(-1,C,5)
-        energy = torch.bmm(proj_query.view(-1,1, C), proj_key)
-        energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy) - energy
-        attention = self.softmax(energy_new)
-        proj_value = proj_key.permute(0,2,1)
-
-        out = torch.bmm(attention, proj_value)
-        out = out.view(m_batchsize, height, width, C).permute(0,3,1,2)+query
+        out = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         
         return self.project(out)
 
