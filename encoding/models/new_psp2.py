@@ -126,8 +126,8 @@ class PyramidPooling(Module):
         feat2 = F.upsample(self.conv2(self.pool3(x)), (h, w), **self._up_kwargs)
         feat3 = F.upsample(self.conv3(self.pool4(x)), (h, w), **self._up_kwargs)
         feat4 = self.conv4(x)
-        y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
-        y = torch.stack((feat0, feat1, feat2, feat3, feat4), 1)
+        y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), dim=1)
+        y = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
         out = self.psaa(y1, y)
         return out
 
