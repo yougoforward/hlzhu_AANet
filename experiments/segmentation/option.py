@@ -95,7 +95,7 @@ class Options():
         if args.epochs is None:
             epoches = {
                 'coco': 30,
-                'cityscapes': 240,
+                'cityscapes': 120,
                 'pascal_voc': 50,
                 'pascal_aug': 50,
                 'pcontext': 80,
@@ -117,6 +117,6 @@ class Options():
                 'ade20k': 0.001,
                 'cocostuff': 0.001,
             }
-            args.lr = lrs[args.dataset.lower()] / 16 * args.batch_size
+            args.lr = lrs[args.dataset.lower()]
         print(args)
         return args
