@@ -170,13 +170,13 @@ class ASPOC_Module(nn.Module):
                                         norm_layer(out_dim), nn.ReLU(True))
 
         self.dilation_1 = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=3, padding=12, dilation=12, bias=False),
-                                        norm_layer(out_dim), nn.ReLU(True),)
+                                        norm_layer(out_dim), nn.ReLU(True))
 
         self.dilation_2 = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=3, padding=24, dilation=24, bias=False),
                                         norm_layer(out_dim), nn.ReLU(True))
 
         self.dilation_3 = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=3, padding=36, dilation=36, bias=False),
-                                        norm_layer(out_dim), nn.ReLU(True),)
+                                        norm_layer(out_dim), nn.ReLU(True))
 
         self.head_conv = nn.Sequential(nn.Conv2d(out_dim * 5, out_dim, kernel_size=1, padding=0, bias=False),
                                        norm_layer(out_dim), nn.ReLU(True),
@@ -190,7 +190,6 @@ class ASPOC_Module(nn.Module):
         feat2 = self.dilation_1(x)
         feat3 = self.dilation_2(x)
         feat4 = self.dilation_3(x)
-       
         # psaa
         y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         y = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
@@ -202,9 +201,9 @@ class psaa_Module(nn.Module):
     """ Position attention module"""
 
     # Ref from SAGAN
-    def __init__(self, out_channels, norm_layer):
+    def __init__(self, out_channels, norm_layer, scales=5):
         super(psaa_Module, self).__init__()
-        self.project = nn.Sequential(nn.Conv2d(5 * out_channels, 5, 1, bias=True))
+        self.project = nn.Sequential(nn.Conv2d(scales * out_channels, scales, 1, bias=True))
 
         self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, padding=0, bias=False),
                                        norm_layer(out_channels),
@@ -223,8 +222,8 @@ class psaa_Module(nn.Module):
 
         energy = self.project(cat)
         attention = torch.softmax(energy, dim=1)
-        yv = stack.view(n, c, h * w, 5).permute(0, 2, 1, 3)
-        out = torch.matmul(yv, attention.view(n, 5, h * w).permute(0, 2, 1).unsqueeze(dim=3))
+        yv = stack.view(n, c, h * w, s).permute(0, 2, 1, 3)
+        out = torch.matmul(yv, attention.view(n, s, h * w).permute(0, 2, 1).unsqueeze(dim=3))
 
         energy = torch.matmul(yv.permute(0, 1, 3, 2), out)
         attention = torch.softmax(energy, dim=2)
