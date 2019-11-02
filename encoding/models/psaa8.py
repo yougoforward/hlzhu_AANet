@@ -37,7 +37,7 @@ class psaa8NetHead(nn.Module):
                  atrous_rates=(12, 24, 36)):
         super(psaa8NetHead, self).__init__()
         self.se_loss = se_loss
-        inter_channels = in_channels // 8
+        inter_channels = in_channels // 4
 
         self.aa_psaa8 = psaa8_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
@@ -140,14 +140,10 @@ class psaa8_Module(nn.Module):
         y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         y = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
         out = self.psaa(y1, y)
-
-
-        # cat and project
-        query = self.fuse_project(y1)
-        # guided fuse
-        guided_fuse = self.guided_cam_fuse(y1, query)
-
-        out = guided_fuse+out
+        # guided fuse channel
+        out = self.guided_cam_fuse(y1, out)
+        #pam
+        out = self.pam(out)
         # out = self.fuse_conv(out)
         # gcam
         # gap = self.gap(x)
