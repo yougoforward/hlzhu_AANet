@@ -161,7 +161,7 @@ class ASPOC_Module(nn.Module):
 
     def __init__(self, in_dim, out_dim, norm_layer, scale):
         super(ASPOC_Module, self).__init__()
-        self.atte_branch = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=3, padding=1, dilation=1, bias=False),
+        self.atte_branch = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=1, padding=0, dilation=1, bias=False),
                                          norm_layer(out_dim), nn.ReLU(True),
                                          SelfAttentionModule(in_dim=out_dim, out_dim=out_dim, key_dim=out_dim // 2,
                                                              value_dim=out_dim, norm_layer=norm_layer, scale=scale))
@@ -169,13 +169,19 @@ class ASPOC_Module(nn.Module):
         self.dilation_0 = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=1, padding=0, dilation=1, bias=False),
                                         norm_layer(out_dim), nn.ReLU(True))
 
-        self.dilation_1 = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=3, padding=12, dilation=12, bias=False),
+        self.dilation_1 = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=1, padding=0, dilation=1, bias=False),
+                                        norm_layer(out_dim), nn.ReLU(True),
+                                        nn.Conv2d(out_dim, out_dim, kernel_size=3, padding=12, dilation=12, bias=False),
                                         norm_layer(out_dim), nn.ReLU(True))
 
-        self.dilation_2 = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=3, padding=24, dilation=24, bias=False),
+        self.dilation_2 = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=1, padding=0, dilation=1, bias=False),
+                                        norm_layer(out_dim), nn.ReLU(True),
+                                        nn.Conv2d(out_dim, out_dim, kernel_size=3, padding=24, dilation=24, bias=False),
                                         norm_layer(out_dim), nn.ReLU(True))
 
-        self.dilation_3 = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=3, padding=36, dilation=36, bias=False),
+        self.dilation_3 = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=1, padding=0, dilation=1, bias=False),
+                                        norm_layer(out_dim), nn.ReLU(True),
+                                        nn.Conv2d(out_dim, out_dim, kernel_size=3, padding=36, dilation=36, bias=False),
                                         norm_layer(out_dim), nn.ReLU(True))
 
         self.head_conv = nn.Sequential(nn.Conv2d(out_dim * 5, out_dim, kernel_size=1, padding=0, bias=False),
