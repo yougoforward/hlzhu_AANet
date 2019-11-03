@@ -94,39 +94,19 @@ class psaa8_Module(nn.Module):
         self.b2 = psaa8Conv(in_channels, out_channels, rate2, norm_layer)
         self.b3 = psaa8Conv(in_channels, out_channels, rate3, norm_layer)
         self.b4 = psaa8Pooling(in_channels, out_channels, norm_layer, up_kwargs)
-        # self.b4 = nn.Sequential(
-        #     nn.Conv2d(in_channels, out_channels, 1, bias=False),
-        #     norm_layer(out_channels), nn.ReLU(True),
-        #     PAM_Module(out_channels, out_channels // 2, out_channels, out_channels, norm_layer)
-        # )
 
         self.gap = psaa8Pooling(in_channels, out_channels, norm_layer, up_kwargs)
-
-        self.project = nn.Sequential(nn.Conv2d(5 * out_channels, 5, 1, bias=True))
-
-        self.softmax = nn.Softmax(dim=1)
         self.se = SE_Module(out_channels, out_channels)
-        self.pam = PAM_Module(out_channels, out_channels // 4, out_channels, out_channels, norm_layer)
-
-        self.skip_conv = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, padding=0, bias=False),
-                                       norm_layer(out_channels),
-                                       nn.ReLU(True))
         self.reduce_conv = nn.Sequential(
             nn.Conv2d(2 * out_channels, out_channels, 1, padding=0, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True))
-        self.guided_cam = guided_CAM_Module(out_channels, out_channels, out_channels, norm_layer)
-
-        self.fuse_project = nn.Sequential(
-            nn.Conv2d(5 * out_channels, out_channels, 1, padding=0, bias=False),
+        self.guided_cam_fuse = guided_CAM_Module(5*out_channels, out_channels, out_channels, norm_layer)
+        self.psaa = Psaa_Module(out_channels, norm_layer)
+        self.project = nn.Sequential(
+            nn.Conv2d(5*out_channels, out_channels, 1, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True))
-        self.guided_cam_fuse = guided_CAM_Module(5*out_channels, out_channels, out_channels, norm_layer)
-
-        self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, padding=0, bias=False),
-                                       norm_layer(out_channels),
-                                       nn.ReLU(True))
-        self.psaa = Psaa_Module(out_channels, norm_layer)
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -141,18 +121,15 @@ class psaa8_Module(nn.Module):
         y = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
         out = self.psaa(y1, y)
         # guided fuse channel
-        out = self.guided_cam_fuse(y1, out)
-        #pam
-        # out = self.pam(out)
-        # out = self.fuse_conv(out)
-        # gcam
-        gap = self.gap(x)
-        # # out = self.guided_cam(self.skip_conv(x), out)
-        out = self.reduce_conv(torch.cat([gap, out], dim=1))
+        query = self.project(y1)
+        out2 = self.guided_cam_fuse(y1, query)
+        #gp
+        # gap = self.gap(x)
+        out = self.reduce_conv(torch.cat([out, out2], dim=1))
+        # out = self.reduce_conv(torch.cat([gap, out, out2], dim=1))
 
         # se
         # out = out + self.se(out) * out
-        # out = torch.cat([gap, out], dim=1)
         return out
 
 
