@@ -119,13 +119,13 @@ class psaa8_Module(nn.Module):
         # psaa
         y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         y = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
-        out = self.psaa(y1, y)
+        # out = self.psaa(y1, y)
         # guided fuse channel
         query = self.project(y1)
-        out2 = self.guided_cam_fuse(y1, query)
+        out = self.guided_cam_fuse(y1, query, y)
         #gp
         # gap = self.gap(x)
-        out = self.reduce_conv(torch.cat([out, out2], dim=1))
+        # out = self.reduce_conv(torch.cat([out, out2], dim=1))
         # out = self.reduce_conv(torch.cat([gap, out, out2], dim=1))
 
         # se
@@ -216,11 +216,13 @@ class guided_CAM_Module(nn.Module):
 
         self.gamma = nn.Parameter(torch.zeros(1))
         self.softmax = nn.Softmax(dim=-1)
-        self.fuse_conv = nn.Sequential(nn.Conv2d(query_dim, out_dim, 1, padding=0, bias=False),
+        self.fuse_conv = nn.Sequential(nn.Conv2d(query_dim, out_dim, 3, padding=1, bias=False),
                                        norm_layer(out_dim),
                                        nn.ReLU(True))
+        self.beta = nn.Parameter(torch.zeros(1))
 
-    def forward(self, x, query):
+
+    def forward(self, x, query, stack):
         """
             inputs :
                 x=[x1,x2]
@@ -229,6 +231,14 @@ class guided_CAM_Module(nn.Module):
             returns :
                 out : output feature maps( B X C X H X W)
         """
+        yv = stack.view(n, c, h * w, 5).permute(0, 2, 1, 3) # n ,hw, c, 5
+
+        # guided psaa
+        # query = self.fuse_project(cat)
+        energy = torch.matmul(yv.permute(0, 1, 3, 2), query.view(n, -1, h*w).permute(0, 2, 1).unsqueeze(dim=3)) # n, hw, 5, 1
+        attention = torch.softmax(energy, dim=2)
+        out2 = torch.matmul(yv, attention)# n, hw, c, 1
+        out2 = out2.squeeze(dim=3).permute(0, 2, 1).view(n, c, h, w)
 
         m_batchsize, C, height, width = x.size()
         proj_c_query = query
@@ -240,7 +250,7 @@ class guided_CAM_Module(nn.Module):
 
         out_c = torch.bmm(attention, x.view(m_batchsize, -1, width * height))
         out_c = out_c.view(m_batchsize, -1, height, width)
-        out_c = self.gamma * out_c + proj_c_query
+        out_c = self.gamma * out_c + proj_c_query +self.beta*out2
         out_c = self.fuse_conv(out_c)
         return out_c
 
