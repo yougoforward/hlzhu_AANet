@@ -216,7 +216,7 @@ class guided_CAM_Module(nn.Module):
 
         self.gamma = nn.Parameter(torch.zeros(1))
         self.softmax = nn.Softmax(dim=-1)
-        self.fuse_conv = nn.Sequential(nn.Conv2d(query_dim, out_dim, 3, padding=1, bias=False),
+        self.fuse_conv = nn.Sequential(nn.Conv2d(query_dim, out_dim, 1, padding=0, bias=False),
                                        norm_layer(out_dim),
                                        nn.ReLU(True))
         self.beta = nn.Parameter(torch.zeros(1))
