@@ -129,7 +129,7 @@ class psaa9_Module(nn.Module):
         # out = self.psaa(y1, y)
         # guided fuse channel
         query = self.project(y1)
-        out2 = self.guided_cam_fuse(y1, query)
+        out = self.guided_cam_fuse(y1, query)
         #gp
         # gap = self.gap(x)
         # out = self.reduce_conv(torch.cat([gap, out, out2], dim=1))
