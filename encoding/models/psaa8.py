@@ -231,6 +231,8 @@ class guided_CAM_Module(nn.Module):
             returns :
                 out : output feature maps( B X C X H X W)
         """
+        n, c, h, w, s = stack.size()
+
         yv = stack.view(n, c, h * w, 5).permute(0, 2, 1, 3) # n ,hw, c, 5
 
         # guided psaa
