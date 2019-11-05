@@ -140,7 +140,7 @@ class Psaa_Module(nn.Module):
         super(Psaa_Module, self).__init__()
         self.project = nn.Sequential(nn.Conv2d(5 * out_channels, 5, 1, bias=True))
 
-        self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, padding=0, bias=False),
+        self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 3, padding=1, bias=False),
                                        norm_layer(out_channels),
                                        nn.ReLU(True))
         self.gamma = nn.Parameter(torch.zeros(1))

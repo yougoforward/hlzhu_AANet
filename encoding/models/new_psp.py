@@ -118,7 +118,7 @@ class PyramidPooling(Module):
         self._up_kwargs = up_kwargs
 
         self.project = nn.Sequential(
-            nn.Conv2d(5 * out_channels, out_channels, 1, bias=False),
+            nn.Conv2d(5 * out_channels, out_channels, 3, padding=1, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True))
 
