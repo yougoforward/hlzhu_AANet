@@ -293,7 +293,7 @@ class guided_CAM_Module(nn.Module):
 
 
 class Psaa_Module(nn.Module):
-""" Position attention module"""
+    """ Position attention module"""
 
     # Ref from SAGAN
     def __init__(self, out_channels, norm_layer):
