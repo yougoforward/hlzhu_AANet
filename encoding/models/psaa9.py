@@ -126,7 +126,7 @@ class psaa9_Module(nn.Module):
         # psaa
         y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         y = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
-        out = self.psaa(x, y1, y)
+        out = self.psaa(y1, y)
         # # guided fuse channel
         # query = self.project(y1)
         # out = self.guided_cam_fuse(y1, query)
@@ -257,14 +257,16 @@ class Psaa_Module(nn.Module):
     # Ref from SAGAN
     def __init__(self, out_channels, norm_layer):
         super(Psaa_Module, self).__init__()
-        self.project = nn.Sequential(nn.Conv2d(5 * out_channels, 5, 1, bias=True))
+        self.project = nn.Sequential(nn.Conv2d(5*out_channels, out_channels, 1, padding=0, bias=True),
+                                       nn.ReLU(True),
+                                       nn.Conv2d(out_channels, 5, 1, bias=True))
 
         self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, padding=0, bias=False),
                                        norm_layer(out_channels),
                                        nn.ReLU(True))
         self.gamma = nn.Parameter(torch.zeros(1))
 
-    def forward(self, x, cat, stack):
+    def forward(self, cat, stack):
         """
             inputs :
                 x : input feature maps( B X C X H X W)
@@ -277,14 +279,14 @@ class Psaa_Module(nn.Module):
         energy = self.project(cat)
         attention = torch.softmax(energy, dim=1)
         yv = stack.view(n, c, h * w, 5).permute(0, 2, 1, 3)
-        out = torch.matmul(yv, attention.view(n, 5, h * w).permute(0, 2, 1).unsqueeze(dim=3))
+        out = torch.matmul(yv, attention.view(n, 5, h * w).permute(0, 2, 1).unsqueeze(dim=3))#n, hw, c, 1
         
-        energy = torch.matmul(yv.permute(0, 1, 3, 2), out)
-        attention = torch.softmax(energy, dim=2)
-        out2 = torch.matmul(yv, attention)
-        
-        out = self.gamma * out2 + out
-        out = out.squeeze(dim=3).permute(0, 2, 1).view(n, c, h, w)
-        out = self.fuse_conv(out)
+        yv2 = stack.view(n, c, -1).permute(0, 2, 1)
+        energy = torch.matmul(yv2, out)
+        attention = torch.softmax(energy, dim=1)
+        out2 = torch.matmul(yv2, attention)
 
-        return out
+        out3 = self.gamma * out2 + out
+        out3 = out3.squeeze(dim=3).permute(0, 2, 1).view(n, c, h, w)
+        out3 = self.fuse_conv(out3)
+        return out3
