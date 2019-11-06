@@ -119,13 +119,13 @@ class psaa8_Module(nn.Module):
         # psaa
         y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         y = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
-        # out = self.psaa(y1, y)
+        out = self.psaa(y1, y)
         # guided fuse channel
-        query = self.project(y1)
-        out = self.guided_cam_fuse(y1, query, y)
+        # query = self.project(y1)
+        # out = self.guided_cam_fuse(y1, query, y)
         #gp
-        # gap = self.gap(x)
-        # out = self.reduce_conv(torch.cat([out, out2], dim=1))
+        gap = self.gap(x)
+        out = self.reduce_conv(torch.cat([gap, out], dim=1))
         # out = self.reduce_conv(torch.cat([gap, out, out2], dim=1))
 
         # se
