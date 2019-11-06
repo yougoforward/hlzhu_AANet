@@ -286,7 +286,7 @@ class Psaa_Module(nn.Module):
         attention = torch.softmax(energy, dim=1)
         out2 = torch.bmm(yv2.permute(0, 2, 1), attention)
 
-        out3 = self.gamma * out2 + out
-        out3 = out3.permute(0, 2, 1).view(n, c, h, w)
+        out3 = self.gamma * out2 + out.permute(0,2,1)
+        out3 = out3.view(n, c, h, w)
         out3 = self.fuse_conv(out3)
         return out3
