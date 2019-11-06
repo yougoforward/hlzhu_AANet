@@ -279,7 +279,7 @@ class Psaa_Module(nn.Module):
         energy = self.project(cat)
         attention = torch.softmax(energy, dim=1)
         yv = stack.view(n, c, h * w, 5).permute(0, 2, 1, 3)
-        out = torch.matmul(yv, attention.view(n, 5, h * w).permute(0, 2, 1).unsqueeze(dim=3))#n, hw, c, 1
+        out = torch.matmul(yv, attention.view(n, 5, h * w).permute(0, 2, 1).unsqueeze(dim=3)).squeeze(dim=3)#n, hw, c, 1
         
         yv2 = stack.view(n, c, -1).permute(0, 2, 1)
         energy = torch.matmul(yv2, out)
@@ -287,6 +287,6 @@ class Psaa_Module(nn.Module):
         out2 = torch.matmul(yv2, attention)
 
         out3 = self.gamma * out2 + out
-        out3 = out3.squeeze(dim=3).permute(0, 2, 1).view(n, c, h, w)
+        out3 = out3.permute(0, 2, 1).view(n, c, h, w)
         out3 = self.fuse_conv(out3)
         return out3
