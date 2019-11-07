@@ -312,7 +312,10 @@ class Psaa_Module(nn.Module):
     # Ref from SAGAN
     def __init__(self, out_channels, norm_layer):
         super(Psaa_Module, self).__init__()
-        self.project = nn.Sequential(nn.Conv2d(5 * out_channels, 5, 1, bias=True))
+        self.project = nn.Sequential(nn.Conv2d(5*out_channels, out_channels, 1, padding=0, bias=False),
+                                    norm_layer(out_channels),
+                                    nn.ReLU(True),
+                                    nn.Conv2d(out_channels, 5, 1, bias=True))
 
         self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, padding=0, bias=False),
                                        norm_layer(out_channels),
