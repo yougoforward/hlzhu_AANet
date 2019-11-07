@@ -133,7 +133,7 @@ class psaa10_Module(nn.Module):
         # psaa
         y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         y = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
-        out = self.psaa(x, y1, y)
+        out = self.psaa(y1, y)
 
 
         # # cat and project
@@ -145,9 +145,9 @@ class psaa10_Module(nn.Module):
         # out = self.fuse_conv(out)
 
         # # gcam
-        # gap = self.gap(x)
+        gap = self.gap(x)
         # # out = self.guided_cam(self.skip_conv(x), out)
-        # out = self.reduce_conv(torch.cat([gap, out], dim=1))
+        out = self.reduce_conv(torch.cat([gap, out], dim=1))
         # # se
         # out = out + self.se(out) * out
         return out
@@ -278,7 +278,7 @@ class Psaa_Module(nn.Module):
                                        nn.ReLU(True))
         self.gamma = nn.Parameter(torch.zeros(1))
 
-    def forward(self, x, cat, stack):
+    def forward(self, cat, stack):
         """
             inputs :
                 x : input feature maps( B X C X H X W)
