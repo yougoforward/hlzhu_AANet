@@ -37,7 +37,7 @@ class psaa9NetHead(nn.Module):
                  atrous_rates=(12, 24, 36)):
         super(psaa9NetHead, self).__init__()
         self.se_loss = se_loss
-        inter_channels = in_channels // 8
+        inter_channels = in_channels // 4
 
         self.aa_psaa9 = psaa9_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
@@ -333,50 +333,6 @@ class guided_CAM_Module(nn.Module):
 #         return out
 
 # 79.03 50.81 79.61 51.41
-# class Psaa_Module(nn.Module):
-#     """ Position attention module"""
-
-#     # Ref from SAGAN
-#     def __init__(self, out_channels, norm_layer):
-#         super(Psaa_Module, self).__init__()
-#         self.project = nn.Sequential(nn.Conv2d(5 * out_channels, 5, 1, bias=True))
-
-#         self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, padding=0, bias=False),
-#                                        norm_layer(out_channels),
-#                                        nn.ReLU(True))
-#         self.gamma = nn.Parameter(torch.zeros(1))
-
-#     def forward(self, cat, stack):
-#         """
-#             inputs :
-#                 x : input feature maps( B X C X H X W)
-#             returns :
-#                 out : attention value + input feature
-#                 attention: B X (HxW) X (HxW)
-#         """
-#         n, c, h, w, s = stack.size()
-
-#         energy = self.project(cat)
-#         attention = torch.softmax(energy, dim=1)
-#         yv = stack.view(n, c, h * w, 5).permute(0, 2, 1, 3)
-#         out = torch.matmul(yv, attention.view(n, 5, h * w).permute(0, 2, 1).unsqueeze(dim=3)) # n, hw, c, 1
-
-#         energy = torch.matmul(yv.permute(0, 1, 3, 2), out)
-#         attention = torch.softmax(energy, dim=2)
-#         out2 = torch.matmul(yv, attention)
-
-#         yv2 = out2.squeeze(dim=3)
-#         energy = torch.bmm(yv2, out.squeeze(dim=3).permute(0,2,1))
-#         attention = torch.softmax(energy, dim=1)
-#         out3 = torch.bmm(yv2.permute(0, 2, 1), attention)
-
-#         out = self.gamma * out3 + out.squeeze(dim=3).permute(0,2,1)
-#         out = out.view(n, c, h, w)
-#         out = self.fuse_conv(out)
-
-#         return out
-
-
 class Psaa_Module(nn.Module):
     """ Position attention module"""
 
@@ -389,10 +345,6 @@ class Psaa_Module(nn.Module):
                                        norm_layer(out_channels),
                                        nn.ReLU(True))
         self.gamma = nn.Parameter(torch.zeros(1))
-        self.beta = nn.Parameter(torch.zeros(1))
-
-        self.query_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels//4, 1, padding=0, bias=True))
-        self.key_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels//4, 1, padding=0, bias=True))
 
     def forward(self, cat, stack):
         """
@@ -406,20 +358,68 @@ class Psaa_Module(nn.Module):
 
         energy = self.project(cat)
         attention = torch.softmax(energy, dim=1)
-        yv = stack.view(n, c, h * w, s).permute(0, 2, 1, 3) # n, hw, c, s
-        out = torch.matmul(yv, attention.view(n, s, h * w).permute(0, 2, 1).unsqueeze(dim=3)) # n, hw, c, 1
+        yv = stack.view(n, c, h * w, 5).permute(0, 2, 1, 3)
+        out = torch.matmul(yv, attention.view(n, 5, h * w).permute(0, 2, 1).unsqueeze(dim=3)) # n, hw, c, 1
 
-        energy = torch.matmul(yv.permute(0, 1, 3, 2), out) # n, hw, s, 1
+        energy = torch.matmul(yv.permute(0, 1, 3, 2), out)
         attention = torch.softmax(energy, dim=2)
-        out2 = torch.matmul(yv, attention) # n, hw, c, 1
+        out2 = torch.matmul(yv, attention)
 
-        out2 = (out2*self.beta+out).squeeze(dim=3).permute(0, 2, 1).view(n, c, h, w)
-        query = self.query_conv(out2).view(n, -1, h*w).permute(0,2,1)
-        key = self.key_conv(out2).view(n, -1, h*w)
-        energy = torch.bmm(query, key)
+        yv2 = out2.squeeze(dim=3)
+        energy = torch.bmm(yv2, out.squeeze(dim=3).permute(0,2,1))
         attention = torch.softmax(energy, dim=1)
-        out3 = torch.bmm(out2.view(n, -1, h*w), attention).view(n, c, h, w)
+        out3 = torch.bmm(yv2.permute(0, 2, 1), attention)
 
-        out = self.gamma * out3 + out2
+        out = self.gamma * out3 + out.squeeze(dim=3).permute(0,2,1)
+        out = out.view(n, c, h, w)
         out = self.fuse_conv(out)
+
         return out
+
+
+# class Psaa_Module(nn.Module):
+#     """ Position attention module"""
+
+#     # Ref from SAGAN
+#     def __init__(self, out_channels, norm_layer):
+#         super(Psaa_Module, self).__init__()
+#         self.project = nn.Sequential(nn.Conv2d(5 * out_channels, 5, 1, bias=True))
+
+#         self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, padding=0, bias=False),
+#                                        norm_layer(out_channels),
+#                                        nn.ReLU(True))
+#         self.gamma = nn.Parameter(torch.zeros(1))
+#         self.beta = nn.Parameter(torch.zeros(1))
+
+#         self.query_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels//4, 1, padding=0, bias=True))
+#         self.key_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels//4, 1, padding=0, bias=True))
+
+#     def forward(self, cat, stack):
+#         """
+#             inputs :
+#                 x : input feature maps( B X C X H X W)
+#             returns :
+#                 out : attention value + input feature
+#                 attention: B X (HxW) X (HxW)
+#         """
+#         n, c, h, w, s = stack.size()
+
+#         energy = self.project(cat)
+#         attention = torch.softmax(energy, dim=1)
+#         yv = stack.view(n, c, h * w, s).permute(0, 2, 1, 3) # n, hw, c, s
+#         out = torch.matmul(yv, attention.view(n, s, h * w).permute(0, 2, 1).unsqueeze(dim=3)) # n, hw, c, 1
+
+#         energy = torch.matmul(yv.permute(0, 1, 3, 2), out) # n, hw, s, 1
+#         attention = torch.softmax(energy, dim=2)
+#         out2 = torch.matmul(yv, attention) # n, hw, c, 1
+
+#         out2 = (out2*self.beta+out).squeeze(dim=3).permute(0, 2, 1).view(n, c, h, w)
+#         query = self.query_conv(out2).view(n, -1, h*w).permute(0,2,1)
+#         key = self.key_conv(out2).view(n, -1, h*w)
+#         energy = torch.bmm(query, key)
+#         attention = torch.softmax(energy, dim=1)
+#         out3 = torch.bmm(out2.view(n, -1, h*w), attention).view(n, c, h, w)
+
+#         out = self.gamma * out3 + out2
+#         out = self.fuse_conv(out)
+#         return out
