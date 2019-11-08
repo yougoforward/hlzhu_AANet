@@ -177,3 +177,12 @@ class Psaa_Module(nn.Module):
         out = torch.matmul(yv, attention.view(n, 5, h * w).permute(0, 2, 1).unsqueeze(dim=3))
         return out
 
+def get_psaa4net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
+                 root='~/.encoding/models', **kwargs):
+    # infer number of classes
+    from ..datasets import datasets
+    model = psaa4Net(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
+    if pretrained:
+        raise NotImplementedError
+
+    return model
