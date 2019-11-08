@@ -88,7 +88,7 @@ class psaa10_Module(nn.Module):
         rate1, rate2, rate3 = tuple(atrous_rates)
         self.b0 = nn.Sequential(
             nn.Conv2d(in_channels, 512, 1, bias=False),
-            norm_layer(512), nn.ReLU(True)
+            norm_layer(512), nn.ReLU(True),
             nn.Conv2d(512, out_channels, 1, bias=False),
             norm_layer(out_channels), nn.ReLU(True))
         self.b1 = psaa10Conv(in_channels, out_channels, rate1, norm_layer)
