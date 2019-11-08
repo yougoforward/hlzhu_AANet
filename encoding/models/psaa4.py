@@ -95,7 +95,7 @@ class psaa4_Module(nn.Module):
         self.b4 = psaa4Pooling(in_channels, out_channels, norm_layer, up_kwargs)
         self.psaa = Psaa_Module(in_channels, out_channels, norm_layer)
 
-        self.pool = nn.MaxPool2d()
+        self.pool = nn.MaxPool2d(kernel_size=2)
         self.f_key = nn.Sequential(
             nn.Conv1d(in_channels=out_channels, out_channels=out_channels//4,
                       kernel_size=1, stride=1, padding=0, bias=True)
