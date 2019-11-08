@@ -144,7 +144,7 @@ class psaa4_Module(nn.Module):
         sim_map = torch.softmax(sim_map, dim=-1) # n, hw, hws/4
 
         context = torch.bmm(sim_map, value)
-        context = context.permute(0, 2, 1).contiguous().view(n,c,hp,wp)
+        context = context.permute(0, 2, 1).contiguous().view(n,c,h,w)
         # context = F.interpolate(context, (h, w), **self._up_kwargs)
         out = self.W(torch.cat([y1, context, out], dim=1))
         return out
