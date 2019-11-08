@@ -132,9 +132,9 @@ class psaa10_Module(nn.Module):
         n, c, h, w = feat0.size()
 
         # psaa
-        y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
+        # y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         y = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
-        out = self.psaa(y1, y)
+        out = self.psaa(x, y)
 
 
         # # cat and project
@@ -310,7 +310,10 @@ class Psaa_Module(nn.Module):
     # Ref from SAGAN
     def __init__(self, out_channels, norm_layer):
         super(Psaa_Module, self).__init__()
-        self.project = nn.Sequential(nn.Conv2d(5 * out_channels, 5, 1, bias=True))
+        self.project = nn.Sequential(nn.Conv2d(2048, out_channels, 1, padding=0, bias=False),
+                                       norm_layer(out_channels),
+                                       nn.ReLU(True),
+                                       nn.Conv2d(out_channels, 5, 1, bias=True))
 
         self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, padding=0, bias=False),
                                        norm_layer(out_channels),
