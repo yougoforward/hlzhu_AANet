@@ -32,7 +32,8 @@ class SegmentationLosses(CrossEntropyLoss):
         self.nclass = nclass
         self.se_weight = se_weight
         self.aux_weight = aux_weight
-        self.bceloss = BCELoss(weight, size_average) 
+        self.bceloss = BCELoss(weight, size_average)
+        self.ignore_index = ignore_index 
 
     def forward(self, *inputs):
         if not self.se_loss and not self.aux:
@@ -40,6 +41,9 @@ class SegmentationLosses(CrossEntropyLoss):
         elif not self.se_loss:
             pred1, pred2, target = tuple(inputs)
             loss1 = super(SegmentationLosses, self).forward(pred1, target)
+            # pred1 = F.softmax(input=pred1, dim=1)
+            # loss1 = lovasz_softmax_flat(*flatten_probas(pred1, target, self.ignore_index),
+            #                           only_present=True)
             loss2 = super(SegmentationLosses, self).forward(pred2, target)
             return loss1 + self.aux_weight * loss2
         elif not self.aux:
@@ -462,3 +466,60 @@ class Mean(Module):
 
     def forward(self, input):
         return input.mean(self.dim, self.keep_dim)
+
+
+
+# lovasz
+
+def lovasz_softmax_flat(preds, targets, only_present=False):
+    """
+    Multi-class Lovasz-Softmax loss
+      :param preds: [P, C] Variable, class probabilities at each prediction (between 0 and 1)
+      :param targets: [P] Tensor, ground truth labels (between 0 and C - 1)
+      :param only_present: average only on classes present in ground truth
+    """
+    if preds.numel() == 0:
+        # only void pixels, the gradients should be 0
+        return preds * 0.
+
+    C = preds.size(1)
+    losses = []
+    for c in range(C):
+        fg = (targets == c).float()  # foreground for class c
+        if only_present and fg.sum() == 0:
+            continue
+        errors = (Variable(fg) - preds[:, c]).abs()
+        errors_sorted, perm = torch.sort(errors, 0, descending=True)
+        perm = perm.data
+        fg_sorted = fg[perm]
+        losses.append(torch.dot(errors_sorted, Variable(lovasz_grad(fg_sorted))))
+    return mean(losses)
+
+
+def lovasz_grad(gt_sorted):
+    """
+    Computes gradient of the Lovasz extension w.r.t sorted errors
+    """
+    p = len(gt_sorted)
+    gts = gt_sorted.sum()
+    intersection = gts - gt_sorted.float().cumsum(0)
+    union = gts + (1 - gt_sorted).float().cumsum(0)
+    jaccard = 1. - intersection / union
+    if p > 1:  # cover 1-pixel case
+        jaccard[1:p] = jaccard[1:p] - jaccard[0:-1]
+    return jaccard
+
+
+def flatten_probas(preds, targets, ignore=None):
+    """
+    Flattens predictions in the batch
+    """
+    B, C, H, W = preds.size()
+    preds = preds.permute(0, 2, 3, 1).contiguous().view(-1, C)  # B * H * W, C = P, C
+    targets = targets.view(-1)
+    if ignore is None:
+        return preds, targets
+    valid = (targets != ignore)
+    vprobas = preds[valid.nonzero().squeeze()]
+    vlabels = targets[valid]
+    return vprobas, vlabels
