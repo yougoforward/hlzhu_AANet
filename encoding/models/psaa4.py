@@ -136,16 +136,16 @@ class psaa4_Module(nn.Module):
 
         _,_,hp,wp = pool0.size()
         y2 = torch.stack([pool0, pool1, pool2, pool3, pool4], dim=-1).view(n,c,-1) # n, c, hws/4
-        query = self.f_query(self.pool(out)).view(n,c//4,-1).permute(0,2,1) # n, hw/4, c
+        query = self.f_query(out).view(n,c//4,-1).permute(0,2,1) # n, hw, c
         key = self.f_key(y2)
         value = self.f_value(y2).permute(0, 2, 1)
         sim_map = torch.bmm(query, key)
         sim_map = (c//4 ** -.5) * sim_map
-        sim_map = torch.softmax(sim_map, dim=-1) # n, hw/4, hws/4
+        sim_map = torch.softmax(sim_map, dim=-1) # n, hw, hws/4
 
         context = torch.bmm(sim_map, value)
         context = context.permute(0, 2, 1).contiguous().view(n,c,hp,wp)
-        context = F.interpolate(context, (h, w), **self._up_kwargs)
+        # context = F.interpolate(context, (h, w), **self._up_kwargs)
         out = self.W(torch.cat([y1, context, out], dim=1))
         return out
 
