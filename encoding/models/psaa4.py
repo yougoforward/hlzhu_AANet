@@ -136,7 +136,7 @@ class psaa4_Module(nn.Module):
 
         _,_,hp,wp = pool0.size()
         y2 = torch.stack([pool0, pool1, pool2, pool3, pool4], dim=-1).view(n,c,-1) # n, c, hws/4
-        query = self.f_query(self.pool(out)).view(n,c,-1).permute(0,2,1) # n, hw/4, c
+        query = self.f_query(self.pool(out)).view(n,c//4,-1).permute(0,2,1) # n, hw/4, c
         key = self.f_key(y2)
         value = self.f_value(y2).permute(0, 2, 1)
         sim_map = torch.bmm(query, key)
