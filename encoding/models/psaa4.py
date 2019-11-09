@@ -172,7 +172,8 @@ class Psaa_Module(nn.Module):
         n, c, h, w, s = stack.size()
 
         energy = self.project(torch.cat([x, cat], dim=1))
-        attention = torch.softmax(energy, dim=1)
+        # attention = torch.softmax(energy, dim=1)
+        attention = torch.sigmoid(energy)
         yv = stack.view(n, c, h * w, 5).permute(0, 2, 1, 3)
         out = torch.matmul(yv, attention.view(n, 5, h * w).permute(0, 2, 1).unsqueeze(dim=3)) # n ,hw, c, 1
         out = out.squeeze(3).permute(0,2,1).view(n,c,h,w)
