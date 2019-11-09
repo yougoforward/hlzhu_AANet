@@ -128,24 +128,26 @@ class psaa5_Module(nn.Module):
         out = self.psaa(x, y1, y)
 
         # guided fuse scales and positions
-        pool0 = self.pool(feat0)
-        pool1 = self.pool(feat1)
-        pool2 = self.pool(feat2)
-        pool3 = self.pool(feat3)
-        pool4 = self.pool(feat4)
+        # pool0 = self.pool(feat0)
+        # pool1 = self.pool(feat1)
+        # pool2 = self.pool(feat2)
+        # pool3 = self.pool(feat3)
+        # pool4 = self.pool(feat4)
 
         _,_,hp,wp = pool0.size()
-        y2 = torch.stack([pool0, pool1, pool2, pool3, pool4], dim=-1).view(n,c,-1) # n, c, hws/4
-        query = self.f_query(out).view(n,c//4,-1).permute(0,2,1) # n, hw, c
+        out_pool = self.pool(out)
+        # y2 = torch.stack([pool0, pool1, pool2, pool3, pool4], dim=-1).view(n,c,-1) # n, c, hws/4
+        y2 = y.view(n,c,-1) # n, c, hws
+        query = self.f_query(out_pool).view(n,c//4,-1).permute(0,2,1) # n, hw/4, c
         key = self.f_key(y2)
         value = self.f_value(y2).permute(0, 2, 1)
         sim_map = torch.bmm(query, key)
         sim_map = (c//4 ** -.5) * sim_map
-        sim_map = torch.softmax(sim_map, dim=-1) # n, hw, hws/4
+        sim_map = torch.softmax(sim_map, dim=-1) # n, hw/4, hws
 
         context = torch.bmm(sim_map, value)
-        context = context.permute(0, 2, 1).contiguous().view(n,c,h,w)
-        # context = F.interpolate(context, (h, w), **self._up_kwargs)
+        context = context.permute(0, 2, 1).contiguous().view(n,c,hp,wp)
+        context = F.interpolate(context, (h, w), **self._up_kwargs)
         out = self.W(torch.cat([context, out], dim=1))
         return out
 
