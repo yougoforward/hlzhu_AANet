@@ -146,7 +146,7 @@ class psaa5_Module(nn.Module):
         context = torch.bmm(sim_map, value)
         context = context.permute(0, 2, 1).contiguous().view(n,c,h,w)
         # context = F.interpolate(context, (h, w), **self._up_kwargs)
-        out = self.W(torch.cat([y1, context, out], dim=1))
+        out = self.W(torch.cat([context, out], dim=1))
         return out
 
 
