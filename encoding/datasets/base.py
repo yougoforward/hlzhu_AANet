@@ -102,7 +102,7 @@ class BaseDataset(data.Dataset):
                 radius=random.random()))
 
         #random hsv
-        img = RandomHSV(img, 10, 10, 10)
+        # img = RandomHSV(img, 10, 10, 10)
         # #random contrast
         # img=RandomContrast(img)
         # #random perm
