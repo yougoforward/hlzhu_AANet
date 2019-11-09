@@ -107,7 +107,7 @@ class psaa4_Module(nn.Module):
         self.f_value = nn.Conv1d(in_channels=out_channels, out_channels=out_channels,
                                  kernel_size=1, stride=1, padding=0, bias=True)
         self.W = nn.Sequential(
-            nn.Conv2d(in_channels=5*out_channels+2*out_channels, out_channels=out_channels,
+            nn.Conv2d(in_channels=2*out_channels, out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True)
@@ -146,7 +146,7 @@ class psaa4_Module(nn.Module):
         context = torch.bmm(sim_map, value)
         context = context.permute(0, 2, 1).contiguous().view(n,c,h,w)
         # context = F.interpolate(context, (h, w), **self._up_kwargs)
-        out = self.W(torch.cat([y1, context, out], dim=1))
+        out = self.W(torch.cat([context, out], dim=1))
         return out
 
 

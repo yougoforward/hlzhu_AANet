@@ -107,7 +107,7 @@ class psaa5_Module(nn.Module):
         self.f_value = nn.Conv1d(in_channels=out_channels, out_channels=out_channels,
                                  kernel_size=1, stride=1, padding=0, bias=True)
         self.W = nn.Sequential(
-            nn.Conv2d(in_channels=5*out_channels+2*out_channels, out_channels=out_channels,
+            nn.Conv2d(in_channels=2*out_channels, out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True)
