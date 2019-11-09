@@ -135,7 +135,7 @@ class psaa5_Module(nn.Module):
         # pool4 = self.pool(feat4)
 
         out_pool = self.pool(out)
-        _,_,hp,wp = pool0.size()
+        _,_,hp,wp = out_pool.size()
 
         # y2 = torch.stack([pool0, pool1, pool2, pool3, pool4], dim=-1).view(n,c,-1) # n, c, hws/4
         y2 = y.view(n,c,-1) # n, c, hws
