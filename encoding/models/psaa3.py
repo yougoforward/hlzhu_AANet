@@ -25,8 +25,6 @@ class psaa3Net(BaseNet):
 
         x = list(self.head(c4))
         x[0] = F.interpolate(x[0], (h, w), **self._up_kwargs)
-        x[1] = F.interpolate(x[1], (h, w), **self._up_kwargs)
-
         if self.aux:
             auxout = self.auxlayer(c3)
             auxout = F.interpolate(auxout, (h, w), **self._up_kwargs)
@@ -39,28 +37,24 @@ class psaa3NetHead(nn.Module):
                  atrous_rates=(12, 24, 36)):
         super(psaa3NetHead, self).__init__()
         self.se_loss = se_loss
-        inter_channels = in_channels // 8
+        inter_channels = in_channels // 4
+
         self.aa_psaa3 = psaa3_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
-                                    norm_layer(inter_channels), nn.ReLU(True))
-
-        self.guide_pred = nn.Sequential(nn.Conv2d(inter_channels, out_channels, 1))
-
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
 
     def forward(self, x):
-        psaa3_feat, guide = self.aa_psaa3(x)
-        # feat_cat = torch.cat([psaa3_feat, x], dim=1)
-        feat_sum = self.conv52(psaa3_feat)
-        guide_pred = self.guide_pred(guide)
+        feat_sum = self.aa_psaa3(x)
         outputs = [self.conv8(feat_sum)]
-        outputs.append(guide_pred)
         return tuple(outputs)
 
 
 def psaa3Conv(in_channels, out_channels, atrous_rate, norm_layer):
     block = nn.Sequential(
-        nn.Conv2d(in_channels, out_channels, 3, padding=atrous_rate,
+        nn.Conv2d(in_channels, 512, 1, padding=0,
+                  dilation=1, bias=False),
+        norm_layer(512),
+        nn.ReLU(True),
+        nn.Conv2d(512, out_channels, 3, padding=atrous_rate,
                   dilation=atrous_rate, bias=False),
         norm_layer(out_channels),
         nn.ReLU(True))
@@ -76,12 +70,15 @@ class psaa3Pooling(nn.Module):
                                  norm_layer(out_channels),
                                  nn.ReLU(True))
 
+        self.out_chs = out_channels
+
     def forward(self, x):
-        _, _, h, w = x.size()
+        bs, _, h, w = x.size()
         pool = self.gap(x)
 
-        return F.interpolate(pool, (h, w), **self._up_kwargs)
-
+        # return F.interpolate(pool, (h, w), **self._up_kwargs)
+        # return pool.repeat(1,1,h,w)
+        return pool.expand(bs, self.out_chs, h, w)
 
 class psaa3_Module(nn.Module):
     def __init__(self, in_channels, out_channels, atrous_rates, norm_layer, up_kwargs):
@@ -96,15 +93,18 @@ class psaa3_Module(nn.Module):
         self.b2 = psaa3Conv(in_channels, out_channels, rate2, norm_layer)
         self.b3 = psaa3Conv(in_channels, out_channels, rate3, norm_layer)
         self.b4 = psaa3Pooling(in_channels, out_channels, norm_layer, up_kwargs)
+    
 
-        self.conv6 = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 1, bias=False),
-            norm_layer(out_channels),
-            nn.ReLU(True))
-        self.softmax = nn.Softmax(dim=-1)
-        self.gamma = nn.Parameter(torch.zeros(1))
-        self.cam = CAM_Module(out_channels)
 
+        self._up_kwargs = up_kwargs
+        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+5*out_channels, out_channels, 1, padding=0, bias=False),
+                                    norm_layer(out_channels),
+                                    nn.ReLU(True),
+                                    nn.Conv2d(out_channels, 5, 1, bias=True))
+        self.project = nn.Sequential(nn.Conv2d(in_channels=5*out_channels, out_channels=out_channels,
+                      kernel_size=1, stride=1, padding=0, bias=False),
+                      norm_layer(out_channels),
+                      nn.ReLU(True))
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -112,42 +112,18 @@ class psaa3_Module(nn.Module):
         feat2 = self.b2(x)
         feat3 = self.b3(x)
         feat4 = self.b4(x)
+        n, c, h, w = feat0.size()
 
-        guide = self.conv6(x)
-        y = torch.stack((feat0, feat1, feat2, feat3, feat4), 1)
+        # psaa
+        y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
+        y = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
+        psaa_feat = self.psaa_conv(torch.cat([x,y1], dim=1))
+        psaa_att = torch.sigmoid(psaa_feat)
+        psaa_att_list = torch.split(psaa_att, 1, dim=1)
 
-        m_batchsize, C, height, width = guide.size()
-        proj_query = guide.view(m_batchsize, C, -1).permute(0, 2, 1).contiguous()
-        proj_key = y.view(m_batchsize, 5, C, -1).permute(0, 3, 2, 1).contiguous().view(-1, C, 5)
-        energy = torch.bmm(proj_query.view(-1, 1, C), proj_key)
-        attention = self.softmax(energy)
-        proj_value = proj_key.permute(0, 2, 1)
-
-        out = torch.bmm(attention, proj_value).view(m_batchsize, height, width, C).permute(0, 3, 1, 2)
-        # out = self.cam(out)
-
-        out = out+self.gamma*guide
-        return out, guide
-
-
-class SE_Module(nn.Module):
-    """ Channel attention module"""
-
-    def __init__(self, in_dim, out_dim):
-        super(SE_Module, self).__init__()
-        self.se = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)),
-                                nn.Conv2d(in_dim, in_dim // 8, kernel_size=1, padding=0, dilation=1,
-                                          bias=True),
-                                nn.ReLU(),
-                                nn.Conv2d(in_dim // 8, out_dim, kernel_size=1, padding=0, dilation=1,
-                                          bias=True),
-                                nn.Sigmoid()
-                                )
-
-    def forward(self, x):
-        out = self.se(x)
+        y2 = torch.cat((psaa_att_list[0]*feat0, psaa_att_list[1]*feat1, psaa_att_list[2]*feat2, psaa_att_list[3]*feat3, psaa_att_list[4]*feat4), 1)
+        out = self.project(y2)
         return out
-
 
 def get_psaa3net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
                  root='~/.encoding/models', **kwargs):
@@ -158,36 +134,3 @@ def get_psaa3net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
         raise NotImplementedError
 
     return model
-
-
-
-class CAM_Module(nn.Module):
-    """ Channel attention module"""
-    def __init__(self, in_dim):
-        super(CAM_Module, self).__init__()
-        self.chanel_in = in_dim
-
-
-        self.gamma = nn.Parameter(torch.zeros(1))
-        self.softmax  = nn.Softmax(dim=-1)
-    def forward(self,x):
-        """
-            inputs :
-                x : input feature maps( B X C X H X W)
-            returns :
-                out : attention value + input feature
-                attention: B X C X C
-        """
-        m_batchsize, C, height, width = x.size()
-        proj_query = x.view(m_batchsize, C, -1)
-        proj_key = x.view(m_batchsize, C, -1).permute(0, 2, 1)
-        energy = torch.bmm(proj_query, proj_key)
-        energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy)-energy
-        attention = self.softmax(energy_new)
-        proj_value = x.view(m_batchsize, C, -1)
-
-        out = torch.bmm(attention, proj_value)
-        out = out.view(m_batchsize, C, height, width)
-
-        out = self.gamma*out + x
-        return out
