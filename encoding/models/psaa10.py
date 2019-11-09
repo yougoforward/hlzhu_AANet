@@ -87,10 +87,9 @@ class psaa10_Module(nn.Module):
         # out_channels = in_channels // 8
         rate1, rate2, rate3 = tuple(atrous_rates)
         self.b0 = nn.Sequential(
-            nn.Conv2d(in_channels, 512, 1, bias=False),
-            norm_layer(512), nn.ReLU(True),
-            nn.Conv2d(512, out_channels, 1, bias=False),
-            norm_layer(out_channels), nn.ReLU(True))
+            nn.Conv2d(in_channels, out_channels, 1, bias=False),
+            norm_layer(out_channels), 
+            nn.ReLU(True))
         self.b1 = psaa10Conv(in_channels, out_channels, rate1, norm_layer)
         self.b2 = psaa10Conv(in_channels, out_channels, rate2, norm_layer)
         self.b3 = psaa10Conv(in_channels, out_channels, rate3, norm_layer)
@@ -104,7 +103,7 @@ class psaa10_Module(nn.Module):
 
         self.gap = psaa10Pooling(in_channels, out_channels, norm_layer, up_kwargs)
         
-        self.psaa = Psaa_Module(out_channels, norm_layer)
+        self.psaa = Psaa_Module(in_channels, out_channels, norm_layer)
 
 
         self.se = SE_Module(out_channels, out_channels)
@@ -132,9 +131,9 @@ class psaa10_Module(nn.Module):
         n, c, h, w = feat0.size()
 
         # psaa
-        # y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
+        y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         y = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
-        out = self.psaa(x, y)
+        out = self.psaa(x, y1, y)
 
 
         # # cat and project
@@ -143,7 +142,7 @@ class psaa10_Module(nn.Module):
         # guided_fuse = self.guided_cam_fuse(y1, query)
         #
         # out = guided_fuse+out
-        # out = self.fuse_conv(out)
+        out = self.fuse_conv(out)
 
         # # gcam
         # gap = self.gap(x)
@@ -308,19 +307,14 @@ class Psaa_Module(nn.Module):
     """ Position attention module"""
 
     # Ref from SAGAN
-    def __init__(self, out_channels, norm_layer):
+    def __init__(self, in_channels, out_channels, norm_layer):
         super(Psaa_Module, self).__init__()
-        self.project = nn.Sequential(nn.Conv2d(2048, out_channels, 1, padding=0, bias=False),
-                                       norm_layer(out_channels),
-                                       nn.ReLU(True),
-                                       nn.Conv2d(out_channels, 5, 1, bias=True))
+        self.project = nn.Sequential(nn.Conv2d(in_channels+5*out_channels, out_channels, 1, padding=0, bias=False),
+                                    norm_layer(out_channels),
+                                    nn.ReLU(True),
+                                    nn.Conv2d(out_channels, 5, 1, bias=True))
 
-        self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, padding=0, bias=False),
-                                       norm_layer(out_channels),
-                                       nn.ReLU(True))
-        self.gamma = nn.Parameter(torch.zeros(1))
-
-    def forward(self, cat, stack):
+    def forward(self, x, cat, stack):
         """
             inputs :
                 x : input feature maps( B X C X H X W)
@@ -330,17 +324,10 @@ class Psaa_Module(nn.Module):
         """
         n, c, h, w, s = stack.size()
 
-        energy = self.project(cat)
-        attention = torch.softmax(energy, dim=1)
-        yv = stack.view(n, c, h * w, 5).permute(0, 2, 1, 3) #n, hw, c, 5
-        out = torch.matmul(yv, attention.view(n, 5, h * w).permute(0, 2, 1).unsqueeze(dim=3)) #n, hw, c, 1
-        
-        # energy = torch.matmul(yv.permute(0, 1, 3, 2), out)
-        # attention = torch.softmax(energy, dim=2)
-        # out2 = torch.matmul(yv, attention)
-        
-        # out = self.gamma * out2 + out
-        out = out.squeeze(dim=3).permute(0, 2, 1).view(n, c, h, w)
-        out = self.fuse_conv(out)
-
+        energy = self.project(torch.cat([x, cat], dim=1))
+        # attention = torch.softmax(energy, dim=1)
+        attention = torch.sigmoid(energy)
+        yv = stack.view(n, c, h * w, 5).permute(0, 2, 1, 3)
+        out = torch.matmul(yv, attention.view(n, 5, h * w).permute(0, 2, 1).unsqueeze(dim=3)) # n ,hw, c, 1
+        out = out.squeeze(3).permute(0,2,1).view(n,c,h,w)
         return out

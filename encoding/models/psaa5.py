@@ -40,32 +40,11 @@ class psaa5NetHead(nn.Module):
         inter_channels = in_channels // 8
 
         self.aa_psaa5 = psaa5_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
-                                    norm_layer(inter_channels), nn.ReLU(True))
-
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
-        self.gap = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Sequential(
-            nn.Conv2d(inter_channels, inter_channels, 1),
-            nn.Sigmoid())
-
-        if self.se_loss:
-            self.selayer = nn.Linear(inter_channels, out_channels)
 
     def forward(self, x):
-
-        psaa5_feat = self.aa_psaa5(x)
-        # feat_sum = self.conv52(psaa5_feat)
-        feat_sum = psaa5_feat
-
-        if self.se_loss:
-            gap_feat = self.gap(feat_sum)
-            gamma = self.fc(gap_feat)
-            outputs = [self.conv8(F.relu_(feat_sum + feat_sum * gamma))]
-            outputs.append(self.selayer(torch.squeeze(gap_feat)))
-        else:
-            outputs = [self.conv8(feat_sum)]
-
+        feat_sum = self.aa_psaa5(x)
+        outputs = [self.conv8(feat_sum)]
         return tuple(outputs)
 
 
@@ -91,12 +70,15 @@ class psaa5Pooling(nn.Module):
                                  norm_layer(out_channels),
                                  nn.ReLU(True))
 
+        self.out_chs = out_channels
+
     def forward(self, x):
-        _, _, h, w = x.size()
+        bs, _, h, w = x.size()
         pool = self.gap(x)
 
-        return F.interpolate(pool, (h, w), **self._up_kwargs)
-
+        # return F.interpolate(pool, (h, w), **self._up_kwargs)
+        # return pool.repeat(1,1,h,w)
+        return pool.expand(bs, self.out_chs, h, w)
 
 class psaa5_Module(nn.Module):
     def __init__(self, in_channels, out_channels, atrous_rates, norm_layer, up_kwargs):
@@ -104,34 +86,33 @@ class psaa5_Module(nn.Module):
         # out_channels = in_channels // 8
         rate1, rate2, rate3 = tuple(atrous_rates)
         self.b0 = nn.Sequential(
-            nn.Conv2d(in_channels, 512, 1, bias=False),
-            norm_layer(512),
-            nn.ReLU(True),
-            nn.Conv2d(512, out_channels, 1, bias=False),
+            nn.Conv2d(in_channels, out_channels, 1, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True))
         self.b1 = psaa5Conv(in_channels, out_channels, rate1, norm_layer)
         self.b2 = psaa5Conv(in_channels, out_channels, rate2, norm_layer)
         self.b3 = psaa5Conv(in_channels, out_channels, rate3, norm_layer)
         self.b4 = psaa5Pooling(in_channels, out_channels, norm_layer, up_kwargs)
-        self.project = nn.Sequential(
-            nn.Conv2d(5 * out_channels, out_channels, 1, bias=False),
-            norm_layer(out_channels),
-            nn.ReLU(True),
-            nn.Dropout2d(0.1, False))
+        self.psaa = Psaa_Module(in_channels, out_channels, norm_layer)
 
-        self.softmax = nn.Softmax(dim=-1)
-        self.gamma = nn.Parameter(torch.zeros(1))
-        self.se = SE_Module(out_channels, out_channels)
-        self.relu = nn.ReLU()
-        self.pam = PAM_Module(out_channels, out_channels//4, out_channels)
-        self.cam = CAM_Module(out_channels)
-        self.fuse_conv0 = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, bias=False),
-                                       norm_layer(out_channels),
-                                       nn.ReLU(True))
-        self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, bias=False),
+        self.pool = nn.MaxPool2d(kernel_size=2)
+        self.f_key = nn.Sequential(
+            nn.Conv1d(in_channels=out_channels, out_channels=out_channels//4,
+                      kernel_size=1, stride=1, padding=0, bias=True)
+        )
+        self.f_query = nn.Sequential(
+            nn.Conv2d(in_channels=out_channels, out_channels=out_channels//4,
+                      kernel_size=1, stride=1, padding=0, bias=True)
+        )
+        self.f_value = nn.Conv1d(in_channels=out_channels, out_channels=out_channels,
+                                 kernel_size=1, stride=1, padding=0, bias=True)
+        self.W = nn.Sequential(
+            nn.Conv2d(in_channels=5*out_channels+2*out_channels, out_channels=out_channels,
+                      kernel_size=1, stride=1, padding=0, bias=False),
             norm_layer(out_channels),
-            nn.ReLU(True))
+            nn.ReLU(True)
+        )
+        self._up_kwargs = up_kwargs
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -139,51 +120,64 @@ class psaa5_Module(nn.Module):
         feat2 = self.b2(x)
         feat3 = self.b3(x)
         feat4 = self.b4(x)
+        n, c, h, w = feat0.size()
 
+        # psaa
         y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
-        query = self.project(y1)
-
         y = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
+        out = self.psaa(x, y1, y)
 
-        m_batchsize, C, height, width = query.size()
-        proj_query = query.view(m_batchsize, C, -1).permute(0, 2, 1).contiguous()
-        proj_key = y.view(m_batchsize, C, -1).contiguous()
-        energy = torch.bmm(proj_query, proj_key)
-        attention = self.softmax(energy)
-        proj_value = proj_key.permute(0, 2, 1)
+        # guided fuse scales and positions
+        pool0 = self.pool(feat0)
+        pool1 = self.pool(feat1)
+        pool2 = self.pool(feat2)
+        pool3 = self.pool(feat3)
+        pool4 = self.pool(feat4)
 
-        out = torch.bmm(attention, proj_value)
-        # out = self.gamma * out.view(m_batchsize, height, width, C).permute(0, 3, 1, 2) + self.se(query) * query
-        out = self.gamma*out.view(m_batchsize, height, width, C).permute(0,3,1,2)+query
-        # out = self.relu(out+self.se(out)*out)
-        # out = self.pam(out)
-        # out = out.view(m_batchsize, height, width, C).permute(0,3,1,2)
-        out = self.fuse_conv(out)
-        # out = out+query
-        # out = self.relu(out+self.se(out)*out)
-        # out = self.cam(out)
-        out = out+self.se(out)*out
+        _,_,hp,wp = pool0.size()
+        y2 = torch.stack([pool0, pool1, pool2, pool3, pool4], dim=-1).view(n,c,-1) # n, c, hws/4
+        query = self.f_query(out).view(n,c//4,-1).permute(0,2,1) # n, hw, c
+        key = self.f_key(y2)
+        value = self.f_value(y2).permute(0, 2, 1)
+        sim_map = torch.bmm(query, key)
+        sim_map = (c//4 ** -.5) * sim_map
+        sim_map = torch.softmax(sim_map, dim=-1) # n, hw, hws/4
+
+        context = torch.bmm(sim_map, value)
+        context = context.permute(0, 2, 1).contiguous().view(n,c,h,w)
+        # context = F.interpolate(context, (h, w), **self._up_kwargs)
+        out = self.W(torch.cat([y1, context, out], dim=1))
         return out
 
 
-class SE_Module(nn.Module):
-    """ Channel attention module"""
+class Psaa_Module(nn.Module):
+    """ Position attention module"""
 
-    def __init__(self, in_dim, out_dim):
-        super(SE_Module, self).__init__()
-        self.se = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)),
-                                nn.Conv2d(in_dim, in_dim // 8, kernel_size=1, padding=0, dilation=1,
-                                          bias=True),
-                                nn.ReLU(),
-                                nn.Conv2d(in_dim // 8, out_dim, kernel_size=1, padding=0, dilation=1,
-                                          bias=True),
-                                nn.Sigmoid()
-                                )
+    # Ref from SAGAN
+    def __init__(self, in_channels, out_channels, norm_layer):
+        super(Psaa_Module, self).__init__()
+        self.project = nn.Sequential(nn.Conv2d(in_channels+5*out_channels, out_channels, 1, padding=0, bias=False),
+                                    norm_layer(out_channels),
+                                    nn.ReLU(True),
+                                    nn.Conv2d(out_channels, 5, 1, bias=True))
 
-    def forward(self, x):
-        out = self.se(x)
+    def forward(self, x, cat, stack):
+        """
+            inputs :
+                x : input feature maps( B X C X H X W)
+            returns :
+                out : attention value + input feature
+                attention: B X (HxW) X (HxW)
+        """
+        n, c, h, w, s = stack.size()
+
+        energy = self.project(torch.cat([x, cat], dim=1))
+        # attention = torch.softmax(energy, dim=1)
+        attention = torch.sigmoid(energy)
+        yv = stack.view(n, c, h * w, 5).permute(0, 2, 1, 3)
+        out = torch.matmul(yv, attention.view(n, 5, h * w).permute(0, 2, 1).unsqueeze(dim=3)) # n ,hw, c, 1
+        out = out.squeeze(3).permute(0,2,1).view(n,c,h,w)
         return out
-
 
 def get_psaa5net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
                  root='~/.encoding/models', **kwargs):
@@ -194,71 +188,3 @@ def get_psaa5net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
         raise NotImplementedError
 
     return model
-
-
-
-class PAM_Module(nn.Module):
-    """ Position attention module"""
-    #Ref from SAGAN
-    def __init__(self, in_dim, key_dim, out_dim):
-        super(PAM_Module, self).__init__()
-        self.chanel_in = in_dim
-
-        self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
-        self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
-        self.value_conv = nn.Conv2d(in_channels=in_dim, out_channels=out_dim, kernel_size=1)
-        self.gamma = nn.Parameter(torch.zeros(1))
-
-        self.softmax = nn.Softmax(dim=-1)
-    def forward(self, x):
-        """
-            inputs :
-                x : input feature maps( B X C X H X W)
-            returns :
-                out : attention value + input feature
-                attention: B X (HxW) X (HxW)
-        """
-        m_batchsize, C, height, width = x.size()
-        proj_query = self.query_conv(x).view(m_batchsize, -1, width*height).permute(0, 2, 1)
-        proj_key = self.key_conv(x).view(m_batchsize, -1, width*height)
-        energy = torch.bmm(proj_query, proj_key)
-        attention = self.softmax(energy)
-        proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
-
-        out = torch.bmm(proj_value, attention.permute(0, 2, 1))
-        out = out.view(m_batchsize, C, height, width)
-
-        out = self.gamma*out + x
-        return out
-
-
-class CAM_Module(nn.Module):
-    """ Channel attention module"""
-    def __init__(self, in_dim):
-        super(CAM_Module, self).__init__()
-        self.chanel_in = in_dim
-
-
-        self.gamma = nn.Parameter(torch.zeros(1))
-        self.softmax  = nn.Softmax(dim=-1)
-    def forward(self,x):
-        """
-            inputs :
-                x : input feature maps( B X C X H X W)
-            returns :
-                out : attention value + input feature
-                attention: B X C X C
-        """
-        m_batchsize, C, height, width = x.size()
-        proj_query = x.view(m_batchsize, C, -1)
-        proj_key = x.view(m_batchsize, C, -1).permute(0, 2, 1)
-        energy = torch.bmm(proj_query, proj_key)
-        energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy)-energy
-        attention = self.softmax(energy_new)
-        proj_value = x.view(m_batchsize, C, -1)
-
-        out = torch.bmm(attention, proj_value)
-        out = out.view(m_batchsize, C, height, width)
-
-        out = self.gamma*out + x
-        return out
