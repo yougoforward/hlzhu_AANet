@@ -134,8 +134,9 @@ class psaa5_Module(nn.Module):
         # pool3 = self.pool(feat3)
         # pool4 = self.pool(feat4)
 
-        _,_,hp,wp = pool0.size()
         out_pool = self.pool(out)
+        _,_,hp,wp = pool0.size()
+
         # y2 = torch.stack([pool0, pool1, pool2, pool3, pool4], dim=-1).view(n,c,-1) # n, c, hws/4
         y2 = y.view(n,c,-1) # n, c, hws
         query = self.f_query(out_pool).view(n,c//4,-1).permute(0,2,1) # n, hw/4, c
