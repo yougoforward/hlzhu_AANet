@@ -118,23 +118,34 @@ class PyramidPooling(Module):
         self.conv6 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
                                 norm_layer(out_channels),
                                 ReLU(True))
-        self.psaa = Psaa_Module(out_channels, norm_layer)
 
-
+        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+6*out_channels, out_channels, 1, padding=0, bias=False),
+                                    norm_layer(out_channels),
+                                    nn.ReLU(True),
+                                    nn.Conv2d(out_channels, 6, 1, bias=True))
+        self.project = nn.Sequential(nn.Conv2d(in_channels=6*out_channels, out_channels=out_channels,
+                      kernel_size=1, stride=1, padding=0, bias=False),
+                      norm_layer(out_channels),
+                      nn.ReLU(True))
         # bilinear upsample options
         self._up_kwargs = up_kwargs
 
     def forward(self, x):
         _, _, h, w = x.size()
-        feat1 = F.upsample(self.conv1(self.pool1(x)), (h, w), **self._up_kwargs)
-        feat2 = F.upsample(self.conv2(self.pool2(x)), (h, w), **self._up_kwargs)
-        feat3 = F.upsample(self.conv3(self.pool3(x)), (h, w), **self._up_kwargs)
-        feat4 = F.upsample(self.conv4(self.pool4(x)), (h, w), **self._up_kwargs)
-        feat5 = F.upsample(self.conv4(self.pool5(x)), (h, w), **self._up_kwargs)
-        feat6 = self.conv6(x)
-        y1 = torch.cat((feat1, feat2, feat3, feat4, feat5, feat6), 1)
-        y = torch.stack((feat1, feat2, feat3, feat4, feat5, feat6), dim=-1)
-        out = self.psaa(y1, y)
+        feat0 = F.upsample(self.conv1(self.pool1(x)), (h, w), **self._up_kwargs)
+        feat1 = F.upsample(self.conv2(self.pool2(x)), (h, w), **self._up_kwargs)
+        feat2 = F.upsample(self.conv3(self.pool3(x)), (h, w), **self._up_kwargs)
+        feat3 = F.upsample(self.conv4(self.pool4(x)), (h, w), **self._up_kwargs)
+        feat4 = F.upsample(self.conv4(self.pool5(x)), (h, w), **self._up_kwargs)
+        feat5 = self.conv6(x)
+        # psaa
+        y1 = torch.cat((feat0, feat1, feat2, feat3, feat4, feat5), 1)
+        psaa_feat = self.psaa_conv(torch.cat([x,y1], dim=1))
+        psaa_att = torch.sigmoid(psaa_feat)
+        psaa_att_list = torch.split(psaa_att, 1, dim=1)
+
+        y2 = torch.cat((psaa_att_list[0]*feat0, psaa_att_list[1]*feat1, psaa_att_list[2]*feat2, psaa_att_list[3]*feat3, psaa_att_list[4]*feat4), 1)
+        out = self.project(y2)
         return out
 
 
