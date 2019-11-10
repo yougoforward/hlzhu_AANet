@@ -42,7 +42,7 @@ class aspocNetHead(nn.Module):
         self.aspoc = nn.Sequential(
             nn.Conv2d(in_channels, inter_channels, kernel_size=3, stride=1, padding=1),
             norm_layer(inter_channels), nn.ReLU(True),
-            ASPOC_Module(inter_channels, inter_channels, norm_layer, scale=2)
+            ASPOC_Module(inter_channels, inter_channels//2, norm_layer, scale=2)
         )
 
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
@@ -52,19 +52,6 @@ class aspocNetHead(nn.Module):
         outputs = [self.conv8(feat_sum)]
 
         return tuple(outputs)
-
-
-def aspocConv(in_channels, out_channels, atrous_rate, norm_layer):
-    block = nn.Sequential(
-        nn.Conv2d(in_channels, 512, 1, padding=0,
-                  dilation=1, bias=False),
-        norm_layer(512),
-        nn.ReLU(True),
-        nn.Conv2d(512, out_channels, 3, padding=atrous_rate,
-                  dilation=atrous_rate, bias=False),
-        norm_layer(out_channels),
-        nn.ReLU(True))
-    return block
 
 
 class aspocPooling(nn.Module):
@@ -176,7 +163,7 @@ class ASPOC_Module(nn.Module):
         self.dilation_3 = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=3, padding=36, dilation=36, bias=False),
                                         norm_layer(out_dim), nn.ReLU(True))
 
-        self.head_conv = nn.Sequential(nn.Conv2d(out_dim * 5, out_dim, kernel_size=1, padding=0, bias=False),
+        self.head_conv = nn.Sequential(nn.Conv2d(out_dim * 5, 2*out_dim, kernel_size=1, padding=0, bias=False),
                                        norm_layer(out_dim), nn.ReLU(True),
                                        )
 

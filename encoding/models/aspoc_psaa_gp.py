@@ -8,14 +8,14 @@ from .mask_softmax import Mask_Softmax
 from .fcn import FCNHead
 from .base import BaseNet
 
-__all__ = ['aspoc_psaaNet', 'get_aspoc_psaanet']
+__all__ = ['aspoc_psaa_gpNet', 'get_aspoc_psaa_gpnet']
 
 
-class aspoc_psaaNet(BaseNet):
+class aspoc_psaa_gpNet(BaseNet):
     def __init__(self, nclass, backbone, aux=True, se_loss=False, norm_layer=nn.BatchNorm2d, **kwargs):
-        super(aspoc_psaaNet, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
+        super(aspoc_psaa_gpNet, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
 
-        self.head = aspoc_psaaNetHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
+        self.head = aspoc_psaa_gpNetHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
         if aux:
             self.auxlayer = FCNHead(1024, nclass, norm_layer)
 
@@ -32,10 +32,10 @@ class aspoc_psaaNet(BaseNet):
         return tuple(x)
 
 
-class aspoc_psaaNetHead(nn.Module):
+class aspoc_psaa_gpNetHead(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, se_loss, jpu=False, up_kwargs=None,
                  atrous_rates=(12, 24, 36)):
-        super(aspoc_psaaNetHead, self).__init__()
+        super(aspoc_psaa_gpNetHead, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 4
 
@@ -45,8 +45,8 @@ class aspoc_psaaNetHead(nn.Module):
             ASPOC_Module(inter_channels, inter_channels//2, norm_layer, scale=2)
         )
 
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
-        # self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1)) # gp
+        # self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1)) # gp
 
     def forward(self, x):
 
@@ -56,7 +56,7 @@ class aspoc_psaaNetHead(nn.Module):
         return tuple(outputs)
 
 
-def aspoc_psaaConv(in_channels, out_channels, atrous_rate, norm_layer):
+def aspoc_psaa_gpConv(in_channels, out_channels, atrous_rate, norm_layer):
     block = nn.Sequential(
         nn.Conv2d(in_channels, 512, 1, padding=0,
                   dilation=1, bias=False),
@@ -86,11 +86,11 @@ class gap_Pooling(nn.Module):
 
 
 
-def get_aspoc_psaanet(dataset='pascal_voc', backbone='resnet50', pretrained=False,
+def get_aspoc_psaa_gpnet(dataset='pascal_voc', backbone='resnet50', pretrained=False,
                 root='~/.encoding/models', **kwargs):
     # infer number of classes
     from ..datasets import datasets
-    model = aspoc_psaaNet(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
+    model = aspoc_psaa_gpNet(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
     if pretrained:
         raise NotImplementedError
 
@@ -205,6 +205,6 @@ class ASPOC_Module(nn.Module):
 
         y2 = torch.cat((psaa_att_list[0]*feat0, psaa_att_list[1]*feat1, psaa_att_list[2]*feat2, psaa_att_list[3]*feat3, psaa_att_list[4]*feat4), 1)
         out = self.project(y2)
-        # gp = self.gap(x)
-        # out = torch.cat([out, gp], dim=1)
+        gp = self.gap(x)
+        out = torch.cat([out, gp], dim=1)
         return out

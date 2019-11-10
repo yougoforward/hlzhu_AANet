@@ -37,10 +37,10 @@ class psaa7NetHead(nn.Module):
                  atrous_rates=(12, 24, 36)):
         super(psaa7NetHead, self).__init__()
         self.se_loss = se_loss
-        inter_channels = in_channels // 4
+        inter_channels = in_channels // 8
 
         self.aa_psaa7 = psaa7_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(4*inter_channels, out_channels, 1))
 
     def forward(self, x):
         feat_sum = self.aa_psaa7(x)
@@ -101,11 +101,11 @@ class psaa7_Module(nn.Module):
                                     norm_layer(out_channels),
                                     nn.ReLU(True),
                                     nn.Conv2d(out_channels, 5, 1, bias=True))
-        self.project = nn.Sequential(nn.Conv2d(in_channels=5*out_channels, out_channels=out_channels,
+        self.project = nn.Sequential(nn.Conv2d(in_channels=5*out_channels, out_channels=2*out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(out_channels),
                       nn.ReLU(True))
-        self.gap = psaa7Pooling(in_channels, out_channels, norm_layer, up_kwargs)
+        self.gap = psaa7Pooling(in_channels, 2*out_channels, norm_layer, up_kwargs)
 
     def forward(self, x):
         feat0 = self.b0(x)
