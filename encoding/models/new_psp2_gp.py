@@ -84,6 +84,21 @@ def get_new_psp2_gp_resnet50_ade(pretrained=False, root='~/.encoding/models', **
     """
     return get_new_psp2_gp('ade20k', 'resnet50', pretrained, root=root, **kwargs)
 
+class gap_Pooling(nn.Module):
+    def __init__(self, in_channels, out_channels, norm_layer):
+        super(gap_Pooling, self).__init__()
+        self.gap = nn.Sequential(nn.AdaptiveAvgPool2d(1),
+                                 nn.Conv2d(in_channels, out_channels, 1, bias=False),
+                                 norm_layer(out_channels),
+                                 nn.ReLU(True))
+
+        self.out_chs = out_channels
+
+    def forward(self, x):
+        bs, _, h, w = x.size()
+        pool = self.gap(x)
+        return pool.expand(bs, self.out_chs, h, w)
+        
 class PyramidPooling(Module):
     """
     Reference:
