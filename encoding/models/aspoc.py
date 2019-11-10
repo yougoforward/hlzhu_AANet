@@ -164,7 +164,7 @@ class ASPOC_Module(nn.Module):
                                         norm_layer(out_dim), nn.ReLU(True))
 
         self.head_conv = nn.Sequential(nn.Conv2d(out_dim * 5, 2*out_dim, kernel_size=1, padding=0, bias=False),
-                                       norm_layer(out_dim), nn.ReLU(True),
+                                       norm_layer(2*out_dim), nn.ReLU(True),
                                        )
 
     def forward(self, x):

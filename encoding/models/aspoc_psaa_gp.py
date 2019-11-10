@@ -186,7 +186,7 @@ class ASPOC_Module(nn.Module):
                                     nn.Conv2d(out_dim, 5, 1, bias=True))
         self.project = nn.Sequential(nn.Conv2d(in_channels=5*out_dim, out_channels=2*out_dim,
                       kernel_size=1, stride=1, padding=0, bias=False),
-                      norm_layer(out_dim),
+                      norm_layer(2*out_dim),
                       nn.ReLU(True))
         self.gap = gap_Pooling(in_dim, 2*out_dim, norm_layer)
 
