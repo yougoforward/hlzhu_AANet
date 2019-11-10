@@ -105,7 +105,7 @@ class psaa7_Module(nn.Module):
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(out_channels),
                       nn.ReLU(True))
-        self.gap = psaa7Pooling(out_channels, out_channels, norm_layer, up_kwargs)
+        self.gap = psaa7Pooling(in_channels, out_channels, norm_layer, up_kwargs)
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -124,7 +124,7 @@ class psaa7_Module(nn.Module):
 
         y2 = torch.cat((psaa_att_list[0]*feat0, psaa_att_list[1]*feat1, psaa_att_list[2]*feat2, psaa_att_list[3]*feat3, psaa_att_list[4]*feat4), 1)
         out = self.project(y2)
-        gp = self.gap(out)
+        gp = self.gap(x)
         out = torch.cat([out, gp], dim=1)
 
         return out
