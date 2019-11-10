@@ -91,14 +91,17 @@ class PyramidPooling(Module):
     """
     def __init__(self, in_channels, out_channels, norm_layer, up_kwargs):
         super(PyramidPooling, self).__init__()
-        self.pool1 = AdaptiveAvgPool2d(1)
-        self.pool2 = AdaptiveAvgPool2d(2)
-        self.pool3 = AdaptiveAvgPool2d(3)
-        self.pool4 = AdaptiveAvgPool2d(6)
-        self.pool5 = AdaptiveAvgPool2d(12)
+        self.pool0 = AdaptiveAvgPool2d(1)
+        self.pool1 = AdaptiveAvgPool2d(2)
+        self.pool2 = AdaptiveAvgPool2d(3)
+        self.pool3 = AdaptiveAvgPool2d(6)
+        self.pool4 = AdaptiveAvgPool2d(12)
 
 
         # out_channels = int(in_channels/4)
+        self.conv0 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
+                                norm_layer(out_channels),
+                                ReLU(True))
         self.conv1 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
                                 norm_layer(out_channels),
                                 ReLU(True))
@@ -108,14 +111,11 @@ class PyramidPooling(Module):
         self.conv3 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
                                 norm_layer(out_channels),
                                 ReLU(True))
+
         self.conv4 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
                                 norm_layer(out_channels),
                                 ReLU(True))
-
         self.conv5 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
-                                norm_layer(out_channels),
-                                ReLU(True))
-        self.conv6 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
                                 norm_layer(out_channels),
                                 ReLU(True))
 
@@ -132,12 +132,12 @@ class PyramidPooling(Module):
 
     def forward(self, x):
         _, _, h, w = x.size()
-        feat0 = F.upsample(self.conv1(self.pool1(x)), (h, w), **self._up_kwargs)
-        feat1 = F.upsample(self.conv2(self.pool2(x)), (h, w), **self._up_kwargs)
-        feat2 = F.upsample(self.conv3(self.pool3(x)), (h, w), **self._up_kwargs)
-        feat3 = F.upsample(self.conv4(self.pool4(x)), (h, w), **self._up_kwargs)
-        feat4 = F.upsample(self.conv4(self.pool5(x)), (h, w), **self._up_kwargs)
-        feat5 = self.conv6(x)
+        feat0 = F.upsample(self.conv0(self.pool0(x)), (h, w), **self._up_kwargs)
+        feat1 = F.upsample(self.conv1(self.pool1(x)), (h, w), **self._up_kwargs)
+        feat2 = F.upsample(self.conv2(self.pool2(x)), (h, w), **self._up_kwargs)
+        feat3 = F.upsample(self.conv3(self.pool3(x)), (h, w), **self._up_kwargs)
+        feat4 = F.upsample(self.conv4(self.pool4(x)), (h, w), **self._up_kwargs)
+        feat5 = self.conv5(x)
         # psaa
         y1 = torch.cat((feat0, feat1, feat2, feat3, feat4, feat5), 1)
         psaa_feat = self.psaa_conv(torch.cat([x,y1], dim=1))
