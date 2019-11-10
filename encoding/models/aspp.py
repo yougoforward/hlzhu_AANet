@@ -40,10 +40,7 @@ class ASPPNetHead(nn.Module):
         inter_channels = in_channels // 8
 
         self.aa_aspp = ASPP_Module(in_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 1, padding=0, bias=False),
-                                    norm_layer(inter_channels), nn.ReLU(True))
-
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
         self.gap = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
             nn.Conv2d(inter_channels, inter_channels, 1),
@@ -107,7 +104,7 @@ class ASPP_Module(nn.Module):
         self.b4 = AsppPooling(in_channels, out_channels, norm_layer, up_kwargs)
 
         self.project = nn.Sequential(
-            nn.Conv2d(5 * out_channels, out_channels, 1, bias=False),
+            nn.Conv2d(5 * out_channels, 2*out_channels, 1, bias=False),
             norm_layer(out_channels),
             nn.ReLU(True))
 
