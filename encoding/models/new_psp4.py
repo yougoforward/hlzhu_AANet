@@ -124,7 +124,7 @@ class PyramidPooling(Module):
                                     nn.ReLU(True),
                                     nn.Conv2d(out_channels, 6, 1, bias=True))
         self.project = nn.Sequential(nn.Conv2d(in_channels=6*out_channels, out_channels=out_channels,
-                      kernel_size=1, stride=1, padding=0, bias=False),
+                      kernel_size=3, stride=1, padding=1, bias=False),
                       norm_layer(out_channels),
                       nn.ReLU(True))
         # bilinear upsample options
@@ -149,39 +149,3 @@ class PyramidPooling(Module):
         return out
 
 
-class Psaa_Module(nn.Module):
-    """ Position attention module"""
-
-    # Ref from SAGAN
-    def __init__(self, out_channels, norm_layer, scales=6):
-        super(Psaa_Module, self).__init__()
-        self.project = nn.Sequential(nn.Conv2d(scales * out_channels, scales, 1, bias=True))
-
-        self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, padding=0, bias=False),
-                                       norm_layer(out_channels),
-                                       nn.ReLU(True))
-        self.gamma = nn.Parameter(torch.zeros(1))
-
-    def forward(self, cat, stack):
-        """
-            inputs :
-                x : input feature maps( B X C X H X W)
-            returns :
-                out : attention value + input feature
-                attention: B X (HxW) X (HxW)
-        """
-        n, c, h, w, s = stack.size()
-
-        energy = self.project(cat)
-        attention = torch.softmax(energy, dim=1)
-        yv = stack.view(n, c, h * w, s).permute(0, 2, 1, 3)
-        out = torch.matmul(yv, attention.view(n, s, h * w).permute(0, 2, 1).unsqueeze(dim=3))
-
-        energy = torch.matmul(yv.permute(0, 1, 3, 2), out)
-        attention = torch.softmax(energy, dim=2)
-        out2 = torch.matmul(yv, attention)
-
-        out = self.gamma * out2 + out
-        out = out.squeeze(dim=3).permute(0, 2, 1).view(n, c, h, w)
-        out = self.fuse_conv(out)
-        return out
