@@ -123,7 +123,7 @@ class psaa34_Module(nn.Module):
 
         # psaa
         y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
-        fea_stack = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
+        # fea_stack = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
         psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
         psaa_att = torch.sigmoid(psaa_feat)
         psaa_att_list = torch.split(psaa_att, 1, dim=1)
@@ -148,14 +148,13 @@ class psaa34_Module(nn.Module):
         key4 = self.key_conv4(feat4_p)
 
         key_stack = torch.stack((key0, key1, key2, key3, key4), dim=-1) #n, c//8, hp, wp, s
-        out = self.scale_spatial_agg(query, out, key_stack, fea_stack)
-
         n, c_key, hp, wp, s = key_stack.size()
         energy = torch.bmm(query.view(n, c_key, -1).permute(0, 2, 1),key_stack.view(n, c_key, -1)) # n, hw/4, hws/4
         attention = torch.softmax(energy, -1)
         ps_agg = torch.bmm(fea_p_stack.view(n, c, -1), attention.permute(0, 2, 1))
         ps_agg = F.interpolate(ps_agg, (h, w), mode="bilinear", align_corners=True)
         out = self.fuse_conv(torch.cat([out, ps_agg], dim=1))
+
         return out
 
 def get_psaa34net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
