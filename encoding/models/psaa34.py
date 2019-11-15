@@ -80,10 +80,11 @@ class psaa34Pooling(nn.Module):
         # return pool.repeat(1,1,h,w)
         return pool.expand(bs, self.out_chs, h, w)
 
+
 class psaa34_Module(nn.Module):
     def __init__(self, in_channels, out_channels, atrous_rates, norm_layer, up_kwargs):
         super(psaa34_Module, self).__init__()
-        # out_channels = in_channels // 8
+        # out_channels = in_channels // 4
         rate1, rate2, rate3 = tuple(atrous_rates)
         self.b0 = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, 1, bias=False),
@@ -93,18 +94,24 @@ class psaa34_Module(nn.Module):
         self.b2 = psaa34Conv(in_channels, out_channels, rate2, norm_layer)
         self.b3 = psaa34Conv(in_channels, out_channels, rate3, norm_layer)
         self.b4 = psaa34Pooling(in_channels, out_channels, norm_layer, up_kwargs)
-    
-
 
         self._up_kwargs = up_kwargs
-        self.psaa_conv = nn.Sequential(nn.Conv2d(5*out_channels, out_channels, 1, padding=0, bias=False),
-                                    norm_layer(out_channels),
-                                    nn.ReLU(True),
-                                    nn.Conv2d(out_channels, 5, 1, bias=True))
+        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+5*out_channels, 5, 1, bias=True))
         self.project = nn.Sequential(nn.Conv2d(in_channels=5*out_channels, out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(out_channels),
                       nn.ReLU(True))
+
+        self.query_conv = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
+        self.key_conv0 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
+        self.key_conv1 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
+        self.key_conv2 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
+        self.key_conv3 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
+        self.key_conv4 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
+        self.fuse_conv = nn.Sequential(nn.Conv2d(2 * out_channels, out_channels, 1, padding=0, bias=False),
+                                       norm_layer(out_channels),
+                                       nn.ReLU(True))
+        self.pool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -116,13 +123,39 @@ class psaa34_Module(nn.Module):
 
         # psaa
         y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
-        y = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
-        psaa_feat = self.psaa_conv(y1)
+        fea_stack = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
+        psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
         psaa_att = torch.sigmoid(psaa_feat)
         psaa_att_list = torch.split(psaa_att, 1, dim=1)
 
-        y2 = torch.cat((psaa_att_list[0]*feat0, psaa_att_list[1]*feat1, psaa_att_list[2]*feat2, psaa_att_list[3]*feat3, psaa_att_list[4]*feat4), 1)
+        y2 = torch.cat((psaa_att_list[0] * feat0, psaa_att_list[1] * feat1, psaa_att_list[2] * feat2,
+                        psaa_att_list[3] * feat3, psaa_att_list[4] * feat4), 1)
         out = self.project(y2)
+
+        #scale spatial guided attention aggregation
+
+        query = self.query_conv(self.pool(out)) # n, c//8, hp, wp
+        feat0_p = self.pool(feat0)
+        feat1_p = self.pool(feat1)
+        feat2_p = self.pool(feat2)
+        feat3_p = self.pool(feat3)
+        feat4_p = self.pool(feat4)
+        fea_p_stack = torch.stack((feat0_p, feat1_p, feat2_p, feat3_p, feat4_p), dim=-1)
+        key0 = self.key_conv0(feat0_p) # n, c//8, hp, wp
+        key1 = self.key_conv1(feat1_p)
+        key2 = self.key_conv2(feat2_p)
+        key3 = self.key_conv3(feat3_p)
+        key4 = self.key_conv4(feat4_p)
+
+        key_stack = torch.stack((key0, key1, key2, key3, key4), dim=-1) #n, c//8, hp, wp, s
+        out = self.scale_spatial_agg(query, out, key_stack, fea_stack)
+
+        n, c_key, hp, wp, s = key_stack.size()
+        energy = torch.bmm(query.view(n, c_key, -1).permute(0, 2, 1),key_stack.view(n, c_key, -1)) # n, hw/4, hws/4
+        attention = torch.softmax(energy, -1)
+        ps_agg = torch.bmm(fea_p_stack.view(n, c, -1), attention.permute(0, 2, 1))
+        ps_agg = F.interpolate(ps_agg, (h, w), mode="bilinear", align_corners=True)
+        out = self.fuse_conv(torch.cat([out, ps_agg], dim=1))
         return out
 
 def get_psaa34net(dataset='pascal_voc', backbone='resnet50', pretrained=False,

@@ -40,7 +40,7 @@ class psaa52NetHead(nn.Module):
         inter_channels = in_channels // 4
 
         self.aa_psaa52 = psaa52_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2 * inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
 
     def forward(self, x):
         feat_sum = self.aa_psaa52(x)
@@ -96,15 +96,11 @@ class psaa52_Module(nn.Module):
         self.b4 = psaa52Pooling(in_channels, out_channels, norm_layer, up_kwargs)
 
         self._up_kwargs = up_kwargs
-        self.psaa_conv = nn.Sequential(
-            nn.Conv2d(in_channels + 5 * out_channels, out_channels, 1, padding=0, bias=False),
-            norm_layer(out_channels),
-            nn.ReLU(True),
-            nn.Conv2d(out_channels, 5, 1, bias=True))
-        self.project = nn.Sequential(nn.Conv2d(in_channels=5 * out_channels, out_channels=out_channels,
-                                               kernel_size=1, stride=1, padding=0, bias=False),
-                                     norm_layer(out_channels),
-                                     nn.ReLU(True))
+        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+5*out_channels, 5, 1, bias=True))
+        self.project = nn.Sequential(nn.Conv2d(in_channels=5*out_channels, out_channels=out_channels,
+                      kernel_size=1, stride=1, padding=0, bias=False),
+                      norm_layer(out_channels),
+                      nn.ReLU(True))
 
         self.query_conv = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
         self.key_conv0 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
@@ -155,11 +151,10 @@ class ss_Module(nn.Module):
         super(ss_Module, self).__init__()
         self.project = nn.Sequential(nn.Conv2d(5 * out_channels, 5, 1, bias=True))
 
-        self.fuse_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, padding=0, bias=False),
+        self.fuse_conv = nn.Sequential(nn.Conv2d(2*out_channels, out_channels, 1, padding=0, bias=False),
                                        norm_layer(out_channels),
                                        nn.ReLU(True))
         self.key_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels//8, 1, padding=0, bias=True))
-        self.gamma = nn.Parameter(torch.zeros(1))
 
     def forward(self, query, fea, key_stack, fea_stack):
         """
@@ -186,7 +181,7 @@ class ss_Module(nn.Module):
         attention2 = torch.softmax(energy, dim=1)
         out3 = torch.bmm(out2.view(n, -1, h*w), attention2).view(n, -1, h, w)
 
-        out = self.gamma * out3 + fea
+        out = torch.cat([out3, fea], dim=1)
         out = self.fuse_conv(out)
 
         return out

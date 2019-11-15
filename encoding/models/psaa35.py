@@ -34,13 +34,13 @@ class psaa35Net(BaseNet):
 
 class psaa35NetHead(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, se_loss, jpu=False, up_kwargs=None,
-                 atrous_rates=(3, 6, 12, 24, 36)):
+                 atrous_rates=(12, 24, 36)):
         super(psaa35NetHead, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 4
 
         self.aa_psaa35 = psaa35_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
 
     def forward(self, x):
         feat_sum = self.aa_psaa35(x)
@@ -84,8 +84,8 @@ class psaa35Pooling(nn.Module):
 class psaa35_Module(nn.Module):
     def __init__(self, in_channels, out_channels, atrous_rates, norm_layer, up_kwargs):
         super(psaa35_Module, self).__init__()
-        # out_channels = in_channels // 8
-        rate1, rate2, rate3, rate4, rate5 = tuple(atrous_rates)
+        # out_channels = in_channels // 4
+        rate1, rate2, rate3 = tuple(atrous_rates)
         self.b0 = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, 1, bias=False),
             norm_layer(out_channels),
@@ -93,21 +93,28 @@ class psaa35_Module(nn.Module):
         self.b1 = psaa35Conv(in_channels, out_channels, rate1, norm_layer)
         self.b2 = psaa35Conv(in_channels, out_channels, rate2, norm_layer)
         self.b3 = psaa35Conv(in_channels, out_channels, rate3, norm_layer)
-        self.b4 = psaa35Conv(in_channels, out_channels, rate4, norm_layer)
-        self.b5 = psaa35Conv(in_channels, out_channels, rate5, norm_layer)
-
-        self.b6 = psaa35Pooling(in_channels, out_channels, norm_layer, up_kwargs)
+        self.b4 = psaa35Pooling(in_channels, out_channels, norm_layer, up_kwargs)
 
         self._up_kwargs = up_kwargs
-        self.psaa_conv = nn.Sequential(
-            nn.Conv2d(in_channels + 7 * out_channels, out_channels, 1, padding=0, bias=False),
-            norm_layer(out_channels),
-            nn.ReLU(True),
-            nn.Conv2d(out_channels, 7, 1, bias=True))
-        self.project = nn.Sequential(nn.Conv2d(in_channels=7 * out_channels, out_channels=out_channels,
+        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels + 5 * out_channels, 5, 1, bias=True))
+        self.project = nn.Sequential(nn.Conv2d(in_channels=5 * out_channels, out_channels=out_channels,
                                                kernel_size=1, stride=1, padding=0, bias=False),
                                      norm_layer(out_channels),
                                      nn.ReLU(True))
+
+        self.query_conv = nn.Conv2d(in_channels=out_channels, out_channels=out_channels // 8, kernel_size=1, padding=0)
+        self.key_conv0 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels // 8, kernel_size=1, padding=0)
+        self.key_conv1 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels // 8, kernel_size=1, padding=0)
+        self.key_conv2 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels // 8, kernel_size=1, padding=0)
+        self.key_conv3 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels // 8, kernel_size=1, padding=0)
+        self.key_conv4 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels // 8, kernel_size=1, padding=0)
+        self.fuse_conv = nn.Sequential(nn.Conv2d(2 * out_channels, out_channels, 1, padding=0, bias=False),
+                                       norm_layer(out_channels),
+                                       nn.ReLU(True))
+        self.pool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        
+        self.gap = psaa35Pooling(in_channels, out_channels, norm_layer, up_kwargs)
+
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -115,27 +122,53 @@ class psaa35_Module(nn.Module):
         feat2 = self.b2(x)
         feat3 = self.b3(x)
         feat4 = self.b4(x)
-        feat5 = self.b5(x)
-        feat6 = self.b6(x)
-
-
         n, c, h, w = feat0.size()
 
         # psaa
-        y1 = torch.cat((feat0, feat1, feat2, feat3, feat4, feat5, feat6), 1)
-        # y = torch.stack((feat0, feat1, feat2, feat3, feat4, feat5, feat6), dim=-1)
+        y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
+        fea_stack = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
         psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
         psaa_att = torch.sigmoid(psaa_feat)
         psaa_att_list = torch.split(psaa_att, 1, dim=1)
 
         y2 = torch.cat((psaa_att_list[0] * feat0, psaa_att_list[1] * feat1, psaa_att_list[2] * feat2,
-                        psaa_att_list[3] * feat3, psaa_att_list[4] * feat4, psaa_att_list[5]*feat5, psaa_att_list[6]*feat6), 1)
+                        psaa_att_list[3] * feat3, psaa_att_list[4] * feat4), 1)
         out = self.project(y2)
+
+        # scale spatial guided attention aggregation
+
+        query = self.query_conv(self.pool(out))  # n, c//8, hp, wp
+        feat0_p = self.pool(feat0)
+        feat1_p = self.pool(feat1)
+        feat2_p = self.pool(feat2)
+        feat3_p = self.pool(feat3)
+        feat4_p = self.pool(feat4)
+        fea_p_stack = torch.stack((feat0_p, feat1_p, feat2_p, feat3_p, feat4_p), dim=-1)
+        key0 = self.key_conv0(feat0_p)  # n, c//8, hp, wp
+        key1 = self.key_conv1(feat1_p)
+        key2 = self.key_conv2(feat2_p)
+        key3 = self.key_conv3(feat3_p)
+        key4 = self.key_conv4(feat4_p)
+
+        key_stack = torch.stack((key0, key1, key2, key3, key4), dim=-1)  # n, c//8, hp, wp, s
+        out = self.scale_spatial_agg(query, out, key_stack, fea_stack)
+
+        n, c_key, hp, wp, s = key_stack.size()
+        energy = torch.bmm(query.view(n, c_key, -1).permute(0, 2, 1), key_stack.view(n, c_key, -1))  # n, hw/4, hws/4
+        attention = torch.softmax(energy, -1)
+        ps_agg = torch.bmm(fea_p_stack.view(n, c, -1), attention.permute(0, 2, 1))
+        ps_agg = F.interpolate(ps_agg, (h, w), mode="bilinear", align_corners=True)
+        out = self.fuse_conv(torch.cat([out, ps_agg], dim=1))
+        
+        
+        #gp
+        gp = self.gap(x)
+        out = torch.cat([out, gp], dim=1)
         return out
 
 
 def get_psaa35net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
-                 root='~/.encoding/models', **kwargs):
+                  root='~/.encoding/models', **kwargs):
     # infer number of classes
     from ..datasets import datasets
     model = psaa35Net(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
