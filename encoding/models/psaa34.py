@@ -151,7 +151,7 @@ class psaa34_Module(nn.Module):
         n, c_key, hp, wp, s = key_stack.size()
         energy = torch.bmm(query.view(n, c_key, -1).permute(0, 2, 1),key_stack.view(n, c_key, -1)) # n, hw/4, hws/4
         attention = torch.softmax(energy, -1)
-        ps_agg = torch.bmm(fea_p_stack.view(n, c, -1), attention.permute(0, 2, 1))
+        ps_agg = torch.bmm(fea_p_stack.view(n, c, -1), attention.permute(0, 2, 1)).view(n, c, hp, wp)
         ps_agg = F.interpolate(ps_agg, (h, w), mode="bilinear", align_corners=True)
         out = self.fuse_conv(torch.cat([out, ps_agg], dim=1))
 
