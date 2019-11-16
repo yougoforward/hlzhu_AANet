@@ -102,13 +102,15 @@ class psaa52_Module(nn.Module):
                       norm_layer(out_channels),
                       nn.ReLU(True))
 
-        self.query_conv = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
-        self.key_conv0 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
-        self.key_conv1 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
-        self.key_conv2 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
-        self.key_conv3 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
-        self.key_conv4 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
-        self.scale_spatial_agg = ss_Module(out_channels, norm_layer)
+        # self.query_conv = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
+        # self.key_conv0 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
+        # self.key_conv1 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
+        # self.key_conv2 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
+        # self.key_conv3 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
+        # self.key_conv4 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
+        # self.scale_spatial_agg = ss_Module(out_channels, norm_layer)
+
+        self.pam = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -129,17 +131,19 @@ class psaa52_Module(nn.Module):
                         psaa_att_list[3] * feat3, psaa_att_list[4] * feat4), 1)
         out = self.project(y2)
 
-        #scale spatial guided attention aggregation
+        out = self.pam(out)
 
-        query = self.query_conv(out) # n, c//4, h, w
-        key0 = self.key_conv0(feat0) # n, c//4, h, w
-        key1 = self.key_conv1(feat1)
-        key2 = self.key_conv2(feat2)
-        key3 = self.key_conv3(feat3)
-        key4 = self.key_conv4(feat4)
+        # #scale spatial guided attention aggregation
 
-        key_stack = torch.stack((key0, key1, key2, key3, key4), dim=-1)
-        out = self.scale_spatial_agg(query, out, key_stack, fea_stack)
+        # query = self.query_conv(out) # n, c//4, h, w
+        # key0 = self.key_conv0(feat0) # n, c//4, h, w
+        # key1 = self.key_conv1(feat1)
+        # key2 = self.key_conv2(feat2)
+        # key3 = self.key_conv3(feat3)
+        # key4 = self.key_conv4(feat4)
+
+        # key_stack = torch.stack((key0, key1, key2, key3, key4), dim=-1)
+        # out = self.scale_spatial_agg(query, out, key_stack, fea_stack)
 
         return out
 
@@ -195,3 +199,42 @@ def get_psaa52net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
         raise NotImplementedError
 
     return model
+
+
+class PAM_Module(nn.Module):
+    """ Position attention module"""
+    #Ref from SAGAN
+    def __init__(self, in_dim, key_dim, value_dim, out_dim, norm_layer):
+        super(PAM_Module, self).__init__()
+        self.chanel_in = in_dim
+
+        self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
+        self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
+        self.value_conv = nn.Conv2d(in_channels=in_dim, out_channels=value_dim, kernel_size=1)
+        self.gamma = nn.Parameter(torch.zeros(1))
+
+        self.softmax = nn.Softmax(dim=-1)
+        self.fuse_conv = nn.Sequential(nn.Conv2d(value_dim, out_dim, 1, bias=False),
+                                       norm_layer(out_dim),
+                                       nn.ReLU(True))
+    def forward(self, x):
+        """
+            inputs :
+                x : input feature maps( B X C X H X W)
+            returns :
+                out : attention value + input feature
+                attention: B X (HxW) X (HxW)
+        """
+        m_batchsize, C, height, width = x.size()
+        proj_query = self.query_conv(x).view(m_batchsize, -1, width*height).permute(0, 2, 1)
+        proj_key = self.key_conv(x).view(m_batchsize, -1, width*height)
+        energy = torch.bmm(proj_query, proj_key)
+        attention = self.softmax(energy)
+        proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
+
+        out = torch.bmm(proj_value, attention.permute(0, 2, 1))
+        out = out.view(m_batchsize, C, height, width)
+
+        out = self.gamma*out + x
+        out = self.fuse_conv(out)
+        return out
