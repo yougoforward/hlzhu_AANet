@@ -40,7 +40,7 @@ class psaa53NetHead(nn.Module):
         inter_channels = in_channels // 4
 
         self.aa_psaa53 = psaa53_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2 * inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(3 * inter_channels, out_channels, 1))
 
     def forward(self, x):
         feat_sum = self.aa_psaa53(x)
@@ -213,7 +213,7 @@ class PAM_Module(nn.Module):
 
         self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
         self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
-        self.value_conv = nn.Conv2d(in_channels=in_dim, out_channels=value_dim, kernel_size=1)
+        # self.value_conv = nn.Conv2d(in_channels=in_dim, out_channels=value_dim, kernel_size=1)
         self.gamma = nn.Parameter(torch.zeros(1))
 
         self.softmax = nn.Softmax(dim=-1)
@@ -233,7 +233,8 @@ class PAM_Module(nn.Module):
         proj_key = self.key_conv(x).view(m_batchsize, -1, width*height)
         energy = torch.bmm(proj_query, proj_key)
         attention = self.softmax(energy)
-        proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
+        # proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
+        proj_value = x.view(m_batchsize, -1, width*height)
 
         out = torch.bmm(proj_value, attention.permute(0, 2, 1))
         out = out.view(m_batchsize, C, height, width)

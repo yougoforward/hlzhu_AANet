@@ -231,8 +231,9 @@ class PAM_Module(nn.Module):
         proj_key = self.key_conv(x).view(m_batchsize, -1, width*height)
         energy = torch.bmm(proj_query, proj_key)
         attention = self.softmax(energy)
-        proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
-
+        # proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
+        proj_value = x.view(m_batchsize, -1, width*height)
+        
         out = torch.bmm(proj_value, attention.permute(0, 2, 1))
         out = out.view(m_batchsize, C, height, width)
 
