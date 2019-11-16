@@ -40,7 +40,7 @@ class psaa52NetHead(nn.Module):
         inter_channels = in_channels // 4
 
         self.aa_psaa52 = psaa52_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
 
     def forward(self, x):
         feat_sum = self.aa_psaa52(x)
@@ -131,7 +131,8 @@ class psaa52_Module(nn.Module):
                         psaa_att_list[3] * feat3, psaa_att_list[4] * feat4), 1)
         out = self.project(y2)
 
-        out = self.pam(out)
+        out2 = self.pam(out)
+        out = torch.cat([out, out2], dim=1)
 
         # #scale spatial guided attention aggregation
 
@@ -214,9 +215,9 @@ class PAM_Module(nn.Module):
         self.gamma = nn.Parameter(torch.zeros(1))
 
         self.softmax = nn.Softmax(dim=-1)
-        self.fuse_conv = nn.Sequential(nn.Conv2d(value_dim, out_dim, 1, bias=False),
-                                       norm_layer(out_dim),
-                                       nn.ReLU(True))
+        # self.fuse_conv = nn.Sequential(nn.Conv2d(value_dim, out_dim, 1, bias=False),
+        #                                norm_layer(out_dim),
+        #                                nn.ReLU(True))
     def forward(self, x):
         """
             inputs :
@@ -235,6 +236,6 @@ class PAM_Module(nn.Module):
         out = torch.bmm(proj_value, attention.permute(0, 2, 1))
         out = out.view(m_batchsize, C, height, width)
 
-        out = self.gamma*out + x
-        out = self.fuse_conv(out)
+        # out = self.gamma*out + x
+        # out = self.fuse_conv(out)
         return out
