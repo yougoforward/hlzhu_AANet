@@ -40,7 +40,7 @@ class psaa53NetHead(nn.Module):
         inter_channels = in_channels // 4
 
         self.aa_psaa53 = psaa53_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(3 * inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2 * inter_channels, out_channels, 1))
 
     def forward(self, x):
         feat_sum = self.aa_psaa53(x)
@@ -132,7 +132,7 @@ class psaa53_Module(nn.Module):
                         psaa_att_list[3] * feat3, psaa_att_list[4] * feat4), 1)
         out = self.project(y2)
 
-        out2 = self.pam(out)
+        # out2 = self.pam(out)
         # #scale spatial guided attention aggregation
 
         # query = self.query_conv(out) # n, c//4, h, w
@@ -147,7 +147,7 @@ class psaa53_Module(nn.Module):
 
         #gp
         gp = self.gap(x)
-        out = torch.cat([out, out2, gp], dim=1)
+        out = torch.cat([out, gp], dim=1)
 
         return out
 
