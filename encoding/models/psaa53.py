@@ -109,7 +109,7 @@ class psaa53_Module(nn.Module):
         # self.key_conv3 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
         # self.key_conv4 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
         # self.scale_spatial_agg = ss_Module(out_channels, norm_layer)
-        self.gap = psaa53Pooling(in_channels, out_channels, norm_layer, up_kwargs)
+        self.gap = psaa53Pooling(5*out_channels, out_channels, norm_layer, up_kwargs)
 
         self.pam = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
 
@@ -146,7 +146,7 @@ class psaa53_Module(nn.Module):
         # out = self.scale_spatial_agg(query, out, key_stack, fea_stack)
 
         #gp
-        gp = self.gap(x)
+        gp = self.gap(y1)
         out = torch.cat([out, gp], dim=1)
 
         return out

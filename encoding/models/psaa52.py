@@ -111,7 +111,7 @@ class psaa52_Module(nn.Module):
         # self.scale_spatial_agg = ss_Module(out_channels, norm_layer)
 
         self.pam = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
-        # self.gap = psaa52Pooling(in_channels, out_channels, norm_layer, up_kwargs)
+        self.gap = psaa52Pooling(5*out_channels, out_channels, norm_layer, up_kwargs)
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -132,8 +132,8 @@ class psaa52_Module(nn.Module):
                         psaa_att_list[3] * feat3, psaa_att_list[4] * feat4), 1)
         out = self.project(y2)
 
-        out2 = self.pam(out)
-        out = torch.cat([out, out2], dim=1)
+        # out2 = self.pam(out)
+        # out = torch.cat([out, out2], dim=1)
 
         # #scale spatial guided attention aggregation
 
@@ -147,8 +147,8 @@ class psaa52_Module(nn.Module):
         # key_stack = torch.stack((key0, key1, key2, key3, key4), dim=-1)
         # out = self.scale_spatial_agg(query, out, key_stack, fea_stack)
         #gp
-        # gp = self.gap(x)
-        # out = torch.cat([out, gp], dim=1)
+        gp = self.gap(y2)
+        out = torch.cat([out, gp], dim=1)
         return out
 
 class ss_Module(nn.Module):
