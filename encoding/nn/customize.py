@@ -36,25 +36,25 @@ class SegmentationLovaszLosses(CrossEntropyLoss):
 
     def forward(self, *inputs):
         if not self.se_loss and not self.aux:
-            return super(SegmentationLosses, self).forward(*inputs)
+            return super(SegmentationLovaszLosses, self).forward(*inputs)
         elif not self.se_loss:
             pred1, pred2, target = tuple(inputs)
             # loss1 = super(SegmentationLosses, self).forward(pred1, target)
             pred1 = F.softmax(input=pred1, dim=1)
             loss1 = lovasz_softmax_flat(*flatten_probas(pred1, target, self.ignore_index),only_present=True)
-            loss2 = super(SegmentationLosses, self).forward(pred2, target)
+            loss2 = super(SegmentationLovaszLosses, self).forward(pred2, target)
             return loss1 + self.aux_weight * loss2
         elif not self.aux:
             pred, se_pred, target = tuple(inputs)
             se_target = self._get_batch_label_vector(target, nclass=self.nclass).type_as(pred)
-            loss1 = super(SegmentationLosses, self).forward(pred, target)
+            loss1 = super(SegmentationLovaszLosses, self).forward(pred, target)
             loss2 = self.bceloss(torch.sigmoid(se_pred), se_target)
             return loss1 + self.se_weight * loss2
         else:
             pred1, se_pred, pred2, target = tuple(inputs)
             se_target = self._get_batch_label_vector(target, nclass=self.nclass).type_as(pred1)
-            loss1 = super(SegmentationLosses, self).forward(pred1, target)
-            loss2 = super(SegmentationLosses, self).forward(pred2, target)
+            loss1 = super(SegmentationLovaszLosses, self).forward(pred1, target)
+            loss2 = super(SegmentationLovaszLosses, self).forward(pred2, target)
             loss3 = self.bceloss(torch.sigmoid(se_pred), se_target)
             return loss1 + self.aux_weight * loss2 + self.se_weight * loss3
 
