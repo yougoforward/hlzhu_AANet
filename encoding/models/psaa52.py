@@ -40,11 +40,16 @@ class psaa52NetHead(nn.Module):
         inter_channels = in_channels // 4
 
         self.aa_psaa52 = psaa52_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
+        if self.se_loss:
+            self.selayer = nn.Linear(inter_channels, out_channels)
 
     def forward(self, x):
-        feat_sum = self.aa_psaa52(x)
+        feat_sum, gap_feat = self.aa_psaa52(x)
         outputs = [self.conv8(feat_sum)]
+        if self.se_loss:
+            outputs.append(self.selayer(torch.squeeze(gap_feat)))
+
         return tuple(outputs)
 
 
@@ -111,7 +116,15 @@ class psaa52_Module(nn.Module):
         # self.scale_spatial_agg = ss_Module(out_channels, norm_layer)
 
         self.pam = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
-        self.gap = psaa52Pooling(5*out_channels, out_channels, norm_layer, up_kwargs)
+        # self.gap = psaa52Pooling(5*out_channels, out_channels, norm_layer, up_kwargs)
+        self.gap = nn.Sequential(nn.AdaptiveAvgPool2d(1),
+                            nn.Conv2d(in_channels, out_channels, 1, bias=False),
+                            norm_layer(out_channels),
+                            nn.ReLU(True))
+        self.se = nn.Sequential(
+                            nn.Conv2d(out_channels, out_channels, 1, bias=True),
+                            nn.Sigmoid())
+        self.relu = nn.ReLU(True)
 
     def forward(self, x):
         feat0 = self.b0(x)
@@ -147,9 +160,10 @@ class psaa52_Module(nn.Module):
         # key_stack = torch.stack((key0, key1, key2, key3, key4), dim=-1)
         # out = self.scale_spatial_agg(query, out, key_stack, fea_stack)
         #gp
-        gp = self.gap(y2)
-        out = torch.cat([out, gp], dim=1)
-        return out
+        gp = self.gap(x)
+        se = self.se(gp)
+        out = self.relu(out + se*out)
+        return out, gp
 
 class ss_Module(nn.Module):
     """ Position attention module"""
