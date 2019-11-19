@@ -96,7 +96,10 @@ class psaa35_Module(nn.Module):
         self.b4 = psaa35Pooling(in_channels, out_channels, norm_layer, up_kwargs)
 
         self._up_kwargs = up_kwargs
-        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+5*out_channels, 5, 1, bias=True))
+        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+5*out_channels, out_channels, 1, padding=0, bias=False),
+                                    norm_layer(out_channels),
+                                    nn.ReLU(True),
+                                    nn.Conv2d(out_channels, 5, 1, bias=True))         
         self.project = nn.Sequential(nn.Conv2d(in_channels=5*out_channels, out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(out_channels),
@@ -110,8 +113,13 @@ class psaa35_Module(nn.Module):
         # self.key_conv4 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
         # self.scale_spatial_agg = ss_Module(out_channels, norm_layer)
 
-        self.pam = PAM_Module(in_dim=out_channels*5, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
-        self.gap = psaa35Pooling(out_channels, out_channels, norm_layer, up_kwargs)
+        self.pam0 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
+        self.pam1 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
+        self.pam2 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
+        self.pam3 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
+        # self.gap = psaa35Pooling(out_channels, out_channels, norm_layer, up_kwargs)
+
+
 
 
     def forward(self, x):
@@ -128,6 +136,11 @@ class psaa35_Module(nn.Module):
         psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
         psaa_att = torch.sigmoid(psaa_feat)
         psaa_att_list = torch.split(psaa_att, 1, dim=1)
+
+        feat0 = self.pam0(feat0)
+        feat1 = self.pam1(feat1)
+        feat2 = self.pam2(feat2)
+        feat3 = self.pam3(feat3)
 
         y2 = torch.cat((psaa_att_list[0] * feat0, psaa_att_list[1] * feat1, psaa_att_list[2] * feat2,
                         psaa_att_list[3] * feat3, psaa_att_list[4] * feat4), 1)
@@ -147,8 +160,8 @@ class psaa35_Module(nn.Module):
 
         # key_stack = torch.stack((key0, key1, key2, key3, key4), dim=-1)
         # out = self.scale_spatial_agg(query, out, key_stack, fea_stack)
-        gp = self.gap(out)
-        out = torch.cat([out, gp], dim=1)
+        # gp = self.gap(out)
+        # out = torch.cat([out, gp], dim=1)
         return out
 
 class ss_Module(nn.Module):
@@ -214,7 +227,7 @@ class PAM_Module(nn.Module):
 
         self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
         self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
-        self.value_conv = nn.Conv2d(in_channels=value_dim, out_channels=value_dim, kernel_size=1)
+        # self.value_conv = nn.Conv2d(in_channels=value_dim, out_channels=value_dim, kernel_size=1)
         self.gamma = nn.Parameter(torch.zeros(1))
 
         self.softmax = nn.Softmax(dim=-1)
@@ -234,12 +247,12 @@ class PAM_Module(nn.Module):
         proj_key = self.key_conv(cat).view(m_batchsize, -1, width*height)
         energy = torch.bmm(proj_query, proj_key)
         attention = self.softmax(energy)
-        proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
-        # proj_value = x.view(m_batchsize, -1, width*height)
+        # proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
+        proj_value = x.view(m_batchsize, -1, width*height)
         
         out = torch.bmm(proj_value, attention.permute(0, 2, 1))
         out = out.view(m_batchsize, C, height, width)
 
-        # out = self.gamma*out + x
+        out = self.gamma*out + x
         # out = self.fuse_conv(out)
         return out
