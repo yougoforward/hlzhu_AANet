@@ -572,4 +572,28 @@ def flatten_probas(preds, targets, ignore=None):
     valid = (targets != ignore)
     vprobas = preds[valid.nonzero().squeeze()]
     vlabels = targets[valid]
-    return vprobas, vlabels
+    return vprobas, 
+    
+def mean(l, ignore_nan=True, empty=0):
+    """
+    nan mean compatible with generators.
+    """
+    l = iter(l)
+    if ignore_nan:
+        l = ifilterfalse(isnan, l)
+    try:
+        n = 1
+        acc = next(l)
+    except StopIteration:
+        if empty == 'raise':
+            raise ValueError('Empty mean')
+        return empty
+    for n, v in enumerate(l, 2):
+        acc += v
+    if n == 1:
+        return acc
+    return acc / n
+
+
+def isnan(x):
+    return x != x
