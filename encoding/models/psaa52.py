@@ -40,7 +40,7 @@ class psaa52NetHead(nn.Module):
         inter_channels = in_channels // 4
 
         self.aa_psaa52 = psaa52_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
         if self.se_loss:
             self.selayer = nn.Linear(inter_channels, out_channels)
 
@@ -165,7 +165,8 @@ class psaa52_Module(nn.Module):
         #gp
         gp = self.gap(x)
         se = self.se(gp)
-        out = self.relu(out + se*out)
+        # out = self.relu(out + se*out)
+        out = torch.cat([se*out, gp.expand(n, c, h, w)], dim=1)
         return out, gp
 
 class ss_Module(nn.Module):
