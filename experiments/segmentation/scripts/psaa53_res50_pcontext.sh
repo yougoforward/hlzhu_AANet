@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #train
-python train.py --dataset pcontext \
+python train_lovasz.py --dataset pcontext \
     --model psaa53 --aux --dilated --base-size 608 --crop-size 576 \
     --backbone resnet50 --checkname psaa53_res50_pcontext
 
