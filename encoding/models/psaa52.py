@@ -166,7 +166,7 @@ class psaa52_Module(nn.Module):
         gp = self.gap(x)
         se = self.se(gp)
         # out = self.relu(out + se*out)
-        out = torch.cat([se*out, gp.expand(n, c, h, w)], dim=1)
+        out = torch.cat([out+se*out, gp.expand(n, c, h, w)], dim=1)
         return out, gp
 
 class ss_Module(nn.Module):
