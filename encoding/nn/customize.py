@@ -7,7 +7,7 @@
 ## This source code is licensed under the MIT-style license found in the
 ## LICENSE file in the root directory of this source tree
 ##+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+from itertools import filterfalse as ifilterfalse
 """Encoding Custermized NN Module"""
 import torch
 import torch.nn as nn
@@ -572,7 +572,7 @@ def flatten_probas(preds, targets, ignore=None):
     valid = (targets != ignore)
     vprobas = preds[valid.nonzero().squeeze()]
     vlabels = targets[valid]
-    return vprobas, 
+    return vprobas, vlabels
     
 def mean(l, ignore_nan=True, empty=0):
     """
