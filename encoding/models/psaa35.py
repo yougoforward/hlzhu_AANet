@@ -234,7 +234,7 @@ class PAM_Module(nn.Module):
         # self.fuse_conv = nn.Sequential(nn.Conv2d(value_dim, out_dim, 1, bias=False),
         #                                norm_layer(out_dim),
         #                                nn.ReLU(True))
-    def forward(self, x, cat):
+    def forward(self, x):
         """
             inputs :
                 x : input feature maps( B X C X H X W)
@@ -243,8 +243,8 @@ class PAM_Module(nn.Module):
                 attention: B X (HxW) X (HxW)
         """
         m_batchsize, C, height, width = x.size()
-        proj_query = self.query_conv(cat).view(m_batchsize, -1, width*height).permute(0, 2, 1)
-        proj_key = self.key_conv(cat).view(m_batchsize, -1, width*height)
+        proj_query = self.query_conv(x).view(m_batchsize, -1, width*height).permute(0, 2, 1)
+        proj_key = self.key_conv(x).view(m_batchsize, -1, width*height)
         energy = torch.bmm(proj_query, proj_key)
         attention = self.softmax(energy)
         # proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
