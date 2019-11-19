@@ -37,9 +37,9 @@ class SegmentationLovaszLosses(CrossEntropyLoss):
     def forward(self, *inputs):
         if not self.se_loss and not self.aux:
             return super(SegmentationLosses, self).forward(*inputs)
-        elif not self.se_loss:pred1 = F.softmax(input=pred1, dim=1)
-            loss1 = lovasz_softmax_flat(*flatten_probas(pred1, target, self.ignore_index),
-                                      only_present=True)
+        elif not self.se_loss:
+            pred1 = F.softmax(input=pred1, dim=1)
+            loss1 = lovasz_softmax_flat(*flatten_probas(pred1, target, self.ignore_index),only_present=True)
             pred1, pred2, target = tuple(inputs)
             # loss1 = super(SegmentationLosses, self).forward(pred1, target)
             
