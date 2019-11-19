@@ -40,7 +40,7 @@ class psaa53NetHead(nn.Module):
         inter_channels = in_channels // 4
 
         self.aa_psaa53 = psaa53_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2 * inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
 
     def forward(self, x):
         feat_sum = self.aa_psaa53(x)
@@ -146,8 +146,8 @@ class psaa53_Module(nn.Module):
         # out = self.scale_spatial_agg(query, out, key_stack, fea_stack)
 
         #gp
-        gp = self.gap(y1)
-        out = torch.cat([out, gp], dim=1)
+        # gp = self.gap(y1)
+        # out = torch.cat([out, gp], dim=1)
 
         return out
 
