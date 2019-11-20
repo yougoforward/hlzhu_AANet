@@ -34,11 +34,11 @@ class SegmentationLovaszLosses(CrossEntropyLoss):
         self.bceloss = BCELoss(weight, size_average)
         self.ignore_index = ignore_index 
 
-    def forward(self, *inputs, soft_weight):
+    def forward(self, *inputs):
         if not self.se_loss and not self.aux:
             return super(SegmentationLovaszLosses, self).forward(*inputs)
         elif not self.se_loss:
-            pred1, pred2, target = tuple(inputs)
+            pred1, pred2, target, soft_weight = tuple(inputs)
             loss1 = super(SegmentationLovaszLosses, self).forward(pred1, target)
             pred11 = F.softmax(input=pred1, dim=1)
             loss11 = lovasz_softmax_flat(*flatten_probas(pred11, target, self.ignore_index),only_present=True)
