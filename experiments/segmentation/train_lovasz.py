@@ -109,7 +109,7 @@ class Trainer():
                 image = Variable(image)
                 target = Variable(target)
             outputs = self.model(image)
-            soft_weight = (i+ epoch*len(self.trainloader))/self.args.epochs*len(self.trainloader)
+            soft_weight = (i+ epoch*len(self.trainloader))/(self.args.epochs*len(self.trainloader))
             loss = self.criterion(outputs, target, soft_weight)
             loss.backward()
             self.optimizer.step()
