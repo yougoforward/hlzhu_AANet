@@ -127,8 +127,6 @@ class psaa52_Module(nn.Module):
         self.se = nn.Sequential(
                             nn.Conv2d(out_channels, out_channels, 1, bias=True),
                             nn.Sigmoid())
-        self.relu = nn.ReLU(True)
-
     def forward(self, x):
         feat0 = self.b0(x)
         feat1 = self.b1(x)
@@ -165,7 +163,6 @@ class psaa52_Module(nn.Module):
         #gp
         gp = self.gap(x)
         se = self.se(gp)
-        # out = self.relu(out + se*out)
         out = torch.cat([out+se*out, gp.expand(n, c, h, w)], dim=1)
         return out, gp
 
