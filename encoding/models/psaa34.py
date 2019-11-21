@@ -171,7 +171,6 @@ def get_psaa34net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
 
     return model
 
-
 class PAM_Module(nn.Module):
     """ Position attention module"""
     #Ref from SAGAN

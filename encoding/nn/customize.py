@@ -46,7 +46,9 @@ class SegmentationLovaszLosses(CrossEntropyLoss):
             # loss2 = lovasz_softmax_flat(*flatten_probas(pred2, target, self.ignore_index),only_present=True)
 
             loss2 = super(SegmentationLovaszLosses, self).forward(pred2, target)
-            return loss1*(1-soft_weight)+loss11*soft_weight + self.aux_weight * loss2
+            # return loss1*(1-soft_weight)+loss11*soft_weight + self.aux_weight * loss2
+            return loss1*0.5+loss11*0.5 + self.aux_weight * loss2
+
         elif not self.aux:
             pred, se_pred, target = tuple(inputs)
             se_target = self._get_batch_label_vector(target, nclass=self.nclass).type_as(pred)
