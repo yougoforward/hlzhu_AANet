@@ -220,12 +220,69 @@ def get_psaa8net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
 #         return out
 
 
+# class PAM_Module(nn.Module):
+#     """ Position attention module"""
+#     #Ref from SAGAN
+#     def __init__(self, in_dim, key_dim, value_dim, out_dim, norm_layer):
+#         super(PAM_Module, self).__init__()
+#         self.chanel_in = in_dim
+#         self.edge_att = nn.Sequential(nn.Conv2d(in_dim*2, out_dim, 1, padding=0, bias=False),
+#                                     norm_layer(out_dim),
+#                                     nn.ReLU(True),
+#                                     nn.Conv2d(in_channels=out_dim, out_channels=1, kernel_size=1),
+#                                     nn.Sigmoid())
+#         self.edge_query = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
+#         self.edge_key = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
+
+#         self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
+#         self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
+#         # self.value_conv = nn.Conv2d(in_channels=value_dim, out_channels=value_dim, kernel_size=1)
+#         self.gamma = nn.Parameter(torch.zeros(1))
+
+#         self.softmax = nn.Softmax(dim=-1)
+#         # self.fuse_conv = nn.Sequential(nn.Conv2d(value_dim, out_dim, 1, bias=False),
+#         #                                norm_layer(out_dim),
+#         #                                nn.ReLU(True))
+#     def forward(self, c2, x):
+#         """
+#             inputs :
+#                 x : input feature maps( B X C X H X W)
+#             returns :
+#                 out : attention value + input feature
+#                 attention: B X (HxW) X (HxW)
+#         """
+#         m_batchsize, C, height, width = x.size()
+#         edge_att = self.edge_att(torch.cat([c2, x], dim=1))
+#         # edge_query = self.edge_query(c2)
+#         # edge_key = self.edge_key(c2)
+#         # edge_key = edge_query
+
+#         query = self.query_conv(x)
+#         # key = self.key_conv(x)
+#         # key = query
+#         proj_query = query.view(m_batchsize, -1, width*height)
+#         # proj_key = key.view(m_batchsize, -1, width*height)
+#         proj_key = proj_query
+#         energy = torch.bmm(proj_query.permute(0, 2, 1), proj_key)
+#         attention = self.softmax(energy*edge_att.view(m_batchsize, 1, -1))
+#         # proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
+#         proj_value = x.view(m_batchsize, -1, width*height)
+        
+#         out = torch.bmm(proj_value, attention.permute(0, 2, 1))
+#         out = out.view(m_batchsize, C, height, width)
+
+#         out = self.gamma*out + x
+#         # out = self.fuse_conv(out)
+#         return out
+
+
 class PAM_Module(nn.Module):
     """ Position attention module"""
     #Ref from SAGAN
     def __init__(self, in_dim, key_dim, value_dim, out_dim, norm_layer):
         super(PAM_Module, self).__init__()
         self.chanel_in = in_dim
+        self.pool = nn.MaxPool2d(kernel_size=2)
         self.edge_att = nn.Sequential(nn.Conv2d(in_dim*2, out_dim, 1, padding=0, bias=False),
                                     norm_layer(out_dim),
                                     nn.ReLU(True),
@@ -243,6 +300,7 @@ class PAM_Module(nn.Module):
         # self.fuse_conv = nn.Sequential(nn.Conv2d(value_dim, out_dim, 1, bias=False),
         #                                norm_layer(out_dim),
         #                                nn.ReLU(True))
+
     def forward(self, c2, x):
         """
             inputs :
@@ -251,87 +309,30 @@ class PAM_Module(nn.Module):
                 out : attention value + input feature
                 attention: B X (HxW) X (HxW)
         """
-        m_batchsize, C, height, width = x.size()
-        edge_att = self.edge_att(torch.cat([c2, x], dim=1))
-        edge_query = self.edge_query(c2)
-        # edge_key = self.edge_key(c2)
-        # edge_key = edge_query
+        xp = self.pool(x)
+        c2p = self.pool(c2)
+        edge_att = self.edge_att(torch.cat([c2p, x], dim=1))
+        # edge_query = self.edge_query(c2)
+        # edge_key = self.edge_key(c2p)
+        # edge_key = self.edge_query(c2p)
 
         query = self.query_conv(x)
-        # key = self.key_conv(x)
-        # key = query
-        proj_query = torch.cat([query, edge_query], dim=1).view(m_batchsize, -1, width*height)
-        # proj_key = torch.cat([key, edge_key], dim=1).view(m_batchsize, -1, width*height)
-        proj_key = proj_query
-        energy = torch.bmm(proj_query.permute(0, 2, 1), proj_key)
+        # key = self.key_conv(xp)
+        key = self.query_conv(xp)
+        # key = self.pool(query)
+        m_batchsize, C, height, width = x.size()
+        m_batchsize, C, hp, wp = xp.size()
+        proj_query = query.view(m_batchsize, -1, width*height).permute(0, 2, 1)
+        proj_key = key.view(m_batchsize, C, -1)
+        energy = torch.bmm(proj_query, proj_key)
         attention = self.softmax(energy*edge_att.view(m_batchsize, 1, -1))
         # proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
-        proj_value = x.view(m_batchsize, -1, width*height)
+        proj_value = xp.view(m_batchsize, C, -1)
         
         out = torch.bmm(proj_value, attention.permute(0, 2, 1))
         out = out.view(m_batchsize, C, height, width)
+        # out = F.interpolate(out, (height, width), mode="bilinear", align_corners=True)
 
         out = self.gamma*out + x
         # out = self.fuse_conv(out)
         return out
-
-
-# class PAM_Module(nn.Module):
-#     """ Position attention module"""
-#     #Ref from SAGAN
-#     def __init__(self, in_dim, key_dim, value_dim, out_dim, norm_layer):
-#         super(PAM_Module, self).__init__()
-#         self.chanel_in = in_dim
-#         self.pool = nn.MaxPool2d(kernel_size=2)
-#         self.edge_att = nn.Sequential(nn.Conv2d(in_dim, key_dim, 1, padding=0, bias=False),
-                                    # norm_layer(key_dim),
-                                    # nn.ReLU(True),
-                                    # nn.Conv2d(in_channels=key_dim, out_channels=1, kernel_size=1),
-                                    # nn.Sigmoid())
-#         self.edge_query = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
-#         self.edge_key = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
-
-#         self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
-#         self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
-#         # self.value_conv = nn.Conv2d(in_channels=value_dim, out_channels=value_dim, kernel_size=1)
-#         self.gamma = nn.Parameter(torch.zeros(1))
-
-#         self.softmax = nn.Softmax(dim=-1)
-#         # self.fuse_conv = nn.Sequential(nn.Conv2d(value_dim, out_dim, 1, bias=False),
-#         #                                norm_layer(out_dim),
-#         #                                nn.ReLU(True))
-
-#     def forward(self, c2, x):
-#         """
-#             inputs :
-#                 x : input feature maps( B X C X H X W)
-#             returns :
-#                 out : attention value + input feature
-#                 attention: B X (HxW) X (HxW)
-#         """
-#         xp = self.pool(x)
-#         c2p = self.pool(c2)
-#         edge_att = self.edge_att(c2)
-#         edge_query = self.edge_query(c2)
-#         # edge_key = self.edge_key(c2p)
-#         edge_key = self.edge_query(c2p)
-
-#         query = self.query_conv(x)
-#         # key = self.key_conv(xp)
-#         key = self.query_conv(xp)
-#         m_batchsize, C, height, width = x.size()
-#         m_batchsize, C, hp, wp = xp.size()
-#         proj_query = torch.cat([query, edge_att*edge_query], dim=1).view(m_batchsize, -1, width*height).permute(0, 2, 1)
-#         proj_key = torch.cat([key, edge_key], dim=1).view(m_batchsize, -1, wp*hp)
-#         energy = torch.bmm(proj_query, proj_key)
-#         attention = self.softmax(energy)
-#         # proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
-#         proj_value = xp.view(m_batchsize, -1, wp*hp)
-        
-#         out = torch.bmm(proj_value, attention.permute(0, 2, 1))
-#         out = out.view(m_batchsize, C, height, width)
-#         # out = F.interpolate(out, (height, width), mode="bilinear", align_corners=True)
-
-#         out = self.gamma*out + x
-#         # out = self.fuse_conv(out)
-#         return out
