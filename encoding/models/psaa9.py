@@ -130,7 +130,7 @@ class psaa9_Module(nn.Module):
         feat3 = self.b3(x)
         feat4 = self.b4(x)
         n, c, h, w = feat0.size()
-        c2 = self.edge_conv(c2)
+        # c2 = self.edge_conv(c2)
         # psaa
         y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         fea_stack = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
