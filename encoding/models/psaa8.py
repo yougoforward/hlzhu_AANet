@@ -252,14 +252,14 @@ class PAM_Module(nn.Module):
                 attention: B X (HxW) X (HxW)
         """
         m_batchsize, C, height, width = x.size()
-        edge_att = self.edge_att(torch.cat([c2, x], dim=1), 1, dim=1)
+        edge_att = self.edge_att(torch.cat([c2, x], dim=1))
         edge_query = self.edge_query(c2)
         # edge_key = self.edge_key(c2)
-        edge_key = edge_query
+        # edge_key = edge_query
 
         query = self.query_conv(x)
         # key = self.key_conv(x)
-        key = query
+        # key = query
         proj_query = torch.cat([query, edge_query], dim=1).view(m_batchsize, -1, width*height)
         # proj_key = torch.cat([key, edge_key], dim=1).view(m_batchsize, -1, width*height)
         proj_key = proj_query
