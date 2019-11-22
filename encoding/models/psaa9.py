@@ -226,10 +226,10 @@ class PAM_Module(nn.Module):
     def __init__(self, in_dim, key_dim, value_dim, out_dim, norm_layer):
         super(PAM_Module, self).__init__()
         self.chanel_in = in_dim
-        self.edge_att = nn.Sequential(nn.Conv2d(in_dim, key_dim, 1, padding=0, bias=False),
-                                    norm_layer(key_dim),
+        self.edge_att = nn.Sequential(nn.Conv2d(in_dim*2, out_dim, 1, padding=0, bias=False),
+                                    norm_layer(out_dim),
                                     nn.ReLU(True),
-                                    nn.Conv2d(in_channels=key_dim, out_channels=1, kernel_size=1),
+                                    nn.Conv2d(in_channels=out_dim, out_channels=2, kernel_size=1),
                                     nn.Sigmoid())
         self.edge_query = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
         self.edge_key = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
@@ -252,7 +252,7 @@ class PAM_Module(nn.Module):
                 attention: B X (HxW) X (HxW)
         """
         m_batchsize, C, height, width = x.size()
-        edge_att = self.edge_att(c2)
+        edge_att = torch.split(self.edge_att(torch.cat([c2, x], dim=1), 1, dim=1)
         edge_query = self.edge_query(c2)
         # edge_key = self.edge_key(c2)
         edge_key = edge_query
@@ -260,7 +260,7 @@ class PAM_Module(nn.Module):
         query = self.query_conv(x)
         # key = self.key_conv(x)
         key = query
-        proj_query = torch.cat([query, edge_att*edge_query], dim=1).view(m_batchsize, -1, width*height)
+        proj_query = torch.cat([edge_att[0]*query, edge_att[1]*edge_query], dim=1).view(m_batchsize, -1, width*height)
         proj_key = torch.cat([key, edge_key], dim=1).view(m_batchsize, -1, width*height)
         # proj_key = proj_query
         energy = torch.bmm(proj_query.permute(0, 2, 1), proj_key)
