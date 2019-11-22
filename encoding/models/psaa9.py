@@ -3,10 +3,10 @@ from __future__ import division
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .mask_softmax import Mask_Softmax
 
-from .fcn import FCNHead
 from .base import BaseNet
+from .fcn import FCNHead
+from .mask_softmax import Mask_Softmax
 
 __all__ = ['psaa9Net', 'get_psaa9net']
 
@@ -268,7 +268,10 @@ class PAM_Module(nn.Module):
     def __init__(self, in_dim, key_dim, value_dim, out_dim, norm_layer):
         super(PAM_Module, self).__init__()
         self.chanel_in = in_dim
-
+        self.edge_att = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1, bias=False),
+                                    norm_layer(key_dim), nn.ReLU(),
+                                    nn.Conv2d(in_channels=key_dim, out_channels=1, kernel_size=1),
+                                    nn.Sigmoid())
         self.edge_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
         self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
         # self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
@@ -288,10 +291,11 @@ class PAM_Module(nn.Module):
                 attention: B X (HxW) X (HxW)
         """
         m_batchsize, C, height, width = x.size()
+        edge_att = self.edge_att(c2)
         edge_fea = self.edge_conv(c2)
         query = self.query_conv(x)
         # key = self.key_conv(x)
-        proj_query = torch.cat([query, edge_fea], dim=1).view(m_batchsize, -1, width*height)
+        proj_query = torch.cat([query, edge_att*edge_fea], dim=1).view(m_batchsize, -1, width*height)
         # proj_key = torch.cat([key, edge_fea], dim=1).view(m_batchsize, -1, width*height)
         proj_key = proj_query
         energy = torch.bmm(proj_query.permute(0, 2, 1), proj_key)
