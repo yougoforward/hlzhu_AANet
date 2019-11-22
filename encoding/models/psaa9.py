@@ -350,11 +350,12 @@ class PAM_Module(nn.Module):
         c2p = self.pool(c2)
         edge_att = self.edge_att(c2)
         edge_query = self.edge_query(c2)
-        edge_key = self.edge_key(c2p)
+        # edge_key = self.edge_key(c2p)
+        edge_key = self.edge_query(c2p)
 
         query = self.query_conv(x)
-        key = self.key_conv(xp)
-
+        # key = self.key_conv(xp)
+        key = self.query_conv(xp)
         m_batchsize, C, height, width = x.size()
         m_batchsize, C, hp, wp = xp.size()
         proj_query = torch.cat([query, edge_att*edge_query], dim=1).view(m_batchsize, -1, width*height).permute(0, 2, 1)
