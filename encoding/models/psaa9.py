@@ -269,8 +269,10 @@ class PAM_Module(nn.Module):
     def __init__(self, in_dim, key_dim, value_dim, out_dim, norm_layer):
         super(PAM_Module, self).__init__()
         self.chanel_in = in_dim
-        self.edge_att = nn.Sequential(
-                                    nn.Conv2d(in_channels=in_dim, out_channels=1, kernel_size=1),
+        self.edge_att = nn.Sequential(nn.Conv2d(in_dim, key_dim, 1, padding=0, bias=False),
+                                    norm_layer(key_dim),
+                                    nn.ReLU(True),
+                                    nn.Conv2d(in_channels=key_dim, out_channels=1, kernel_size=1),
                                     nn.Sigmoid())
         self.edge_query = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
         self.edge_key = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
@@ -324,9 +326,11 @@ class PAM_Module(nn.Module):
 #         super(PAM_Module, self).__init__()
 #         self.chanel_in = in_dim
 #         self.pool = nn.MaxPool2d(kernel_size=2)
-#         self.edge_att = nn.Sequential(
-#                                     nn.Conv2d(in_channels=in_dim, out_channels=1, kernel_size=1),
-#                                     nn.Sigmoid())
+#         self.edge_att = nn.Sequential(nn.Conv2d(in_dim, key_dim, 1, padding=0, bias=False),
+                                    # norm_layer(key_dim),
+                                    # nn.ReLU(True),
+                                    # nn.Conv2d(in_channels=key_dim, out_channels=1, kernel_size=1),
+                                    # nn.Sigmoid())
 #         self.edge_query = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
 #         self.edge_key = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
 
