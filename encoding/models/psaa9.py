@@ -165,49 +165,6 @@ class psaa9_Module(nn.Module):
         # out = torch.cat([out, gp], dim=1)
         return out
 
-class ss_Module(nn.Module):
-    """ Position attention module"""
-
-    # Ref from SAGAN
-    def __init__(self, out_channels, norm_layer):
-        super(ss_Module, self).__init__()
-        self.project = nn.Sequential(nn.Conv2d(5 * out_channels, 5, 1, bias=True))
-
-        self.fuse_conv = nn.Sequential(nn.Conv2d(2*out_channels, out_channels, 1, padding=0, bias=False),
-                                       norm_layer(out_channels),
-                                       nn.ReLU(True))
-        self.key_conv = nn.Sequential(nn.Conv2d(out_channels, out_channels//8, 1, padding=0, bias=True))
-
-    def forward(self, query, fea, key_stack, fea_stack):
-        """
-            inputs :
-                x : input feature maps( B X C X H X W)
-            returns :
-                out : attention value + input feature
-                attention: B X (HxW) X (HxW)
-        """
-        n, c, h, w, s = fea_stack.size()
-        key1 = key_stack.view(n, -1, h * w, s).permute(0, 2, 3, 1) # n, h*w, s, c//4
-        query1 = query.view(n, -1, h*w, 1).permute(0, 2, 1, 3) # n, h*w, c//4, 1
-
-        energy = torch.matmul(key1, query1) #n, hw, s, 1
-        attention1 = torch.softmax(energy, dim=2)
-        out2 = torch.matmul(fea_stack.view(n, -1, h*w, s).permute(0, 2, 1, 3), attention1) # n, hw, c, 1
-        out2 = out2.squeeze(dim=3).permute(0, 2, 1).view(n, -1, h, w)
-
-        key2 = self.key_conv(out2) # n, c//4, h, w
-        key2 = key2.view(n, -1, h*w).permute(0, 2, 1)
-        query2 = query.view(n, -1, h*w)
-        energy = torch.bmm(key2, query2) # n, hw, hw
-
-        attention2 = torch.softmax(energy, dim=1)
-        out3 = torch.bmm(out2.view(n, -1, h*w), attention2).view(n, -1, h, w)
-
-        out = torch.cat([out3, fea], dim=1)
-        out = self.fuse_conv(out)
-
-        return out
-
 def get_psaa9net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
                  root='~/.encoding/models', **kwargs):
     # infer number of classes
