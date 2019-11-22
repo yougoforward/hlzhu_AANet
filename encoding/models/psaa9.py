@@ -130,7 +130,7 @@ class psaa9_Module(nn.Module):
         feat3 = self.b3(x)
         feat4 = self.b4(x)
         n, c, h, w = feat0.size()
-        # c2 = self.edge_conv(c2)
+        c2 = self.edge_conv(c2)
         # psaa
         y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
         fea_stack = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
@@ -252,7 +252,7 @@ class PAM_Module(nn.Module):
                 attention: B X (HxW) X (HxW)
         """
         m_batchsize, C, height, width = x.size()
-        edge_att = torch.split(self.edge_att(torch.cat([c2, x], dim=1), 1, dim=1)
+        # edge_att = torch.split(self.edge_att(torch.cat([c2, x], dim=1), 1, dim=1)
         edge_query = self.edge_query(c2)
         # edge_key = self.edge_key(c2)
         edge_key = edge_query
@@ -260,9 +260,9 @@ class PAM_Module(nn.Module):
         query = self.query_conv(x)
         # key = self.key_conv(x)
         key = query
-        proj_query = torch.cat([edge_att[0]*query, edge_att[1]*edge_query], dim=1).view(m_batchsize, -1, width*height)
-        proj_key = torch.cat([key, edge_key], dim=1).view(m_batchsize, -1, width*height)
-        # proj_key = proj_query
+        proj_query = torch.cat([query, edge_query], dim=1).view(m_batchsize, -1, width*height)
+        # proj_key = torch.cat([key, edge_key], dim=1).view(m_batchsize, -1, width*height)
+        proj_key = proj_query
         energy = torch.bmm(proj_query.permute(0, 2, 1), proj_key)
         attention = self.softmax(energy)
         # proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
