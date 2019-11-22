@@ -47,7 +47,9 @@ class SegmentationLovaszLosses(CrossEntropyLoss):
 
             loss2 = super(SegmentationLovaszLosses, self).forward(pred2, target)
             # return loss1*(1-soft_weight)+loss11*soft_weight + self.aux_weight * loss2
-            return loss1*0.5+loss11*0.5 + self.aux_weight * loss2
+            # return loss1*0.5+loss11*0.5 + self.aux_weight * loss2
+            return loss1+loss11 + self.aux_weight * loss2
+
 
         elif not self.aux:
             pred, se_pred, target = tuple(inputs)
