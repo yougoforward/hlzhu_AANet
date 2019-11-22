@@ -321,7 +321,7 @@ class PAM_Module(nn.Module):
         key = self.query_conv(xp)
         # key = self.pool(query)
         m_batchsize, C, height, width = x.size()
-        m_batchsize, C, hp, wp = xp.size()
+        # m_batchsize, C, hp, wp = xp.size()
         proj_query = query.view(m_batchsize, -1, width*height).permute(0, 2, 1)
         proj_key = key.view(m_batchsize, C, -1)
         energy = torch.bmm(proj_query, proj_key)
