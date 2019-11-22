@@ -311,7 +311,7 @@ class PAM_Module(nn.Module):
         """
         xp = self.pool(x)
         c2p = self.pool(c2)
-        edge_att = self.edge_att(torch.cat([c2p, x], dim=1))
+        edge_att = self.edge_att(torch.cat([c2p, xp], dim=1))
         # edge_query = self.edge_query(c2)
         # edge_key = self.edge_key(c2p)
         # edge_key = self.edge_query(c2p)
