@@ -34,18 +34,18 @@ class psaa5Net(BaseNet):
 
 class psaa5NetHead(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, se_loss, jpu=False, up_kwargs=None,
-                 atrous_rates=(12, 24, 36, 48)):
+                 atrous_rates=(12, 24, 36)):
         super(psaa5NetHead, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 4
 
         self.aa_psaa5 = psaa5_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
         if self.se_loss:
             self.selayer = nn.Linear(inter_channels, out_channels)
 
     def forward(self, x):
-        feat_sum, gap_feat = self.aa_psaa5(x)
+        feat_sum = self.aa_psaa5(x)
         outputs = [self.conv8(feat_sum)]
         if self.se_loss:
             outputs.append(self.selayer(torch.squeeze(gap_feat)))
@@ -98,15 +98,15 @@ class psaa5_Module(nn.Module):
         self.b1 = psaa5Conv(in_channels, out_channels, rate1, norm_layer)
         self.b2 = psaa5Conv(in_channels, out_channels, rate2, norm_layer)
         self.b3 = psaa5Conv(in_channels, out_channels, rate3, norm_layer)
-        self.b4 = psaa5Conv(in_channels, out_channels, rate4, norm_layer)
+        # self.b4 = psaa5Conv(in_channels, out_channels, rate4, norm_layer)
         # self.b4 = psaa5Pooling(in_channels, out_channels, norm_layer, up_kwargs)
 
         self._up_kwargs = up_kwargs
-        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+5*out_channels, out_channels, 1, padding=0, bias=False),
+        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, out_channels, 1, padding=0, bias=False),
                                     norm_layer(out_channels),
                                     nn.ReLU(True),
-                                    nn.Conv2d(out_channels, 5, 1, bias=True))        
-        self.project = nn.Sequential(nn.Conv2d(in_channels=5*out_channels, out_channels=out_channels,
+                                    nn.Conv2d(out_channels, 4, 1, bias=True))        
+        self.project = nn.Sequential(nn.Conv2d(in_channels=4*out_channels, out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(out_channels),
                       nn.ReLU(True))
@@ -124,25 +124,25 @@ class psaa5_Module(nn.Module):
         feat1 = self.b1(x)
         feat2 = self.b2(x)
         feat3 = self.b3(x)
-        feat4 = self.b4(x)
+        # feat4 = self.b4(x)
         n, c, h, w = feat0.size()
 
         # psaa
-        y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
-        fea_stack = torch.stack((feat0, feat1, feat2, feat3, feat4), dim=-1)
+        y1 = torch.cat((feat0, feat1, feat2, feat3), 1)
+        fea_stack = torch.stack((feat0, feat1, feat2, feat3), dim=-1)
         psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
         psaa_att = torch.sigmoid(psaa_feat)
         psaa_att_list = torch.split(psaa_att, 1, dim=1)
 
         y2 = torch.cat((psaa_att_list[0] * feat0, psaa_att_list[1] * feat1, psaa_att_list[2] * feat2,
-                        psaa_att_list[3] * feat3, psaa_att_list[4] * feat4), 1)
+                        psaa_att_list[3] * feat3), 1)
         out = self.project(y2)
-        
+
         #gp
-        gp = self.gap(x)
-        se = self.se(gp)
-        out = torch.cat([out+se*out, gp.expand(n, c, h, w)], dim=1)
-        return out, gp
+        # gp = self.gap(x)
+        # se = self.se(gp)
+        # out = torch.cat([out+se*out, gp.expand(n, c, h, w)], dim=1)
+        return out
 
 def get_psaa5net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
                  root='~/.encoding/models', **kwargs):
