@@ -131,7 +131,7 @@ def get_segmentation_model(name, **kwargs):
         'pap8': get_pap8net,
         'psp3': get_psp3net,
         'psp4': get_psp4net,
-        'psp5': get_PSP5,
+        'psp5': get_psp5net,
         'psp6': get_PSP6,
         'psp7': get_PSP7,
         'pap9': get_pap9net,
