@@ -19,37 +19,14 @@ class psp3Net(BaseNet):
         if aux:
             self.auxlayer = FCNHead(1024, nclass, norm_layer)
 
-        self.guided_fea =  nn.Sequential(
-        nn.Conv2d(256, 48, 1, padding=0,
-                  dilation=1, bias=False),
-        norm_layer(48),
-        nn.ReLU(True),
-        nn.Conv2d(48, 1, 3, padding=1,
-                  dilation=1, bias=True))
-
-        self.guided_filter =  nn.Sequential(
-        nn.Conv2d(1+nclass, 256, 3, padding=1,
-                  dilation=1, bias=False),
-        norm_layer(256),
-        nn.ReLU(True),
-        nn.Conv2d(256, 128, 1, padding=0,
-                  dilation=1, bias=False),
-        norm_layer(128),
-        nn.ReLU(True),
-        nn.Conv2d(128, nclass, 3, padding=1,
-                  dilation=1, bias=True))
+        
 
     def forward(self, x):
         _, _, h, w = x.size()
         c1, c2, c3, c4 = self.base_forward(x)
-        _, _, hl, wl = c1.size()
+       
 
-        x = list(self.head(c4))
-        gfea = self.guided_fea(c1)
-
-        x[0] = F.interpolate(x[0], (hl, wl), **self._up_kwargs)
-        x[0] = torch.cat([x[0], gfea], dim=1)
-        x[0] = self.guided_filter(x[0])
+        x = list(self.head(c4, c1))
         x[0] = F.interpolate(x[0], (h, w), **self._up_kwargs)
 
         if self.aux:
@@ -67,10 +44,39 @@ class psp3NetHead(nn.Module):
         inter_channels = in_channels // 4
 
         self.aa_psp3 = psp3_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(256, out_channels, 1))
+        self.guided_fea =  nn.Sequential(
+        nn.Conv2d(256, 48, 1, padding=0,
+                  dilation=1, bias=False),
+        norm_layer(48),
+        nn.ReLU(True))
+        self.reduce_fea =  nn.Sequential(
+        nn.Conv2d(inter_channels, 256, 1, padding=0,
+                  dilation=1, bias=False),
+        norm_layer(256),
+        nn.ReLU(True))
 
-    def forward(self, x):
+        self.guided_filter =  nn.Sequential(
+        nn.Conv2d(48+256, 256, 3, padding=1,
+                  dilation=1, bias=False),
+        norm_layer(256),
+        nn.ReLU(True),
+        nn.Conv2d(256, 256, 1, padding=0,
+                  dilation=1, bias=False),
+        norm_layer(256),
+        nn.ReLU(True),
+        nn.Conv2d(256, nclass, 3, padding=1,
+                  dilation=1, bias=True))
+    def forward(self, x, c1):
+         _, _, hl, wl = c1.size()
+        gfea = self.guided_fea(c1)
+
         feat_sum = self.aa_psp3(x)
+        feat_sum = F.interpolate(feat_sum, (hl, wl), **self._up_kwargs)
+        feat_sum = torch.cat([feat_sum, gfea], dim=1)
+        feat_sum = self.guided_filter(feat_sum)
+        feat_sum = self.reduce_fea(feat_sum)
+
         outputs = [self.conv8(feat_sum)]
         return tuple(outputs)
 
