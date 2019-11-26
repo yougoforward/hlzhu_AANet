@@ -129,6 +129,10 @@ class psaa33_Module(nn.Module):
         feat3 = self.b3(x)
         feat4 = self.b4(x)
         n, c, h, w = feat0.size()
+        feat0 = self.pam0(feat0)
+        feat1 = self.pam1(feat1)
+        feat2 = self.pam2(feat2)
+        feat3 = self.pam3(feat3)
 
         # psaa
         y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
@@ -136,11 +140,6 @@ class psaa33_Module(nn.Module):
         psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
         psaa_att = torch.sigmoid(psaa_feat)
         psaa_att_list = torch.split(psaa_att, 1, dim=1)
-
-        feat0 = self.pam0(feat0)
-        feat1 = self.pam1(feat1)
-        feat2 = self.pam2(feat2)
-        feat3 = self.pam3(feat3)
 
         y2 = torch.cat((psaa_att_list[0] * feat0, psaa_att_list[1] * feat1, psaa_att_list[2] * feat2,
                         psaa_att_list[3] * feat3, psaa_att_list[4] * feat4), 1)
