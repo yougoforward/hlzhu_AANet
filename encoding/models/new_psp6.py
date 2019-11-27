@@ -1,24 +1,21 @@
-###########################################################################
-# Created by: Hang Zhang
-# Email: zhang.hang@rutgers.edu
-# Copyright (c) 2017
-###########################################################################
 from __future__ import division
 
 import torch
 import torch.nn as nn
-from torch.nn import functional as F
-from torch.nn import Module, Sequential, Conv2d, ReLU, AdaptiveAvgPool2d, BCELoss, CrossEntropyLoss
-from torch.nn.functional import upsample
+import torch.nn.functional as F
+from .mask_softmax import Mask_Softmax
 
-from .base import BaseNet
 from .fcn import FCNHead
-# from ..nn import PyramidPooling
+from .base import BaseNet
 
-class new_psp6(BaseNet):
+__all__ = ['new_psp6Net', 'get_new_psp6net']
+
+
+class new_psp6Net(BaseNet):
     def __init__(self, nclass, backbone, aux=True, se_loss=False, norm_layer=nn.BatchNorm2d, **kwargs):
-        super(new_psp6, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
-        self.head = new_psp6Head(2048, nclass, norm_layer, se_loss, self._up_kwargs)
+        super(new_psp6Net, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
+
+        self.head = new_psp6NetHead(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
         if aux:
             self.auxlayer = FCNHead(1024, nclass, norm_layer)
 
@@ -28,8 +25,6 @@ class new_psp6(BaseNet):
 
         x = list(self.head(c4))
         x[0] = F.interpolate(x[0], (h, w), **self._up_kwargs)
-        # x[1] = F.interpolate(x[1], (h, w), **self._up_kwargs)
-
         if self.aux:
             auxout = self.auxlayer(c3)
             auxout = F.interpolate(auxout, (h, w), **self._up_kwargs)
@@ -37,121 +32,187 @@ class new_psp6(BaseNet):
         return tuple(x)
 
 
-class new_psp6Head(nn.Module):
-    def __init__(self, in_channels, out_channels, norm_layer, se_loss, up_kwargs):
-        super(new_psp6Head, self).__init__()
-        inter_channels = in_channels // 4
-        self.conv5 = PyramidPooling(in_channels, inter_channels, norm_layer, up_kwargs)
-        self.conv6 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
+class new_psp6NetHead(nn.Module):
+    def __init__(self, in_channels, out_channels, norm_layer, se_loss, jpu=False, up_kwargs=None,
+                 atrous_rates=(12, 24, 36)):
+        super(new_psp6NetHead, self).__init__()
+        self.se_loss = se_loss
+        inter_channels = in_channels // 8
 
+        self.aa_new_psp6 = new_psp6_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(4*inter_channels, out_channels, 1))
+        if self.se_loss:
+            self.selayer = nn.Linear(2*inter_channels, out_channels)
 
     def forward(self, x):
-        outputs = [self.conv6(self.conv5(x))]
+        feat_sum, gap_feat = self.aa_new_psp6(x)
+        outputs = [self.conv8(feat_sum)]
+        if self.se_loss:
+            outputs.append(self.selayer(torch.squeeze(gap_feat)))
+
         return tuple(outputs)
 
-def get_new_psp6(dataset='pascal_voc', backbone='resnet50', pretrained=False,
-            root='~/.encoding/models', **kwargs):
-    acronyms = {
-        'pascal_voc': 'voc',
-        'pascal_aug': 'voc',
-        'ade20k': 'ade',
-    }
-    # infer number of classes
-    from ..datasets import datasets
-    model = new_psp6(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
-    if pretrained:
-        from .model_store import get_model_file
-        model.load_state_dict(torch.load(
-            get_model_file('new_psp6_%s_%s'%(backbone, acronyms[dataset]), root=root)))
-    return model
 
-def get_new_psp6_resnet50_ade(pretrained=False, root='~/.encoding/models', **kwargs):
-    r"""new_psp6 model from the paper `"Context Encoding for Semantic Segmentation"
-    <https://arxiv.org/pdf/1803.08904.pdf>`_
-
-    Parameters
-    ----------
-    pretrained : bool, default False
-        Whether to load the pretrained weights for model.
-    root : str, default '~/.encoding/models'
-        Location for keeping the model parameters.
+def new_psp6Conv(in_channels, out_channels, atrous_rate, norm_layer):
+    block = nn.Sequential(
+        nn.Conv2d(in_channels, 512, 1, padding=0,
+                  dilation=1, bias=False),
+        norm_layer(512),
+        nn.ReLU(True),
+        nn.Conv2d(512, out_channels, 3, padding=atrous_rate,
+                  dilation=atrous_rate, bias=False),
+        norm_layer(out_channels),
+        nn.ReLU(True))
+    return block
 
 
-    Examples
-    --------
-    >>> model = get_new_psp6_resnet50_ade(pretrained=True)
-    >>> print(model)
-    """
-    return get_new_psp6('ade20k', 'resnet50', pretrained, root=root, **kwargs)
-
-class PyramidPooling(Module):
-    """
-    Reference:
-        Zhao, Hengshuang, et al. *"Pyramid scene parsing network."*
-    """
+class new_psp6Pooling(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, up_kwargs):
-        super(PyramidPooling, self).__init__()
-        self.pool0 = AdaptiveAvgPool2d(1)
-        self.pool1 = AdaptiveAvgPool2d(2)
-        self.pool2 = AdaptiveAvgPool2d(3)
-        self.pool3 = AdaptiveAvgPool2d(6)
-        self.pool4 = AdaptiveAvgPool2d(12)
-        self.pool5 = AdaptiveAvgPool2d(24)
-
-
-        # out_channels = int(in_channels/4)
-        self.conv0 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
-                                norm_layer(out_channels),
-                                ReLU(True))
-        self.conv1 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
-                                norm_layer(out_channels),
-                                ReLU(True))
-        self.conv2 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
-                                norm_layer(out_channels),
-                                ReLU(True))
-        self.conv3 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
-                                norm_layer(out_channels),
-                                ReLU(True))
-
-        self.conv4 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
-                                norm_layer(out_channels),
-                                ReLU(True))
-        self.conv5 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
-                                norm_layer(out_channels),
-                                ReLU(True))
-        self.conv6 = Sequential(Conv2d(in_channels, out_channels, 1, bias=False),
-                                norm_layer(out_channels),
-                                ReLU(True))
-
-        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+7*out_channels, out_channels, 1, padding=0, bias=False),
-                                    norm_layer(out_channels),
-                                    nn.ReLU(True),
-                                    nn.Conv2d(out_channels, 7, 1, bias=True))
-        self.project = nn.Sequential(nn.Conv2d(in_channels=7*out_channels, out_channels=out_channels,
-                      kernel_size=3, stride=1, padding=1, bias=False),
-                      norm_layer(out_channels),
-                      nn.ReLU(True))
-        # bilinear upsample options
+        super(new_psp6Pooling, self).__init__()
         self._up_kwargs = up_kwargs
+        self.gap = nn.Sequential(nn.AdaptiveAvgPool2d(1),
+                                 nn.Conv2d(in_channels, out_channels, 1, bias=False),
+                                 norm_layer(out_channels),
+                                 nn.ReLU(True))
+
+        self.out_chs = out_channels
 
     def forward(self, x):
-        _, _, h, w = x.size()
-        feat0 = F.upsample(self.conv0(self.pool0(x)), (h, w), **self._up_kwargs)
-        feat1 = F.upsample(self.conv1(self.pool1(x)), (h, w), **self._up_kwargs)
-        feat2 = F.upsample(self.conv2(self.pool2(x)), (h, w), **self._up_kwargs)
-        feat3 = F.upsample(self.conv3(self.pool3(x)), (h, w), **self._up_kwargs)
-        feat4 = F.upsample(self.conv4(self.pool4(x)), (h, w), **self._up_kwargs)
-        feat5 = F.upsample(self.conv5(self.pool5(x)), (h, w), **self._up_kwargs)
+        bs, _, h, w = x.size()
+        pool = self.gap(x)
 
-        feat6 = self.conv6(x)
+        # return F.interpolate(pool, (h, w), **self._up_kwargs)
+        # return pool.repeat(1,1,h,w)
+        return pool.expand(bs, self.out_chs, h, w)
+
+
+class new_psp6_Module(nn.Module):
+    def __init__(self, in_channels, out_channels, atrous_rates, norm_layer, up_kwargs):
+        super(new_psp6_Module, self).__init__()
+        # out_channels = in_channels // 4
+        rate1, rate2, rate3 = tuple(atrous_rates)
+        self.b0 = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, 1, bias=False),
+            norm_layer(out_channels),
+            nn.ReLU(True))
+        self.b1 = new_psp6Conv(in_channels, out_channels, rate1, norm_layer)
+        self.b2 = new_psp6Conv(in_channels, out_channels, rate2, norm_layer)
+        self.b3 = new_psp6Conv(in_channels, out_channels, rate3, norm_layer)
+        # self.b4 = nn.Sequential(
+        # nn.Conv2d(in_channels, out_channels, 1, padding=0,
+        #           dilation=1, bias=False),
+        # norm_layer(out_channels),
+        # nn.ReLU(True),
+        # PAM_Module(in_dim=out_channels, key_dim=64,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer))
+        # self.b4 = new_psp6Conv(in_channels, out_channels, rate4, norm_layer)
+        # self.b4 = new_psp6Pooling(in_channels, out_channels, norm_layer, up_kwargs)
+
+        self._up_kwargs = up_kwargs
+        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, out_channels, 1, padding=0, bias=False),
+                                    norm_layer(out_channels),
+                                    nn.ReLU(True),
+                                    nn.Conv2d(out_channels, 4, 1, bias=True))        
+        self.project = nn.Sequential(nn.Conv2d(in_channels=4*out_channels, out_channels=2*out_channels,
+                      kernel_size=1, stride=1, padding=0, bias=False),
+                      norm_layer(2*out_channels),
+                      nn.ReLU(True))
+
+
+        self.gap = nn.Sequential(nn.AdaptiveAvgPool2d(1),
+                            nn.Conv2d(in_channels, 2*out_channels, 1, bias=False),
+                            norm_layer(2*out_channels),
+                            nn.ReLU(True))
+        self.se = nn.Sequential(
+                            nn.Conv2d(2*out_channels, 2*out_channels, 1, bias=True),
+                            nn.Sigmoid())
+
+
+        # self.pam0 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
+        # self.pam1 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
+        # self.pam2 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
+        # self.pam3 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
+    def forward(self, x):
+        feat0 = self.b0(x)
+        feat1 = self.b1(x)
+        feat2 = self.b2(x)
+        feat3 = self.b3(x)
+        # feat4 = self.b4(x)
+        n, c, h, w = feat0.size()
+
+        # feat0 = self.pam0(feat0)
+        # feat1 = self.pam1(feat1)
+        # feat2 = self.pam2(feat2)
+        # feat3 = self.pam3(feat3)
+
         # psaa
-        y1 = torch.cat((feat0, feat1, feat2, feat3, feat4, feat5, feat6), 1)
-        psaa_feat = self.psaa_conv(torch.cat([x,y1], dim=1))
+        y1 = torch.cat((feat0, feat1, feat2, feat3), 1)
+        # out = self.project(y1)
+
+        psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
         psaa_att = torch.sigmoid(psaa_feat)
         psaa_att_list = torch.split(psaa_att, 1, dim=1)
 
-        y2 = torch.cat((psaa_att_list[0]*feat0, psaa_att_list[1]*feat1, psaa_att_list[2]*feat2, psaa_att_list[3]*feat3, psaa_att_list[4]*feat4, psaa_att_list[5]*feat5, psaa_att_list[6]*feat6), 1)
+        y2 = torch.cat((psaa_att_list[0] * feat0, psaa_att_list[1] * feat1, psaa_att_list[2] * feat2,
+                        psaa_att_list[3] * feat3), 1)
         out = self.project(y2)
+        
+        #gp
+        gp = self.gap(x)
+        se = self.se(gp)
+        out = torch.cat([out+se*out, gp.expand(n, 2*c, h, w)], dim=1)
+        return out, gp
+
+def get_new_psp6net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
+                 root='~/.encoding/models', **kwargs):
+    # infer number of classes
+    from ..datasets import datasets
+    model = new_psp6Net(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
+    if pretrained:
+        raise NotImplementedError
+
+    return model
+
+
+class PAM_Module(nn.Module):
+    """ Position attention module"""
+    #Ref from SAGAN
+    def __init__(self, in_dim, key_dim, value_dim, out_dim, norm_layer):
+        super(PAM_Module, self).__init__()
+        self.chanel_in = in_dim
+        self.pool = nn.MaxPool2d(kernel_size=2)
+
+        self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
+        self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
+        # self.value_conv = nn.Conv2d(in_channels=value_dim, out_channels=value_dim, kernel_size=1)
+        self.gamma = nn.Parameter(torch.zeros(1))
+
+        self.softmax = nn.Softmax(dim=-1)
+        # self.fuse_conv = nn.Sequential(nn.Conv2d(value_dim, out_dim, 1, bias=False),
+        #                                norm_layer(out_dim),
+        #                                nn.ReLU(True))
+
+    def forward(self, x):
+        """
+            inputs :
+                x : input feature maps( B X C X H X W)
+            returns :
+                out : attention value + input feature
+                attention: B X (HxW) X (HxW)
+        """
+        xp = self.pool(x)
+        m_batchsize, C, height, width = x.size()
+        m_batchsize, C, hp, wp = xp.size()
+        proj_query = self.query_conv(x).view(m_batchsize, -1, width*height).permute(0, 2, 1)
+        proj_key = self.key_conv(xp).view(m_batchsize, -1, wp*hp)
+        energy = torch.bmm(proj_query, proj_key)
+        attention = self.softmax(energy)
+        # proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
+        proj_value = xp.view(m_batchsize, -1, wp*hp)
+        
+        out = torch.bmm(proj_value, attention.permute(0, 2, 1))
+        out = out.view(m_batchsize, C, height, width)
+        # out = F.interpolate(out, (height, width), mode="bilinear", align_corners=True)
+
+        # out = self.gamma*out + x
+        # out = self.fuse_conv(out)
         return out
-
-
