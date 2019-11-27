@@ -61,20 +61,19 @@ class psp3NetHead(nn.Module):
                   dilation=1, bias=False),
         norm_layer(256),
         nn.ReLU(True),
-        nn.Conv2d(256, 256, 1, padding=0,
+        nn.Conv2d(256, 256, 3, padding=1,
                   dilation=1, bias=False),
         norm_layer(256),
-        nn.ReLU(True),
-        nn.Conv2d(256, nclass, 3, padding=1,
-                  dilation=1, bias=True))
+        nn.ReLU(True))
     def forward(self, x, c1):
         _, _, hl, wl = c1.size()
         gfea = self.guided_fea(c1)
         feat_sum = self.aa_psp3(x)
+        feat_sum = self.reduce_fea(feat_sum)
+
         feat_sum = F.interpolate(feat_sum, (hl, wl), **self._up_kwargs)
         feat_sum = torch.cat([feat_sum, gfea], dim=1)
         feat_sum = self.guided_filter(feat_sum)
-        feat_sum = self.reduce_fea(feat_sum)
 
         outputs = [self.conv8(feat_sum)]
         return tuple(outputs)
