@@ -40,7 +40,7 @@ class psp4NetHead(nn.Module):
         inter_channels = in_channels // 4
 
         self.aa_psp4 = psp4_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
         if self.se_loss:
             self.selayer = nn.Linear(inter_channels, out_channels)
 
@@ -102,10 +102,7 @@ class psp4_Module(nn.Module):
         # self.b4 = psp4Pooling(in_channels, out_channels, norm_layer, up_kwargs)
 
         self._up_kwargs = up_kwargs
-        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, out_channels, 1, padding=0, bias=False),
-                                    norm_layer(out_channels),
-                                    nn.ReLU(True),
-                                    nn.Conv2d(out_channels, 4, 1, bias=True))        
+        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 4, 1, padding=0, bias=True))        
         self.project = nn.Sequential(nn.Conv2d(in_channels=4*out_channels, out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(out_channels),
@@ -120,8 +117,12 @@ class psp4_Module(nn.Module):
                             nn.Conv2d(out_channels, out_channels, 1, bias=True),
                             nn.Sigmoid())
         self.se_gp = nn.Sequential(
-                            nn.Conv2d(2*out_channels, 1, 1, bias=True),
+                            nn.Conv2d(in_channels+2*out_channels, 2, 1, bias=True),
                             nn.Sigmoid())
+        self.project2 = nn.Sequential(nn.Conv2d(in_channels=2*out_channels, out_channels=out_channels,
+                      kernel_size=1, stride=1, padding=0, bias=False),
+                      norm_layer(out_channels),
+                      nn.ReLU(True))
     def forward(self, x):
         feat0 = self.b0(x)
         feat1 = self.b1(x)
@@ -144,9 +145,11 @@ class psp4_Module(nn.Module):
         gp = self.gap(x)
         se = self.se(gp)
         se_out = out+se*out
-        out = torch.cat([se_out, gp.expand(n, c, h, w)], dim=1)
+        out = torch.cat([x, se_out, gp.expand(n, c, h, w)], dim=1)
         se_gp = self.se_gp(out)
-        out = torch.cat([se_out, se_gp*gp.expand(n, c, h, w)], dim=1)
+        se_gp_list = torch.split(se_gp, 1, dim=1)
+        out = torch.cat([se_gp_list[0]*se_out, se_gp_list[1]*gp.expand(n, c, h, w)], dim=1)
+        out = self.project2(out)
         return out, gp
 
 def get_psp4net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
