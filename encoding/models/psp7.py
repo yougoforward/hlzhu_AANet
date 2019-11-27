@@ -159,7 +159,7 @@ class psp7_Module(nn.Module):
         #gp
         gp = self.gap(x)
         se = self.se(gp)
-        out = torch.cat([out+se*out, gp.expand(n, c, h, w)], dim=1)
+        out = torch.cat([out+se*out, gp.expand(n, 2*c, h, w)], dim=1)
         return out, gp
 
 def get_psp7net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
