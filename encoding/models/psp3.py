@@ -68,7 +68,7 @@ class psp3NetHead(nn.Module):
         nn.Conv2d(256, nclass, 3, padding=1,
                   dilation=1, bias=True))
     def forward(self, x, c1):
-         _, _, hl, wl = c1.size()
+        _, _, hl, wl = c1.size()
         gfea = self.guided_fea(c1)
         feat_sum = self.aa_psp3(x)
         feat_sum = F.interpolate(feat_sum, (hl, wl), **self._up_kwargs)
