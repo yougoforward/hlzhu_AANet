@@ -70,7 +70,6 @@ class psp3NetHead(nn.Module):
     def forward(self, x, c1):
          _, _, hl, wl = c1.size()
         gfea = self.guided_fea(c1)
-
         feat_sum = self.aa_psp3(x)
         feat_sum = F.interpolate(feat_sum, (hl, wl), **self._up_kwargs)
         feat_sum = torch.cat([feat_sum, gfea], dim=1)
