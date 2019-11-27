@@ -37,12 +37,12 @@ class psp7NetHead(nn.Module):
                  atrous_rates=(12, 24, 36)):
         super(psp7NetHead, self).__init__()
         self.se_loss = se_loss
-        inter_channels = in_channels // 4
+        inter_channels = in_channels // 8
 
         self.aa_psp7 = psp7_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(4*inter_channels, out_channels, 1))
         if self.se_loss:
-            self.selayer = nn.Linear(inter_channels, out_channels)
+            self.selayer = nn.Linear(2*inter_channels, out_channels)
 
     def forward(self, x):
         feat_sum, gap_feat = self.aa_psp7(x)
@@ -103,27 +103,27 @@ class psp7_Module(nn.Module):
                   dilation=1, bias=False),
         norm_layer(out_channels),
         nn.ReLU(True),
-        PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer))
+        PAM_Module(in_dim=out_channels, key_dim=64,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer))
         # self.b4 = psp7Conv(in_channels, out_channels, rate4, norm_layer)
         # self.b4 = psp7Pooling(in_channels, out_channels, norm_layer, up_kwargs)
 
         self._up_kwargs = up_kwargs
-        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, out_channels, 1, padding=0, bias=False),
+        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+5*out_channels, out_channels, 1, padding=0, bias=False),
                                     norm_layer(out_channels),
                                     nn.ReLU(True),
                                     nn.Conv2d(out_channels, 5, 1, bias=True))        
-        self.project = nn.Sequential(nn.Conv2d(in_channels=5*out_channels, out_channels=out_channels,
+        self.project = nn.Sequential(nn.Conv2d(in_channels=5*out_channels, out_channels=2*out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
-                      norm_layer(out_channels),
+                      norm_layer(2*out_channels),
                       nn.ReLU(True))
 
 
         self.gap = nn.Sequential(nn.AdaptiveAvgPool2d(1),
-                            nn.Conv2d(in_channels, out_channels, 1, bias=False),
-                            norm_layer(out_channels),
+                            nn.Conv2d(in_channels, 2*out_channels, 1, bias=False),
+                            norm_layer(2*out_channels),
                             nn.ReLU(True))
         self.se = nn.Sequential(
-                            nn.Conv2d(out_channels, out_channels, 1, bias=True),
+                            nn.Conv2d(2*out_channels, 2*out_channels, 1, bias=True),
                             nn.Sigmoid())
 
 
