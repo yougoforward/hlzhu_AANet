@@ -40,7 +40,7 @@ class psp4NetHead(nn.Module):
         inter_channels = in_channels // 4
 
         self.aa_psp4 = psp4_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
         if self.se_loss:
             self.selayer = nn.Linear(inter_channels, out_channels)
 
@@ -149,7 +149,7 @@ class psp4_Module(nn.Module):
         se_gp = self.se_gp(out)
         se_gp_list = torch.split(se_gp, 1, dim=1)
         out = torch.cat([se_gp_list[0]*se_out, se_gp_list[1]*gp.expand(n, c, h, w)], dim=1)
-        out = self.project2(out)
+        # out = self.project2(out)
         return out, gp
 
 def get_psp4net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
