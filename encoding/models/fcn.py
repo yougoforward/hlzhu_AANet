@@ -61,7 +61,8 @@ class FCN(BaseNet):
 class FCNHead(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer):
         super(FCNHead, self).__init__()
-        inter_channels = in_channels // 4
+        # inter_channels = in_channels // 4
+        inter_channels = 512
         self.conv5 = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
                                    norm_layer(inter_channels),
                                    nn.ReLU(),
