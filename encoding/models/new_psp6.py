@@ -40,7 +40,7 @@ class new_psp6NetHead(nn.Module):
         inter_channels = in_channels // 8
 
         self.aa_new_psp6 = new_psp6_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(4*inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(3*inter_channels, out_channels, 1))
         if self.se_loss:
             self.selayer = nn.Linear(2*inter_channels, out_channels)
 
@@ -119,11 +119,11 @@ class new_psp6_Module(nn.Module):
 
 
         self.gap = nn.Sequential(nn.AdaptiveAvgPool2d(1),
-                            nn.Conv2d(in_channels, 2*out_channels, 1, bias=False),
-                            norm_layer(2*out_channels),
+                            nn.Conv2d(in_channels, out_channels, 1, bias=False),
+                            norm_layer(out_channels),
                             nn.ReLU(True))
         self.se = nn.Sequential(
-                            nn.Conv2d(2*out_channels, 2*out_channels, 1, bias=True),
+                            nn.Conv2d(out_channels, 2*out_channels, 1, bias=True),
                             nn.Sigmoid())
 
 
@@ -159,7 +159,7 @@ class new_psp6_Module(nn.Module):
         #gp
         gp = self.gap(x)
         se = self.se(gp)
-        out = torch.cat([out+se*out, gp.expand(n, 2*c, h, w)], dim=1)
+        out = torch.cat([out+se*out, gp.expand(n, c, h, w)], dim=1)
         return out, gp
 
 def get_new_psp6net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
