@@ -37,12 +37,12 @@ class psp7NetHead(nn.Module):
                  atrous_rates=(12, 24, 36)):
         super(psp7NetHead, self).__init__()
         self.se_loss = se_loss
-        inter_channels = in_channels // 8
+        inter_channels = in_channels // 4
 
         self.aa_psp7 = psp7_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(4*inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
         if self.se_loss:
-            self.selayer = nn.Linear(2*inter_channels, out_channels)
+            self.selayer = nn.Linear(inter_channels, out_channels)
 
     def forward(self, x):
         feat_sum, gap_feat = self.aa_psp7(x)
@@ -112,9 +112,9 @@ class psp7_Module(nn.Module):
                                     norm_layer(out_channels),
                                     nn.ReLU(True),
                                     nn.Conv2d(out_channels, 4, 1, bias=True))        
-        self.project = nn.Sequential(nn.Conv2d(in_channels=4*out_channels, out_channels=2*out_channels,
+        self.project = nn.Sequential(nn.Conv2d(in_channels=4*out_channels, out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
-                      norm_layer(2*out_channels),
+                      norm_layer(out_channels),
                       nn.ReLU(True))
 
 
@@ -123,7 +123,7 @@ class psp7_Module(nn.Module):
                             norm_layer(out_channels),
                             nn.ReLU(True))
         self.se = nn.Sequential(
-                            nn.Conv2d(out_channels, 2*out_channels, 1, bias=True),
+                            nn.Conv2d(out_channels, out_channels, 1, bias=True),
                             nn.Sigmoid())
 
 
@@ -187,9 +187,9 @@ class PAM_Module(nn.Module):
         self.gamma = nn.Parameter(torch.zeros(1))
 
         self.softmax = nn.Softmax(dim=-1)
-        # self.fuse_conv = nn.Sequential(nn.Conv2d(value_dim, out_dim, 1, bias=False),
-        #                                norm_layer(out_dim),
-        #                                nn.ReLU(True))
+        self.fuse_conv = nn.Sequential(nn.Conv2d(value_dim, out_dim, 1, bias=False),
+                                       norm_layer(out_dim),
+                                       nn.ReLU(True))
 
     def forward(self, x):
         """
@@ -213,6 +213,6 @@ class PAM_Module(nn.Module):
         out = out.view(m_batchsize, C, height, width)
         # out = F.interpolate(out, (height, width), mode="bilinear", align_corners=True)
 
-        out = self.gamma*out + x
-        # out = self.fuse_conv(out)
+        # out = self.gamma*out + x
+        out = self.fuse_conv(out)
         return out
