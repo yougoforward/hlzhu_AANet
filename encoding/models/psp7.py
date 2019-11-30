@@ -40,7 +40,7 @@ class psp7NetHead(nn.Module):
         inter_channels = in_channels // 4
 
         self.aa_psp7 = psp7_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(3*inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
         if self.se_loss:
             self.selayer = nn.Linear(inter_channels, out_channels)
 
@@ -108,10 +108,12 @@ class psp7_Module(nn.Module):
         # self.b4 = psp7Pooling(in_channels, out_channels, norm_layer, up_kwargs)
 
         self._up_kwargs = up_kwargs
-        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, out_channels, 1, padding=0, bias=False),
-                                    norm_layer(out_channels),
-                                    nn.ReLU(True),
-                                    nn.Conv2d(out_channels, 4, 1, bias=True))        
+        # self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, out_channels, 1, padding=0, bias=False),
+        #                             norm_layer(out_channels),
+        #                             nn.ReLU(True),
+        #                             nn.Conv2d(out_channels, 4, 1, bias=True))  
+        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 4, 1, padding=0, bias=True),
+                                    )       
         self.project = nn.Sequential(nn.Conv2d(in_channels=4*out_channels, out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(out_channels),
@@ -127,7 +129,7 @@ class psp7_Module(nn.Module):
                             nn.Sigmoid())
 
 
-        # self.pam0 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
+        self.pam0 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
         # self.pam1 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
         # self.pam2 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
         # self.pam3 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
@@ -136,10 +138,10 @@ class psp7_Module(nn.Module):
         feat1 = self.b1(x)
         feat2 = self.b2(x)
         feat3 = self.b3(x)
-        feat4 = self.b4(x)
+        # feat4 = self.b4(x)
         n, c, h, w = feat0.size()
 
-        # feat0 = self.pam0(feat0)
+        feat0 = self.pam0(feat0)
         # feat1 = self.pam1(feat1)
         # feat2 = self.pam2(feat2)
         # feat3 = self.pam3(feat3)
@@ -159,7 +161,7 @@ class psp7_Module(nn.Module):
         #gp
         gp = self.gap(x)
         se = self.se(gp)
-        out = torch.cat([feat4, out+se*out, gp.expand(n, c, h, w)], dim=1)
+        out = torch.cat([out+se*out, gp.expand(n, c, h, w)], dim=1)
         return out, gp
 
 def get_psp7net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
@@ -213,6 +215,6 @@ class PAM_Module(nn.Module):
         out = out.view(m_batchsize, C, height, width)
         # out = F.interpolate(out, (height, width), mode="bilinear", align_corners=True)
 
-        # out = self.gamma*out + x
-        out = self.fuse_conv(out)
+        out = self.gamma*out + x
+        # out = self.fuse_conv(out)
         return out
