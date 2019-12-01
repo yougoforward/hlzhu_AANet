@@ -92,8 +92,8 @@ class new_psp6_Module(nn.Module):
         # out_channels = in_channels // 4
         rate1, rate2, rate3 = tuple(atrous_rates)
         self.b0 = nn.Sequential(
-            nn.Conv2d(in_channels, 2*out_channels, 1, bias=False),
-            norm_layer(2*out_channels),
+            nn.Conv2d(in_channels, out_channels, 1, bias=False),
+            norm_layer(out_channels),
             nn.ReLU(True))
         self.b1 = new_psp6Conv(in_channels, out_channels, rate1, norm_layer)
         self.b2 = new_psp6Conv(in_channels, out_channels, rate2, norm_layer)
@@ -108,13 +108,13 @@ class new_psp6_Module(nn.Module):
         # self.b4 = new_psp6Pooling(in_channels, out_channels, norm_layer, up_kwargs)
 
         self._up_kwargs = up_kwargs
-        # self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, out_channels, 1, padding=0, bias=False),
-        #                             norm_layer(out_channels),
-        #                             nn.ReLU(True),
-        #                             nn.Conv2d(out_channels, 4, 1, bias=True))   
-        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+5*out_channels, 4, 1, padding=0, bias=True),
+        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, out_channels, 1, padding=0, bias=False),
+                                    norm_layer(out_channels),
+                                    nn.ReLU(True),
+                                    nn.Conv2d(out_channels, 4, 1, bias=True))   
+        # self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 4, 1, padding=0, bias=True),
                                     )       
-        self.project = nn.Sequential(nn.Conv2d(in_channels=5*out_channels, out_channels=2*out_channels,
+        self.project = nn.Sequential(nn.Conv2d(in_channels=4*out_channels, out_channels=2*out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(2*out_channels),
                       nn.ReLU(True))
