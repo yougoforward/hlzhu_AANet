@@ -141,7 +141,7 @@ class psp7_Module(nn.Module):
         # feat4 = self.b4(x)
         n, c, h, w = feat0.size()
 
-        feat0 = self.pam0(feat0)
+        # feat0 = self.pam0(feat0)
         # feat1 = self.pam1(feat1)
         # feat2 = self.pam2(feat2)
         # feat3 = self.pam3(feat3)
@@ -161,7 +161,7 @@ class psp7_Module(nn.Module):
         #gp
         gp = self.gap(x)
         se = self.se(gp)
-        out = torch.cat([out+se*out, gp.expand(n, c, h, w)], dim=1)
+        out = torch.cat([self.pam0(out)+se*out, gp.expand(n, c, h, w)], dim=1)
         return out, gp
 
 def get_psp7net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
