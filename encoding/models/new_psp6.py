@@ -111,7 +111,7 @@ class new_psp6_Module(nn.Module):
         self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 64, 1, padding=0, bias=False),
                                     norm_layer(64),
                                     nn.ReLU(True),
-                                    nn.Conv2d(out_cha64nnels, 4, 1, bias=True))   
+                                    nn.Conv2d(64, 4, 1, bias=True))   
         # self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 4, 1, padding=0, bias=True))       
         self.project = nn.Sequential(nn.Conv2d(in_channels=4*out_channels, out_channels=2*out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),

@@ -37,12 +37,12 @@ class psp6NetHead(nn.Module):
                  atrous_rates=(12, 24, 36)):
         super(psp6NetHead, self).__init__()
         self.se_loss = se_loss
-        inter_channels = in_channels // 8
+        inter_channels = in_channels // 4
 
         self.aa_psp6 = psp6_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(4*inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
         if self.se_loss:
-            self.selayer = nn.Linear(2*inter_channels, out_channels)
+            self.selayer = nn.Linear(inter_channels, out_channels)
 
     def forward(self, x):
         feat_sum, gap_feat = self.aa_psp6(x)
@@ -108,25 +108,29 @@ class psp6_Module(nn.Module):
         # self.b4 = psp6Pooling(in_channels, out_channels, norm_layer, up_kwargs)
 
         self._up_kwargs = up_kwargs
-        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+5*out_channels, out_channels, 1, padding=0, bias=False),
-                                    norm_layer(out_channels),
+        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 64, 1, padding=0, bias=False),
+                                    norm_layer(64),
                                     nn.ReLU(True),
-                                    nn.Conv2d(out_channels, 5, 1, bias=True))        
-        self.project = nn.Sequential(nn.Conv2d(in_channels=5*out_channels, out_channels=2*out_channels,
+                                    nn.Conv2d(64, 4, 1, bias=True))  
+        # self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 4, 1, padding=0, bias=True))       
+        self.project = nn.Sequential(nn.Conv2d(in_channels=4*out_channels, out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
-                      norm_layer(2*out_channels),
+                      norm_layer(out_channels),
                       nn.ReLU(True))
 
 
         self.gap = nn.Sequential(nn.AdaptiveAvgPool2d(1),
-                            nn.Conv2d(in_channels, 2*out_channels, 1, bias=False),
-                            norm_layer(2*out_channels),
+                            nn.Conv2d(in_channels, out_channels, 1, bias=False),
+                            norm_layer(out_channels),
                             nn.ReLU(True))
         self.se = nn.Sequential(
-                            nn.Conv2d(2*out_channels, 2*out_channels, 1, bias=True),
+                            nn.Conv2d(out_channels, out_channels, 1, bias=True),
                             nn.Sigmoid())
 
-
+        self.fuse = nn.Sequential(nn.Conv2d(in_channels=out_channels, out_channels=out_channels,
+                      kernel_size=1, stride=1, padding=0, bias=False),
+                      norm_layer(out_channels),
+                      nn.ReLU(True))
         # self.pam0 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
         # self.pam1 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
         # self.pam2 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
@@ -145,21 +149,22 @@ class psp6_Module(nn.Module):
         # feat3 = self.pam3(feat3)
 
         # psaa
-        y1 = torch.cat((feat0, feat1, feat2, feat3, feat4), 1)
-        out = self.project(y1)
+        y1 = torch.cat((feat0, feat1, feat2, feat3), 1)
+        # out = self.project(y1)
 
-        # psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
-        # psaa_att = torch.sigmoid(psaa_feat)
-        # psaa_att_list = torch.split(psaa_att, 1, dim=1)
+        psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
+        psaa_att = torch.sigmoid(psaa_feat)
+        psaa_att_list = torch.split(psaa_att, 1, dim=1)
 
-        # y2 = torch.cat((psaa_att_list[0] * feat0, psaa_att_list[1] * feat1, psaa_att_list[2] * feat2,
-        #                 psaa_att_list[3] * feat3, psaa_att_list[4]*feat4), 1)
-        # out = self.project(y2)
+        y2 = torch.cat((psaa_att_list[0] * feat0, psaa_att_list[1] * feat1, psaa_att_list[2] * feat2,
+                        psaa_att_list[3] * feat3), 1)
+        out = self.project(y2)
         
         #gp
         gp = self.gap(x)
         se = self.se(gp)
-        out = torch.cat([out+se*out, gp.expand(n, 2*c, h, w)], dim=1)
+        # out = torch.cat([self.pam0(out)+se*out, gp.expand(n, c, h, w)], dim=1)
+        out = feat4+self.fuse(out+out*se)+gp
         return out, gp
 
 def get_psp6net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
@@ -187,9 +192,9 @@ class PAM_Module(nn.Module):
         self.gamma = nn.Parameter(torch.zeros(1))
 
         self.softmax = nn.Softmax(dim=-1)
-        # self.fuse_conv = nn.Sequential(nn.Conv2d(value_dim, out_dim, 1, bias=False),
-        #                                norm_layer(out_dim),
-        #                                nn.ReLU(True))
+        self.fuse_conv = nn.Sequential(nn.Conv2d(value_dim, out_dim, 1, bias=False),
+                                       norm_layer(out_dim),
+                                       nn.ReLU(True))
 
     def forward(self, x):
         """
@@ -213,6 +218,6 @@ class PAM_Module(nn.Module):
         out = out.view(m_batchsize, C, height, width)
         # out = F.interpolate(out, (height, width), mode="bilinear", align_corners=True)
 
-        # out = self.gamma*out + x
+        out = self.gamma*out + x
         # out = self.fuse_conv(out)
         return out
