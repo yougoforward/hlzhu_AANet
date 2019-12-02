@@ -40,7 +40,7 @@ class psp6NetHead(nn.Module):
         inter_channels = in_channels // 4
 
         self.aa_psp6 = psp6_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
         if self.se_loss:
             self.selayer = nn.Linear(inter_channels, out_channels)
 
@@ -127,7 +127,7 @@ class psp6_Module(nn.Module):
                             nn.Conv2d(out_channels, out_channels, 1, bias=True),
                             nn.Sigmoid())
 
-        self.fuse = nn.Sequential(nn.Conv2d(in_channels=out_channels, out_channels=out_channels,
+        self.fuse = nn.Sequential(nn.Conv2d(in_channels=2*out_channels, out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(out_channels),
                       nn.ReLU(True))
@@ -164,7 +164,9 @@ class psp6_Module(nn.Module):
         gp = self.gap(x)
         se = self.se(gp)
         # out = torch.cat([self.pam0(out)+se*out, gp.expand(n, c, h, w)], dim=1)
-        out = feat4+self.fuse(out+out*se)+gp
+        out = torch.cat([feat4,self.fuse(torch.cat([out+se*out, gp.expand(n, c, h, w)], dim=1))], dim=1)
+
+        # out = feat4+self.fuse(out+out*se)+gp
         return out, gp
 
 def get_psp6net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
@@ -219,5 +221,5 @@ class PAM_Module(nn.Module):
         # out = F.interpolate(out, (height, width), mode="bilinear", align_corners=True)
 
         out = self.gamma*out + x
-        out = self.fuse_conv(out)
+        # out = self.fuse_conv(out)
         return out
