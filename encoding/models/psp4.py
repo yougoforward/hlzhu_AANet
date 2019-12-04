@@ -75,7 +75,7 @@ class OCR_Module(nn.Module):
         n,c,h,w = x.size()
         cls_att_sum = torch.sum(coarse_seg, dim=(2,3), keepdim=False) # nxN
         cls_center = torch.bmm(coarse_seg.view(n, self.classes, -1), x.view(n, c, -1).permute(0,2,1))
-        norm_cls_center = cls_center/cls_att_sum
+        norm_cls_center = cls_center/cls_att_sum.unsqueeze(2)
         norm_cls_center = norm_cls_center.permute(0, 2, 1)
         # self-attention based pixel-region relation
 
