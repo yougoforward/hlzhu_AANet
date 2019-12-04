@@ -22,11 +22,12 @@ class psp4Net(BaseNet):
     def forward(self, x):
         _, _, h, w = x.size()
         _, _, c3, c4 = self.base_forward(x)
-
-        x = list(self.head(c4))
-        x[0] = F.interpolate(x[0], (h, w), **self._up_kwargs)
         if self.aux:
             auxout = self.auxlayer(c3)
+        x = list(self.head(c4, auxout))
+        x[0] = F.interpolate(x[0], (h, w), **self._up_kwargs)
+        if self.aux:
+            # auxout = self.auxlayer(c3)
             auxout = F.interpolate(auxout, (h, w), **self._up_kwargs)
             x.append(auxout)
         return tuple(x)
@@ -38,122 +39,63 @@ class psp4NetHead(nn.Module):
         super(psp4NetHead, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 4
+        self.project = nn.Sequential(nn.Conv2d(in_channels, out_channels, 3, padding=1,
+                  dilation=1, bias=False), norm_layer(out_channels), nn.ReLU(True))
 
-        self.aa_psp4 = psp4_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
-        if self.se_loss:
-            self.selayer = nn.Linear(inter_channels, out_channels)
+        self.ocr = OCR_Module(inter_channels, inter_channels, out_channels, norm_layer, up_kwargs)
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
 
-    def forward(self, x):
-        feat_sum, gap_feat = self.aa_psp4(x)
-        outputs = [self.conv8(feat_sum)]
-        if self.se_loss:
-            outputs.append(self.selayer(torch.squeeze(gap_feat)))
-
+    def forward(self, x, coarse_seg):
+        x = self.project(x)
+        ocr_feat = self.ocr(x, coarse_seg)
+        outputs = [self.conv8(ocr_feat)]
         return tuple(outputs)
 
 
-def psp4Conv(in_channels, out_channels, atrous_rate, norm_layer):
-    block = nn.Sequential(
-        nn.Conv2d(in_channels, 512, 1, padding=0,
-                  dilation=1, bias=False),
-        norm_layer(512),
-        nn.ReLU(True),
-        nn.Conv2d(512, out_channels, 3, padding=atrous_rate,
-                  dilation=atrous_rate, bias=False),
-        norm_layer(out_channels),
-        nn.ReLU(True))
-    return block
+class OCR_Module(nn.Module):
+    def __init__(self, in_channels, out_channels, nclass, norm_layer, up_kwargs):
+        super(OCR_Module, self).__init__()
+        self.classes = nclass
+        self. key_dim = 256
+        self.query_conv = nn.Sequential(nn.Conv2d(in_channels=in_channels, out_channels=self.key_dim, kernel_size=1),
+                                        norm_layer(self.key_dim), nn.ReLU(True))
+        self.key_conv = nn.Sequential(nn.Conv1d(in_channels=in_channels, out_channels=self.key_dim, kernel_size=1),
+                                        norm_layer(self.key_dim), nn.ReLU(True))
 
+        self.value_conv = nn.Sequential(nn.Conv1d(in_channels=in_channels, out_channels=self.key_dim, kernel_size=1),
+                                        norm_layer(self.key_dim), nn.ReLU(True))
+        self.weights = nn.Sequential(nn.Conv1d(in_channels=self.key_dim, out_channels=out_channels, kernel_size=1),
+                                        norm_layer(out_channels), nn.ReLU(True))
 
-class psp4Pooling(nn.Module):
-    def __init__(self, in_channels, out_channels, norm_layer, up_kwargs):
-        super(psp4Pooling, self).__init__()
-        self._up_kwargs = up_kwargs
-        self.gap = nn.Sequential(nn.AdaptiveAvgPool2d(1),
-                                 nn.Conv2d(in_channels, out_channels, 1, bias=False),
-                                 norm_layer(out_channels),
-                                 nn.ReLU(True))
+        self.project = nn.Sequential(nn.Conv1d(in_channels=2*out_channels, out_channels=out_channels, kernel_size=1),
+                                        norm_layer(out_channels), nn.ReLU(True))
 
-        self.out_chs = out_channels
+    def forward(self, x, coarse_seg):
+        # object region representation or object center feature
+        n,c,h,w = x.size()
+        cls_att_sum = torch.sum(coarse_seg, dim=(2,3), keepdim=False) # nxN
+        cls_center = torch.bmm(coarse_seg.view(n, self.classes, -1), x.view(n, c, -1).permute(0,2,1))
+        norm_cls_center = cls_center/cls_att_sum
+        norm_cls_center = norm_cls_center.permute(0, 2, 1)
+        # self-attention based pixel-region relation
 
-    def forward(self, x):
-        bs, _, h, w = x.size()
-        pool = self.gap(x)
+        query = self.query_conv(x) # n, c, h, w
+        key = self.key_conv(norm_cls_center) # n, c, N
+        value = self.value_conv(norm_cls_center) #n, c, N
 
-        # return F.interpolate(pool, (h, w), **self._up_kwargs)
-        # return pool.repeat(1,1,h,w)
-        return pool.expand(bs, self.out_chs, h, w)
+        sim_map = torch.bmm(query.view(n, -1, h*w).permute(0, 2, 1), key)
+        sim_map = (self.key_dim ** -.5) * sim_map
+        sim_map = torch.softmax(sim_map, dim=-1) # n, hw, N
 
+        value = torch.bmm(value, sim_map.permute(0,2,1)).view(n, self.key_dim, h, w)
+        ocr_feat = self.weights(value)
 
-class psp4_Module(nn.Module):
-    def __init__(self, in_channels, out_channels, atrous_rates, norm_layer, up_kwargs):
-        super(psp4_Module, self).__init__()
-        # out_channels = in_channels // 4
-        rate1, rate2, rate3 = tuple(atrous_rates)
-        self.b0 = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 1, bias=False),
-            norm_layer(out_channels),
-            nn.ReLU(True))
-        self.b1 = psp4Conv(in_channels, out_channels, rate1, norm_layer)
-        self.b2 = psp4Conv(in_channels, out_channels, rate2, norm_layer)
-        self.b3 = psp4Conv(in_channels, out_channels, rate3, norm_layer)
-        # self.b4 = psp4Conv(in_channels, out_channels, rate4, norm_layer)
-        # self.b4 = psp4Pooling(in_channels, out_channels, norm_layer, up_kwargs)
+        ocr_aug = self.project(torch.cat([ocr_feat, x], dim=1))
 
-        self._up_kwargs = up_kwargs
-        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 4, 1, padding=0, bias=True))        
-        self.project = nn.Sequential(nn.Conv2d(in_channels=4*out_channels, out_channels=out_channels,
-                      kernel_size=1, stride=1, padding=0, bias=False),
-                      norm_layer(out_channels),
-                      nn.ReLU(True))
-
-
-        self.gap = nn.Sequential(nn.AdaptiveAvgPool2d(1),
-                            nn.Conv2d(in_channels, out_channels, 1, bias=False),
-                            norm_layer(out_channels),
-                            nn.ReLU(True))
-        self.se = nn.Sequential(
-                            nn.Conv2d(out_channels, out_channels, 1, bias=True),
-                            nn.Sigmoid())
-        self.se_gp = nn.Sequential(
-                            nn.Conv2d(in_channels+2*out_channels, 2, 1, bias=True),
-                            nn.Sigmoid())
-        self.project2 = nn.Sequential(nn.Conv2d(in_channels=2*out_channels, out_channels=out_channels,
-                      kernel_size=1, stride=1, padding=0, bias=False),
-                      norm_layer(out_channels),
-                      nn.ReLU(True))
-    def forward(self, x):
-        feat0 = self.b0(x)
-        feat1 = self.b1(x)
-        feat2 = self.b2(x)
-        feat3 = self.b3(x)
-        # feat4 = self.b4(x)
-        n, c, h, w = feat0.size()
-
-        # psaa
-        y1 = torch.cat((feat0, feat1, feat2, feat3), 1)
-        psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
-        psaa_att = torch.sigmoid(psaa_feat)
-        psaa_att_list = torch.split(psaa_att, 1, dim=1)
-
-        y2 = torch.cat((psaa_att_list[0] * feat0, psaa_att_list[1] * feat1, psaa_att_list[2] * feat2,
-                        psaa_att_list[3] * feat3), 1)
-        out = self.project(y2)
-        
-        #gp
-        gp = self.gap(x)
-        se = self.se(gp)
-        se_out = out+se*out
-        out = torch.cat([x, se_out, gp.expand(n, c, h, w)], dim=1)
-        se_gp = self.se_gp(out)
-        se_gp_list = torch.split(se_gp, 1, dim=1)
-        out = torch.cat([se_gp_list[0]*se_out, se_gp_list[1]*gp.expand(n, c, h, w)], dim=1)
-        # out = self.project2(out)
-        return out, gp
+        return ocr_aug
 
 def get_psp4net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
-                 root='~/.encoding/models', **kwargs):
+                    root='~/.encoding/models', **kwargs):
     # infer number of classes
     from ..datasets import datasets
     model = psp4Net(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
@@ -161,5 +103,3 @@ def get_psp4net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
         raise NotImplementedError
 
     return model
-
-
