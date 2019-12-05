@@ -113,8 +113,11 @@ class new_psp4_Module(nn.Module):
         #                             nn.ReLU(True),
         #                             nn.Conv2d(out_channels, 4, 1, bias=True))  
         # self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 4, 1, padding=0, bias=True))
-        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels, 4, 1, padding=0, bias=True))
-
+        # self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels, 4, 1, padding=0, bias=True))
+        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, padding=0, bias=False),
+                                    norm_layer(out_channels),
+                                    nn.ReLU(True),
+                                    nn.Conv2d(out_channels, 4, 1, bias=True))  
         self.project = nn.Sequential(nn.Conv2d(in_channels=4*out_channels, out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(out_channels),
