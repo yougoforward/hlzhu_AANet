@@ -64,7 +64,7 @@ class OCR_Module(nn.Module):
 
         self.value_conv = nn.Sequential(nn.Conv1d(in_channels=in_channels, out_channels=self.key_dim, kernel_size=1),
                                         norm_layer(self.key_dim), nn.ReLU(True))
-        self.weights = nn.Sequential(nn.Conv1d(in_channels=self.key_dim, out_channels=out_channels, kernel_size=1),
+        self.weights = nn.Sequential(nn.Conv2d(in_channels=self.key_dim, out_channels=out_channels, kernel_size=1),
                                         norm_layer(out_channels), nn.ReLU(True))
 
         self.project = nn.Sequential(nn.Conv1d(in_channels=2*out_channels, out_channels=out_channels, kernel_size=1),
