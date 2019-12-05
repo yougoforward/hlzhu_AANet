@@ -41,10 +41,15 @@ class new_psp4NetHead(nn.Module):
 
         self.aa_new_psp4 = new_psp4_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
+        if self.se_loss:
+            self.selayer = nn.Linear(inter_channels, out_channels)
 
     def forward(self, x):
-        feat_sum = self.aa_new_psp4(x)
+        feat_sum, gap_feat = self.aa_new_psp4(x)
         outputs = [self.conv8(feat_sum)]
+        if self.se_loss:
+            outputs.append(self.selayer(torch.squeeze(gap_feat)))
+
         return tuple(outputs)
 
 
@@ -93,31 +98,27 @@ class new_psp4_Module(nn.Module):
         self.b1 = new_psp4Conv(in_channels, out_channels, rate1, norm_layer)
         self.b2 = new_psp4Conv(in_channels, out_channels, rate2, norm_layer)
         self.b3 = new_psp4Conv(in_channels, out_channels, rate3, norm_layer)
+        self.b4 = nn.Sequential(
+        nn.Conv2d(in_channels, out_channels, 1, padding=0,
+                  dilation=1, bias=False),
+        norm_layer(out_channels),
+        nn.ReLU(True),
+        PAM_Module(in_dim=out_channels, key_dim=64,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer))
+        # self.b4 = new_psp4Conv(in_channels, out_channels, rate4, norm_layer)
         # self.b4 = new_psp4Pooling(in_channels, out_channels, norm_layer, up_kwargs)
 
         self._up_kwargs = up_kwargs
-        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, out_channels, 1, padding=0, bias=False),
-                                    norm_layer(out_channels),
-                                    nn.ReLU(True),
-                                    nn.Conv2d(out_channels, 4, 1, bias=True))         
+        # self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, out_channels, 1, padding=0, bias=False),
+        #                             norm_layer(out_channels),
+        #                             nn.ReLU(True),
+        #                             nn.Conv2d(out_channels, 4, 1, bias=True))  
+        # self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 4, 1, padding=0, bias=True))
+        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels, 4, 1, padding=0, bias=True))
+
         self.project = nn.Sequential(nn.Conv2d(in_channels=4*out_channels, out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(out_channels),
                       nn.ReLU(True))
-
-        # self.query_conv = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
-        # self.key_conv0 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
-        # self.key_conv1 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
-        # self.key_conv2 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
-        # self.key_conv3 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
-        # self.key_conv4 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels//8, kernel_size=1, padding=0)
-        # self.scale_spatial_agg = ss_Module(out_channels, norm_layer)
-
-        self.pam0 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
-        self.pam1 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
-        self.pam2 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
-        self.pam3 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
-        # self.gap = new_psp4Pooling(out_channels, out_channels, norm_layer, up_kwargs)
 
 
         self.gap = nn.Sequential(nn.AdaptiveAvgPool2d(1),
@@ -128,6 +129,11 @@ class new_psp4_Module(nn.Module):
                             nn.Conv2d(out_channels, out_channels, 1, bias=True),
                             nn.Sigmoid())
 
+
+        self.pam0 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
+        # self.pam1 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
+        # self.pam2 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
+        # self.pam3 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
     def forward(self, x):
         feat0 = self.b0(x)
         feat1 = self.b1(x)
@@ -136,45 +142,29 @@ class new_psp4_Module(nn.Module):
         # feat4 = self.b4(x)
         n, c, h, w = feat0.size()
 
+        # feat0 = self.pam0(feat0)
+        # feat1 = self.pam1(feat1)
+        # feat2 = self.pam2(feat2)
+        # feat3 = self.pam3(feat3)
+
         # psaa
-        y1 = torch.cat((feat0, feat1, feat2, feat3), 1)
-        psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
+        # y1 = torch.cat((feat0, feat1, feat2, feat3), 1)
+        # out = self.project(y1)
+
+        # psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
+        psaa_feat = self.psaa_conv(x)
         psaa_att = torch.sigmoid(psaa_feat)
         psaa_att_list = torch.split(psaa_att, 1, dim=1)
 
-        feat0 = psaa_att_list[0] * feat0
-        feat1 = psaa_att_list[1] * feat1
-        feat2 = psaa_att_list[2] * feat2
-        feat3 = psaa_att_list[3] * feat3
-
-        feat0 = self.pam0(feat0)
-        feat1 = self.pam1(feat1)
-        feat2 = self.pam2(feat2)
-        feat3 = self.pam3(feat3)
-        y2 = torch.cat((feat0, feat1, feat2, feat3), 1)
+        y2 = torch.cat((psaa_att_list[0] * feat0, psaa_att_list[1] * feat1, psaa_att_list[2] * feat2,
+                        psaa_att_list[3] * feat3), 1)
         out = self.project(y2)
-
-        # out2 = self.pam(out, y1)
-        # out = torch.cat([out, out2], dim=1)
-
-        # #scale spatial guided attention aggregation
-
-        # query = self.query_conv(out) # n, c//4, h, w
-        # key0 = self.key_conv0(feat0) # n, c//4, h, w
-        # key1 = self.key_conv1(feat1)
-        # key2 = self.key_conv2(feat2)
-        # key3 = self.key_conv3(feat3)
-        # key4 = self.key_conv4(feat4)
-
-        # key_stack = torch.stack((key0, key1, key2, key3, key4), dim=-1)
-        # out = self.scale_spatial_agg(query, out, key_stack, fea_stack)
-        # gp = self.gap(out)
-        # out = torch.cat([out, gp], dim=1)
+        
         #gp
         gp = self.gap(x)
         se = self.se(gp)
-        out = torch.cat([out+se*out, gp.expand(n, c, h, w)], dim=1)
-        return out
+        out = torch.cat([self.pam0(out+se*out), gp.expand(n, c, h, w)], dim=1)
+        return out, gp
 
 def get_new_psp4net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
                  root='~/.encoding/models', **kwargs):
@@ -186,45 +176,6 @@ def get_new_psp4net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
 
     return model
 
-
-# class PAM_Module(nn.Module):
-#     """ Position attention module"""
-#     #Ref from SAGAN
-#     def __init__(self, in_dim, key_dim, value_dim, out_dim, norm_layer):
-#         super(PAM_Module, self).__init__()
-#         self.chanel_in = in_dim
-
-#         self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
-#         self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
-#         # self.value_conv = nn.Conv2d(in_channels=value_dim, out_channels=value_dim, kernel_size=1)
-#         self.gamma = nn.Parameter(torch.zeros(1))
-
-#         self.softmax = nn.Softmax(dim=-1)
-#         # self.fuse_conv = nn.Sequential(nn.Conv2d(value_dim, out_dim, 1, bias=False),
-#         #                                norm_layer(out_dim),
-#         #                                nn.ReLU(True))
-#     def forward(self, x):
-#         """
-#             inputs :
-#                 x : input feature maps( B X C X H X W)
-#             returns :
-#                 out : attention value + input feature
-#                 attention: B X (HxW) X (HxW)
-#         """
-#         m_batchsize, C, height, width = x.size()
-#         proj_query = self.query_conv(x).view(m_batchsize, -1, width*height).permute(0, 2, 1)
-#         proj_key = self.key_conv(x).view(m_batchsize, -1, width*height)
-#         energy = torch.bmm(proj_query, proj_key)
-#         attention = self.softmax(energy)
-#         # proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
-#         proj_value = x.view(m_batchsize, -1, width*height)
-        
-#         out = torch.bmm(proj_value, attention.permute(0, 2, 1))
-#         out = out.view(m_batchsize, C, height, width)
-
-#         out = self.gamma*out + x
-#         # out = self.fuse_conv(out)
-#         return out
 
 class PAM_Module(nn.Module):
     """ Position attention module"""
@@ -239,7 +190,6 @@ class PAM_Module(nn.Module):
         # self.value_conv = nn.Conv2d(in_channels=value_dim, out_channels=value_dim, kernel_size=1)
         # self.gamma = nn.Parameter(torch.zeros(1))
         self.gamma = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=1, kernel_size=1, bias=True), nn.Sigmoid())
-
 
         self.softmax = nn.Softmax(dim=-1)
         # self.fuse_conv = nn.Sequential(nn.Conv2d(value_dim, out_dim, 1, bias=False),
@@ -267,6 +217,7 @@ class PAM_Module(nn.Module):
         out = torch.bmm(proj_value, attention.permute(0, 2, 1))
         out = out.view(m_batchsize, C, height, width)
         # out = F.interpolate(out, (height, width), mode="bilinear", align_corners=True)
+
         gamma = self.gamma(x)
         out = (1-gamma)*out + gamma*x
         # out = self.fuse_conv(out)
