@@ -39,8 +39,8 @@ class psp4NetHead(nn.Module):
         super(psp4NetHead, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 4
-        self.project = nn.Sequential(nn.Conv2d(in_channels, out_channels, 3, padding=1,
-                  dilation=1, bias=False), norm_layer(out_channels), nn.ReLU(True))
+        self.project = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1,
+                  dilation=1, bias=False), norm_layer(inter_channels), nn.ReLU(True))
 
         self.ocr = OCR_Module(inter_channels, inter_channels, out_channels, norm_layer, up_kwargs)
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
