@@ -73,6 +73,7 @@ class OCR_Module(nn.Module):
     def forward(self, x, coarse_seg):
         # object region representation or object center feature
         n,c,h,w = x.size()
+        coarse_seg = torch.softmax(coarse_seg, dim=1)
         cls_att_sum = torch.sum(coarse_seg, dim=(2,3), keepdim=False) # nxN
         cls_center = torch.bmm(coarse_seg.view(n, self.classes, -1), x.view(n, c, -1).permute(0,2,1))
         norm_cls_center = cls_center/cls_att_sum.unsqueeze(2)
