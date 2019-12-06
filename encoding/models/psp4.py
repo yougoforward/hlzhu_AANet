@@ -39,8 +39,8 @@ class psp4NetHead(nn.Module):
         super(psp4NetHead, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 4
-        self.project = nn.Sequential(nn.Conv2d(in_channels, out_channels, 3, padding=1,
-                  dilation=1, bias=False), norm_layer(out_channels), nn.ReLU(True))
+        self.project = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1,
+                  dilation=1, bias=False), norm_layer(inter_channels), nn.ReLU(True))
 
         self.ocr = OCR_Module(inter_channels, inter_channels, out_channels, norm_layer, up_kwargs)
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(inter_channels, out_channels, 1))
@@ -64,19 +64,23 @@ class OCR_Module(nn.Module):
 
         self.value_conv = nn.Sequential(nn.Conv1d(in_channels=in_channels, out_channels=self.key_dim, kernel_size=1),
                                         norm_layer(self.key_dim), nn.ReLU(True))
-        self.weights = nn.Sequential(nn.Conv1d(in_channels=self.key_dim, out_channels=out_channels, kernel_size=1),
+        self.weights = nn.Sequential(nn.Conv2d(in_channels=self.key_dim, out_channels=out_channels, kernel_size=1),
                                         norm_layer(out_channels), nn.ReLU(True))
 
-        self.project = nn.Sequential(nn.Conv1d(in_channels=2*out_channels, out_channels=out_channels, kernel_size=1),
+        self.project = nn.Sequential(nn.Conv2d(in_channels=2*out_channels, out_channels=out_channels, kernel_size=1),
                                         norm_layer(out_channels), nn.ReLU(True))
 
     def forward(self, x, coarse_seg):
         # object region representation or object center feature
         n,c,h,w = x.size()
         coarse_seg = torch.softmax(coarse_seg, dim=1)
-        cls_att_sum = torch.sum(coarse_seg, dim=(2,3), keepdim=False) # nxN
-        cls_center = torch.bmm(coarse_seg.view(n, self.classes, -1), x.view(n, c, -1).permute(0,2,1))
-        norm_cls_center = cls_center/cls_att_sum.unsqueeze(2)
+        coarse_seg = torch.softmax(coarse_seg.view(n, self.classes, h*w), dim=-1) # n, N, hw
+        norm_cls_center = torch.bmm(coarse_seg, x.view(n, c, -1).permute(0,2,1))
+
+
+        # cls_att_sum = torch.sum(coarse_seg, dim=(2,3), keepdim=False) # nxN
+        # cls_center = torch.bmm(coarse_seg.view(n, self.classes, -1), x.view(n, c, -1).permute(0,2,1))
+        # norm_cls_center = cls_center/cls_att_sum.unsqueeze(2)
         norm_cls_center = norm_cls_center.permute(0, 2, 1)
         # self-attention based pixel-region relation
 
