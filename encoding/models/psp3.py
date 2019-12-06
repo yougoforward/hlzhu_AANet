@@ -37,7 +37,7 @@ class psp3NetHead(nn.Module):
                  atrous_rates=(12, 24, 36)):
         super(psp3NetHead, self).__init__()
         self.se_loss = se_loss
-        inter_channels = in_channels // 8
+        inter_channels = in_channels // 4
 
         self.aa_psp3 = psp3_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
         self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2 * inter_channels, out_channels, 1))
@@ -154,19 +154,21 @@ class psp3_Module(nn.Module):
         # out = self.project(y1)
 
         # psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
-        psaa_feat = self.psaa_conv(x)
+        # psaa_feat = self.psaa_conv(x)
 
-        psaa_att = torch.sigmoid(psaa_feat)
-        psaa_att_list = torch.split(psaa_att, 1, dim=1)
+        # psaa_att = torch.sigmoid(psaa_feat)
+        # psaa_att_list = torch.split(psaa_att, 1, dim=1)
 
-        y2 = torch.cat((psaa_att_list[0] * feat0, psaa_att_list[1] * feat1, psaa_att_list[2] * feat2,
-                        psaa_att_list[3] * feat3), 1)
-        out = self.project(y2)
+        # y2 = torch.cat((psaa_att_list[0] * feat0, psaa_att_list[1] * feat1, psaa_att_list[2] * feat2,
+        #                 psaa_att_list[3] * feat3), 1)
+        out = self.project(y1)
 
         # gp
         gp = self.gap(x)
         se = self.se(gp)
-        out = torch.cat([self.pam0(out + se * out), gp.expand(n, c, h, w)], dim=1)
+        out = torch.cat([out + se * out, gp.expand(n, c, h, w)], dim=1)
+
+        # out = torch.cat([self.pam0(out + se * out), gp.expand(n, c, h, w)], dim=1)
         return out, gp
 
 
