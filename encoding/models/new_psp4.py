@@ -112,12 +112,12 @@ class new_psp4_Module(nn.Module):
         #                             norm_layer(out_channels),
         #                             nn.ReLU(True),
         #                             nn.Conv2d(out_channels, 4, 1, bias=True))  
-        # self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 4, 1, padding=0, bias=True))
+        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 4, 1, padding=0, bias=True))
         # self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels, 4, 1, padding=0, bias=True))
-        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, padding=0, bias=False),
-                                    norm_layer(out_channels),
-                                    nn.ReLU(True),
-                                    nn.Conv2d(out_channels, 4, 1, bias=True))  
+        # self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, padding=0, bias=False),
+        #                             norm_layer(out_channels),
+        #                             nn.ReLU(True),
+        #                             nn.Conv2d(out_channels, 4, 1, bias=True))  
         self.project = nn.Sequential(nn.Conv2d(in_channels=4*out_channels, out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(out_channels),
@@ -154,8 +154,8 @@ class new_psp4_Module(nn.Module):
         # y1 = torch.cat((feat0, feat1, feat2, feat3), 1)
         # out = self.project(y1)
 
-        # psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
-        psaa_feat = self.psaa_conv(x)
+        psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
+        # psaa_feat = self.psaa_conv(x)
         psaa_att = torch.sigmoid(psaa_feat)
         psaa_att_list = torch.split(psaa_att, 1, dim=1)
 
