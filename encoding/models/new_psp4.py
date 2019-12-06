@@ -151,7 +151,7 @@ class new_psp4_Module(nn.Module):
         # feat3 = self.pam3(feat3)
 
         # psaa
-        # y1 = torch.cat((feat0, feat1, feat2, feat3), 1)
+        y1 = torch.cat((feat0, feat1, feat2, feat3), 1)
         # out = self.project(y1)
 
         psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
