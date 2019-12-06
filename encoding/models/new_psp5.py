@@ -37,10 +37,10 @@ class new_psp5NetHead(nn.Module):
                  atrous_rates=(12, 24, 36)):
         super(new_psp5NetHead, self).__init__()
         self.se_loss = se_loss
-        inter_channels = in_channels // 8
+        inter_channels = in_channels // 4
 
         self.aa_new_psp5 = new_psp5_Module(in_channels, inter_channels, atrous_rates, norm_layer, up_kwargs)
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(3*inter_channels, out_channels, 1))
+        self.conv8 = nn.Sequential(nn.Dropout2d(0.1), nn.Conv2d(2*inter_channels, out_channels, 1))
         if self.se_loss:
             self.selayer = nn.Linear(inter_channels, out_channels)
 
@@ -98,12 +98,12 @@ class new_psp5_Module(nn.Module):
         self.b1 = new_psp5Conv(in_channels, out_channels, rate1, norm_layer)
         self.b2 = new_psp5Conv(in_channels, out_channels, rate2, norm_layer)
         self.b3 = new_psp5Conv(in_channels, out_channels, rate3, norm_layer)
-        # self.b4 = nn.Sequential(
-        # nn.Conv2d(in_channels, out_channels, 1, padding=0,
-        #           dilation=1, bias=False),
-        # norm_layer(out_channels),
-        # nn.ReLU(True),
-        # PAM_Module(in_dim=out_channels, key_dim=64,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer))
+        self.b4 = nn.Sequential(
+        nn.Conv2d(in_channels, out_channels, 1, padding=0,
+                  dilation=1, bias=False),
+        norm_layer(out_channels),
+        nn.ReLU(True),
+        PAM_Module(in_dim=out_channels, key_dim=64,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer))
         # self.b4 = new_psp5Conv(in_channels, out_channels, rate4, norm_layer)
         # self.b4 = new_psp5Pooling(in_channels, out_channels, norm_layer, up_kwargs)
 
@@ -111,10 +111,12 @@ class new_psp5_Module(nn.Module):
         self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, out_channels, 1, padding=0, bias=False),
                                     norm_layer(out_channels),
                                     nn.ReLU(True),
-                                    nn.Conv2d(out_channels, 4, 1, bias=True))        
-        self.project = nn.Sequential(nn.Conv2d(in_channels=4*out_channels, out_channels=2*out_channels,
+                                    nn.Conv2d(out_channels, 4, 3, padding=1, bias=True))  
+        # self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 4, 1, padding=0, bias=True))
+       
+        self.project = nn.Sequential(nn.Conv2d(in_channels=4*out_channels, out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
-                      norm_layer(2*out_channels),
+                      norm_layer(out_channels),
                       nn.ReLU(True))
 
 
@@ -123,11 +125,11 @@ class new_psp5_Module(nn.Module):
                             norm_layer(out_channels),
                             nn.ReLU(True))
         self.se = nn.Sequential(
-                            nn.Conv2d(out_channels, 2*out_channels, 1, bias=True),
+                            nn.Conv2d(out_channels, out_channels, 1, bias=True),
                             nn.Sigmoid())
 
 
-        # self.pam0 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
+        self.pam0 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
         # self.pam1 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
         # self.pam2 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
         # self.pam3 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
@@ -146,20 +148,20 @@ class new_psp5_Module(nn.Module):
 
         # psaa
         y1 = torch.cat((feat0, feat1, feat2, feat3), 1)
-        out = self.project(y1)
+        # out = self.project(y1)
 
-        # psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
-        # psaa_att = torch.sigmoid(psaa_feat)
-        # psaa_att_list = torch.split(psaa_att, 1, dim=1)
+        psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
+        psaa_att = torch.sigmoid(psaa_feat)
+        psaa_att_list = torch.split(psaa_att, 1, dim=1)
 
-        # y2 = torch.cat((psaa_att_list[0] * feat0, psaa_att_list[1] * feat1, psaa_att_list[2] * feat2,
-        #                 psaa_att_list[3] * feat3, psaa_att_list[4]*feat4), 1)
-        # out = self.project(y2)
+        y2 = torch.cat((psaa_att_list[0] * feat0, psaa_att_list[1] * feat1, psaa_att_list[2] * feat2,
+                        psaa_att_list[3] * feat3), 1)
+        out = self.project(y2)
         
         #gp
         gp = self.gap(x)
         se = self.se(gp)
-        out = torch.cat([out+se*out, gp.expand(n, c, h, w)], dim=1)
+        out = torch.cat([self.pam0(out+se*out), gp.expand(n, c, h, w)], dim=1)
         return out, gp
 
 def get_new_psp5net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
@@ -184,7 +186,8 @@ class PAM_Module(nn.Module):
         self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
         self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
         # self.value_conv = nn.Conv2d(in_channels=value_dim, out_channels=value_dim, kernel_size=1)
-        self.gamma = nn.Parameter(torch.zeros(1))
+        # self.gamma = nn.Parameter(torch.zeros(1))
+        self.gamma = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=1, kernel_size=1, bias=True), nn.Sigmoid())
 
         self.softmax = nn.Softmax(dim=-1)
         # self.fuse_conv = nn.Sequential(nn.Conv2d(value_dim, out_dim, 1, bias=False),
@@ -213,6 +216,7 @@ class PAM_Module(nn.Module):
         out = out.view(m_batchsize, C, height, width)
         # out = F.interpolate(out, (height, width), mode="bilinear", align_corners=True)
 
-        # out = self.gamma*out + x
+        gamma = self.gamma(x)
+        out = (1-gamma)*out + gamma*x
         # out = self.fuse_conv(out)
         return out
