@@ -111,7 +111,7 @@ class new_psp4_Module(nn.Module):
         self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, out_channels, 1, padding=0, bias=False),
                                     norm_layer(out_channels),
                                     nn.ReLU(True),
-                                    nn.Conv2d(out_channels, 4, 3, padding=1, bias=True))  
+                                    nn.Conv2d(out_channels, 4, 1, padding=0, bias=True))  
         # self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 4, 1, padding=0, bias=True))
        
         self.project = nn.Sequential(nn.Conv2d(in_channels=4*out_channels, out_channels=out_channels,
@@ -188,7 +188,7 @@ class PAM_Module(nn.Module):
         # self.value_conv = nn.Conv2d(in_channels=value_dim, out_channels=value_dim, kernel_size=1)
         # self.gamma = nn.Parameter(torch.zeros(1))
         self.gamma = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=in_dim,
-                      kernel_size=1, stride=1, padding=0, bias=False),
+                      kernel_size=3, stride=1, padding=1, bias=False),
                       norm_layer(in_dim),
                       nn.ReLU(True),
                       nn.Conv2d(in_dim, 1, 1, padding=0, bias=True),
