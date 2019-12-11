@@ -191,7 +191,7 @@ class PAM_Module(nn.Module):
                       kernel_size=3, stride=1, padding=1, bias=False),
                       norm_layer(in_dim),
                       nn.ReLU(True),
-                      nn.Conv2d(in_dim, 1, 1, padding=0, bias=True),
+                      nn.Conv2d(in_dim, 1, 3, padding=1, bias=True),
                       nn.Sigmoid())
         # self.gamma = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=1, kernel_size=3, padding=1, bias=True), nn.Sigmoid())
 
