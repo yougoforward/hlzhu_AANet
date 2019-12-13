@@ -7,6 +7,7 @@ from .mask_softmax import Mask_Softmax
 
 from .fcn import FCNHead
 from .base import BaseNet
+from ..nn import dcn
 
 __all__ = ['new_psp4Net', 'get_new_psp4net']
 
@@ -59,10 +60,18 @@ def new_psp4Conv(in_channels, out_channels, atrous_rate, norm_layer):
                   dilation=1, bias=False),
         norm_layer(512),
         nn.ReLU(True),
-        nn.Conv2d(512, out_channels, 3, padding=atrous_rate,
-                  dilation=atrous_rate, bias=False),
-        norm_layer(out_channels),
-        nn.ReLU(True))
+        dcn.DFConv2d(
+                512,
+                out_channels,
+                with_modulated_dcn=True,
+                kernel_size=3,
+                stride=1,
+                groups=1,
+                dilation=atrous_rate,
+                deformable_groups=1,
+                bias=False
+            ), norm_layer(out_channels), nn.ReLU(True)
+        )
     return block
 
 
@@ -187,13 +196,13 @@ class PAM_Module(nn.Module):
         self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
         # self.value_conv = nn.Conv2d(in_channels=value_dim, out_channels=value_dim, kernel_size=1)
         # self.gamma = nn.Parameter(torch.zeros(1))
-        self.gamma = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=in_dim,
-                      kernel_size=3, stride=1, padding=1, bias=False),
-                      norm_layer(in_dim),
-                      nn.ReLU(True),
-                      nn.Conv2d(in_dim, 1, 3, padding=1, bias=True),
-                      nn.Sigmoid())
-        # self.gamma = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=1, kernel_size=3, padding=1, bias=True), nn.Sigmoid())
+        # self.gamma = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=in_dim,
+        #               kernel_size=3, stride=1, padding=1, bias=False),
+        #               norm_layer(in_dim),
+        #               nn.ReLU(True),
+        #               nn.Conv2d(in_dim, 1, 3, padding=1, bias=True),
+        #               nn.Sigmoid())
+        self.gamma = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=1, kernel_size=3, padding=1, bias=True), nn.Sigmoid())
 
         self.softmax = nn.Softmax(dim=-1)
         # self.fuse_conv = nn.Sequential(nn.Conv2d(value_dim, out_dim, 1, bias=False),
