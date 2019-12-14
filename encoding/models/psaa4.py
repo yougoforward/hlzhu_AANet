@@ -126,7 +126,7 @@ class psaa4_Module(nn.Module):
         feat3 = self.b3(x)
         # feat4 = self.b4(x)
         n, c, h, w = feat0.size()
-
+        print(feat0.size())
         # psaa
         y1 = torch.cat((feat0, feat1, feat2, feat3), 1)
         psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
