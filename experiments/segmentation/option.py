@@ -95,9 +95,9 @@ class Options():
         if args.epochs is None:
             epoches = {
                 'coco': 30,
-                'cityscapes': 120,
+                'cityscapes': 240,
                 'pascal_voc': 50,
-                'pascal_aug': 50,
+                'pascal_aug': 80,
                 'pcontext': 80,
                 'ade20k': 120,
                 'cocostuff': 180,
@@ -105,6 +105,8 @@ class Options():
             args.epochs = epoches[args.dataset.lower()]
         if args.batch_size is None:
             args.batch_size = 16
+        if args.dataset == 'cityscapes':
+            args.batch_size = 8
         if args.test_batch_size is None:
             args.test_batch_size = args.batch_size
         if args.lr is None:
@@ -114,7 +116,7 @@ class Options():
                 'pascal_voc': 0.0001,
                 'pascal_aug': 0.001,
                 'pcontext': 0.001,
-                'ade20k': 0.001,
+                'ade20k': 0.002,
                 'cocostuff': 0.001,
             }
             args.lr = lrs[args.dataset.lower()]
