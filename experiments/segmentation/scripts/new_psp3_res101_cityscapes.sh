@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #train
 python train.py --dataset cityscapes \
-    --model new_psp3 --aux --dilated --base-size 2048 --crop-size 769 \
+    --model new_psp3 --aux --dilated --base-size 1024 --crop-size 769 \
     --backbone resnet101 --checkname new_psp3_res101_cityscapes
 
 #test [single-scale]
