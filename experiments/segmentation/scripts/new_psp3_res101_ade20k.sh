@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #train
-# python train.py --dataset ade20k \
-#     --model new_psp3 --aux --dilated --base-size 520 --crop-size 520 \
-#     --backbone resnet101 --checkname new_psp3_res101_ade20k
+python train.py --dataset ade20k \
+    --model new_psp3 --aux --dilated --base-size 520 --crop-size 520 \
+    --backbone resnet101 --checkname new_psp3_res101_ade20k
 
 #test [single-scale]
 python test.py --dataset ade20k \
