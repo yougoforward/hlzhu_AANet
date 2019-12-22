@@ -112,7 +112,7 @@ class Options():
         if args.lr is None:
             lrs = {
                 'coco': 0.004,
-                'cityscapes': 0.004,
+                'cityscapes': 0.01,
                 'pascal_voc': 0.0001,
                 'pascal_aug': 0.001,
                 'pcontext': 0.001,
