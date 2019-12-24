@@ -86,7 +86,7 @@ class CitySegmentation(BaseDataset):
         if self.target_transform is not None:
             mask = self.target_transform(mask)
         return img, mask
-        
+
     def _sync_transform(self, img, mask):
         # random mirror
         if random.random() < 0.5:
@@ -94,7 +94,7 @@ class CitySegmentation(BaseDataset):
             mask = mask.transpose(Image.FLIP_LEFT_RIGHT)
         crop_size = self.crop_size
         # random scale (short edge from 480 to 720)
-        short_size = random.randint(int(self.base_size*0.75), int(self.base_size*2.0))
+        short_size = random.randint(int(self.base_size*0.5), int(self.base_size*2.0))
         w, h = img.size
         if h > w:
             ow = short_size
