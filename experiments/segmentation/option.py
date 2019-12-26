@@ -107,6 +107,7 @@ class Options():
             args.batch_size = 16
         if args.dataset == 'cityscapes':
             args.batch_size = 8
+            args.weight_decay=0.0005
         if args.test_batch_size is None:
             args.test_batch_size = args.batch_size
         if args.lr is None:
@@ -116,7 +117,7 @@ class Options():
                 'pascal_voc': 0.0001,
                 'pascal_aug': 0.001,
                 'pcontext': 0.001,
-                'ade20k': 0.01,
+                'ade20k': 0.02,
                 'cocostuff': 0.001,
             }
             # args.lr = lrs[args.dataset.lower()] / 16 * args.batch_size
