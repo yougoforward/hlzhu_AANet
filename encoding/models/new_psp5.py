@@ -111,7 +111,7 @@ class new_psp5_Module(nn.Module):
         self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, out_channels, 1, padding=0, bias=False),
                                     norm_layer(out_channels),
                                     nn.ReLU(True),
-                                    nn.Conv2d(out_channels, 4, 3, padding=1, bias=True))  
+                                    nn.Conv2d(out_channels, 4, 1, padding=0, bias=True))  
         # self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 4, 1, padding=0, bias=True))
        
         self.project = nn.Sequential(nn.Conv2d(in_channels=4*out_channels, out_channels=out_channels,
@@ -208,7 +208,8 @@ class PAM_Module(nn.Module):
         proj_query = self.query_conv(x).view(m_batchsize, -1, width*height).permute(0, 2, 1)
         proj_key = self.key_conv(xp).view(m_batchsize, -1, wp*hp)
         energy = torch.bmm(proj_query, proj_key)
-        attention = self.softmax(energy)
+        # attention = self.softmax(energy)
+        attention = torch.sigmoid(energy)/torch.sum(energy, dim=-1, keepdim=True)
         # proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
         proj_value = xp.view(m_batchsize, -1, wp*hp)
         
