@@ -21,6 +21,29 @@ from encoding.models import get_model, get_segmentation_model, MultiEvalModule
 
 from option import Options
 
+from PIL import Image
+
+_CITYSCAPES_TRAIN_ID_TO_EVAL_ID = [7, 8, 11, 12, 13, 17, 19, 20, 21, 22,
+                                   23, 24, 25, 26, 27, 28, 31, 32, 33]
+
+
+def _convert_train_id_to_eval_id(prediction, train_id_to_eval_id):
+    """Converts the predicted label for evaluation.
+    There are cases where the training labels are not equal to the evaluation
+    labels. This function is used to perform the conversion so that we could
+    evaluate the results on the evaluation server.
+    Args:
+        prediction: Semantic segmentation prediction.
+        train_id_to_eval_id: A list mapping from train id to evaluation id.
+    Returns:
+        Semantic segmentation prediction whose labels have been changed.
+    """
+    converted_prediction = prediction.copy()
+    for train_id, eval_id in enumerate(train_id_to_eval_id):
+        converted_prediction[prediction == train_id] = eval_id
+
+    return converted_prediction
+
 
 def test(args):
     # output folder
@@ -81,6 +104,8 @@ def test(args):
                             for output in outputs]
             for predict, impath in zip(predicts, dst):
                 mask = Image.fromarray(predict.squeeze().astype('uint8'))
+                if args.dataset=="cityscapes":
+                    mask = _convert_train_id_to_eval_id(mask, _CITYSCAPES_TRAIN_ID_TO_EVAL_ID)
                 # mask = utils.get_mask_pallete(predict, args.dataset)
                 outname = os.path.splitext(impath)[0] + '.png'
                 mask.save(os.path.join(outdir, outname))
