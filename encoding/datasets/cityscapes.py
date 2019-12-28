@@ -83,7 +83,7 @@ class CitySegmentation(BaseDataset):
             mask = self._mask_transform(mask)
         # general resize, normalize and toTensor
         if self.transform is not None:
-            img = np.array(img, , dtype=np.double)/255
+            img = np.array(img, dtype=np.double)/255
             img = self.transform(img)
         if self.target_transform is not None:
             mask = self.target_transform(mask)
