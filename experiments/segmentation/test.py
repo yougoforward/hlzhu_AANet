@@ -80,7 +80,8 @@ def test(args):
                 predicts = [testset.make_pred(torch.max(output, 1)[1].cpu().numpy())
                             for output in outputs]
             for predict, impath in zip(predicts, dst):
-                mask = utils.get_mask_pallete(predict, args.dataset)
+                mask = Image.fromarray(predict.squeeze().astype('uint8'))
+                # mask = utils.get_mask_pallete(predict, args.dataset)
                 outname = os.path.splitext(impath)[0] + '.png'
                 mask.save(os.path.join(outdir, outname))
 
