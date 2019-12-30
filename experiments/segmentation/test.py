@@ -22,6 +22,7 @@ from encoding.models import get_model, get_segmentation_model, MultiEvalModule
 from option import Options
 
 from PIL import Image
+import numpy as np
 
 _CITYSCAPES_TRAIN_ID_TO_EVAL_ID = [7, 8, 11, 12, 13, 17, 19, 20, 21, 22,
                                    23, 24, 25, 26, 27, 28, 31, 32, 33]
