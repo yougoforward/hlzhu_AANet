@@ -38,11 +38,13 @@ def _convert_train_id_to_eval_id(prediction, train_id_to_eval_id):
     Returns:
         Semantic segmentation prediction whose labels have been changed.
     """
+
     converted_prediction = prediction.copy()
+    converted_prediction = np.array(converted_prediction)
     for train_id, eval_id in enumerate(train_id_to_eval_id):
         converted_prediction[prediction == train_id] = eval_id
 
-    return converted_prediction
+    return Image.fromarray(converted_prediction)
 
 
 def test(args):
