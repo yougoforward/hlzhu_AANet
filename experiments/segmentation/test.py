@@ -43,7 +43,7 @@ def _convert_train_id_to_eval_id(prediction, train_id_to_eval_id):
     converted_prediction = prediction.copy()
     converted_prediction = np.array(converted_prediction)
     for train_id, eval_id in enumerate(train_id_to_eval_id):
-        converted_prediction[prediction == train_id] = eval_id
+        converted_prediction[converted_prediction == train_id] = eval_id
 
     return Image.fromarray(converted_prediction)
 
