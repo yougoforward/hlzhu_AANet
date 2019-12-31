@@ -107,7 +107,7 @@ class Options():
             args.batch_size = 16
         if args.dataset == 'cityscapes':
             args.batch_size = 8
-            args.weight_decay=0.0005
+            # args.weight_decay=0.0005
         if args.test_batch_size is None:
             args.test_batch_size = args.batch_size
         if args.lr is None:
