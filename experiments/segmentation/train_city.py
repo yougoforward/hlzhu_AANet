@@ -115,15 +115,23 @@ class Trainer():
             train_loss += loss.item()
             tbar.set_description('Train loss: %.3f' % (train_loss / (i + 1)))
 
-        if self.args.no_val:
-            # save checkpoint every epoch
-            is_best = False
-            utils.save_checkpoint({
-                'epoch': epoch + 1,
-                'state_dict': self.model.module.state_dict(),
-                'optimizer': self.optimizer.state_dict(),
-                'best_pred': self.best_pred,
-            }, self.args, is_best)
+        # if self.args.no_val:
+        #     # save checkpoint every epoch
+        #     is_best = False
+        #     utils.save_checkpoint({
+        #         'epoch': epoch + 1,
+        #         'state_dict': self.model.module.state_dict(),
+        #         'optimizer': self.optimizer.state_dict(),
+        #         'best_pred': self.best_pred,
+        #     }, self.args, is_best)
+        # save checkpoint every epoch
+        is_best = False
+        utils.save_checkpoint({
+            'epoch': epoch + 1,
+            'state_dict': self.model.module.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'best_pred': self.best_pred,
+        }, self.args, is_best)
 
     def validation(self, epoch):
         # Fast test during the training
@@ -179,5 +187,5 @@ if __name__ == "__main__":
     for epoch in range(trainer.args.start_epoch, trainer.args.epochs):
         trainer.training(epoch)
         if not trainer.args.no_val:
-            if epoch%10==0 or epoch > trainer.args.epochs-10:
+            if epoch%10==0 or epoch > trainer.args.epochs-5:
                 trainer.validation(epoch)

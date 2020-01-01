@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 train
-python train.py --dataset cityscapes \
+python train_city.py --dataset cityscapes \
     --model new_psp3 --aux --dilated --base-size 1024 --crop-size 768 \
-    --backbone resnet101 --checkname new_psp3_res101_cityscapes --no-val
+    --backbone resnet101 --checkname new_psp3_res101_cityscapes
 
 #test [single-scale]
 python test.py --dataset cityscapes \
