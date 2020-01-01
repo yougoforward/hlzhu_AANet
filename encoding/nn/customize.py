@@ -208,7 +208,7 @@ class City_SegmentationLosses(CrossEntropyLoss):
         self.ignore_index = ignore_index
         weight = torch.FloatTensor([0.8373, 0.918, 0.866, 1.0345, 1.0166, 0.9969, 0.9754, 1.0489, 0.8786, 1.0023, 0.9539, 0.9843, 1.1116, 0.9037, 1.0865, 1.0955, 1.0865, 1.1529, 1.0507])
         self.criterion = torch.nn.CrossEntropyLoss(weight=weight, ignore_index=ignore_index)
-        self.criterion_ohem = OhemCrossEntropy2d(ignore_index=ignore_index, thres=0.7, min_kept=100000, use_weight=True)
+        self.criterion_ohem = OhemCrossEntropy2d(ignore_label=ignore_index, thres=0.7, min_kept=100000, use_weight=True)
 
     def forward(self, *inputs):
         if not self.se_loss and not self.aux:
