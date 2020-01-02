@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # train
-python train.py --dataset cityscapes \
-    --model new_psp3 --aux --dilated --base-size 1024 --crop-size 768 --lr 0.01 --epochs 120 \
+python train_city_weight.py --dataset cityscapes \
+    --model new_psp3 --aux --dilated --base-size 1024 --crop-size 768 --lr 0.01 --epochs 240 \
     --backbone resnet101 --checkname new_psp3_res101_cityscapes_trainval --no-val --train-split trainval
 
 # finetune
