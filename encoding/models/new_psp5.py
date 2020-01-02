@@ -98,22 +98,13 @@ class new_psp5_Module(nn.Module):
         self.b1 = new_psp5Conv(in_channels, out_channels, rate1, norm_layer)
         self.b2 = new_psp5Conv(in_channels, out_channels, rate2, norm_layer)
         self.b3 = new_psp5Conv(in_channels, out_channels, rate3, norm_layer)
-        self.b4 = nn.Sequential(
-        nn.Conv2d(in_channels, out_channels, 1, padding=0,
-                  dilation=1, bias=False),
-        norm_layer(out_channels),
-        nn.ReLU(True),
-        PAM_Module(in_dim=out_channels, key_dim=64,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer))
-        # self.b4 = new_psp5Conv(in_channels, out_channels, rate4, norm_layer)
-        # self.b4 = new_psp5Pooling(in_channels, out_channels, norm_layer, up_kwargs)
 
         self._up_kwargs = up_kwargs
         self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, out_channels, 1, padding=0, bias=False),
                                     norm_layer(out_channels),
                                     nn.ReLU(True),
                                     nn.Conv2d(out_channels, 4, 1, padding=0, bias=True))  
-        # self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+4*out_channels, 4, 1, padding=0, bias=True))
-       
+
         self.project = nn.Sequential(nn.Conv2d(in_channels=4*out_channels, out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(out_channels),
@@ -130,27 +121,16 @@ class new_psp5_Module(nn.Module):
 
 
         self.pam0 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
-        # self.pam1 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
-        # self.pam2 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
-        # self.pam3 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
+
     def forward(self, x):
         feat0 = self.b0(x)
         feat1 = self.b1(x)
         feat2 = self.b2(x)
         feat3 = self.b3(x)
-        # feat4 = self.b4(x)
         n, c, h, w = feat0.size()
 
-        # feat0 = self.pam0(feat0)
-        # feat1 = self.pam1(feat1)
-        # feat2 = self.pam2(feat2)
-        # feat3 = self.pam3(feat3)
-
         # psaa
-        y1 = torch.cat((feat0, feat1, feat2, feat3), 1)
-        # out = self.project(y1)
-
-        psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
+        psaa_feat = self.psaa_conv(torch.cat([x, feat0, feat1, feat2, feat3], dim=1))
         psaa_att = torch.sigmoid(psaa_feat)
         psaa_att_list = torch.split(psaa_att, 1, dim=1)
 
@@ -174,6 +154,45 @@ def get_new_psp5net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
 
     return model
 
+class PyramidPooling(nn.Module):
+    """
+    Reference:
+        Zhao, Hengshuang, et al. *"Pyramid scene parsing network."*
+    """
+    def __init__(self, in_channels, out_channels, norm_layer):
+        super(PyramidPooling, self).__init__()
+        self.pool1 = nn.AdaptiveAvgPool2d(1)
+        self.pool2 = nn.AdaptiveAvgPool2d(2)
+        self.pool3 = nn.AdaptiveAvgPool2d(3)
+        self.pool4 = nn.AdaptiveAvgPool2d(6)
+
+        self.out_chs = out_channels
+
+
+        # out_channels = int(in_channels/4)
+        self.conv1 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
+                                norm_layer(out_channels),
+                                nn.ReLU(True))
+        self.conv2 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
+                                norm_layer(out_channels),
+                                nn.ReLU(True))
+        self.conv3 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
+                                norm_layer(out_channels),
+                                nn.ReLU(True))
+        self.conv4 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
+                                norm_layer(out_channels),
+                                nn.ReLU(True))
+
+    def forward(self, x):
+        n, c, h, w = x.size()
+        feat1 = self.conv1(self.pool1(x)).view(n, self.out_chs, -1)
+        feat2 = self.conv2(self.pool2(x)).view(n, self.out_chs, -1)
+        feat3 = self.conv3(self.pool3(x)).view(n, self.out_chs, -1)
+        feat4 = self.conv4(self.pool4(x)).view(n, self.out_chs, -1)
+
+        y1 = torch.cat((feat1, feat2, feat3, feat4), 2) # 1+4+9+36=50
+        return y1
+
 
 class PAM_Module(nn.Module):
     """ Position attention module"""
@@ -181,18 +200,14 @@ class PAM_Module(nn.Module):
     def __init__(self, in_dim, key_dim, value_dim, out_dim, norm_layer):
         super(PAM_Module, self).__init__()
         self.chanel_in = in_dim
-        self.pool = nn.MaxPool2d(kernel_size=2)
 
-        self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
-        self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
-        # self.value_conv = nn.Conv2d(in_channels=value_dim, out_channels=value_dim, kernel_size=1)
-        # self.gamma = nn.Parameter(torch.zeros(1))
+        self.spp = PyramidPooling(in_dim, in_dim, norm_layer)
+        self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
+        self.value_conv = nn.Conv2d(in_channels=value_dim, out_channels=value_dim, kernel_size=1)
         self.gamma = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=1, kernel_size=1, bias=True), nn.Sigmoid())
 
         self.softmax = nn.Softmax(dim=-1)
-        # self.fuse_conv = nn.Sequential(nn.Conv2d(value_dim, out_dim, 1, bias=False),
-        #                                norm_layer(out_dim),
-        #                                nn.ReLU(True))
+
 
     def forward(self, x):
         """
@@ -202,22 +217,17 @@ class PAM_Module(nn.Module):
                 out : attention value + input feature
                 attention: B X (HxW) X (HxW)
         """
-        xp = self.pool(x)
+        proj_key = self.spp(x)
         m_batchsize, C, height, width = x.size()
-        m_batchsize, C, hp, wp = xp.size()
+        m_batchsize, C, dspp = proj_key.size()
+
         proj_query = self.query_conv(x).view(m_batchsize, -1, width*height).permute(0, 2, 1)
-        proj_key = self.key_conv(xp).view(m_batchsize, -1, wp*hp)
         energy = torch.bmm(proj_query, proj_key)
-        # attention = self.softmax(energy)
-        attention = torch.sigmoid(energy)/torch.sum(energy, dim=-1, keepdim=True)
-        # proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
-        proj_value = xp.view(m_batchsize, -1, wp*hp)
-        
-        out = torch.bmm(proj_value, attention.permute(0, 2, 1))
+        attention = self.softmax(energy)
+
+        out = torch.bmm(proj_key, attention.permute(0, 2, 1))
         out = out.view(m_batchsize, C, height, width)
-        # out = F.interpolate(out, (height, width), mode="bilinear", align_corners=True)
 
         gamma = self.gamma(x)
-        out = (1-gamma)*out + gamma*x
-        # out = self.fuse_conv(out)
+        out = (1-gamma)*out + gamma*self.value_conv(x)
         return out
