@@ -190,10 +190,10 @@ class PyramidPooling(nn.Module):
         # feat3 = self.conv3(self.pool3(x)).view(n, self.out_chs, -1)
         # feat4 = self.conv4(self.pool4(x)).view(n, self.out_chs, -1)
 
-        feat1 = self.pool1(x)
-        feat2 = self.pool2(x)
-        feat3 = self.pool3(x)
-        feat4 = self.pool4(x)
+        feat1 = self.pool1(x).view(n, self.out_chs, -1)
+        feat2 = self.pool2(x).view(n, self.out_chs, -1)
+        feat3 = self.pool3(x).view(n, self.out_chs, -1)
+        feat4 = self.pool4(x).view(n, self.out_chs, -1)
         y1 = torch.cat((feat1, feat2, feat3, feat4), 2) # 1+4+9+36=50
         return y1
 
