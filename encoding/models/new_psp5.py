@@ -169,45 +169,56 @@ class PyramidPooling(nn.Module):
         self.out_chs = out_channels
 
 
-        # out_channels = int(in_channels/4)
-        self.conv1 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
-                                norm_layer(out_channels),
-                                nn.ReLU(True))
-        self.conv2 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
-                                norm_layer(out_channels),
-                                nn.ReLU(True))
-        self.conv3 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
-                                norm_layer(out_channels),
-                                nn.ReLU(True))
-        self.conv4 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
-                                norm_layer(out_channels),
-                                nn.ReLU(True))
+        # # out_channels = int(in_channels/4)
+        # self.conv1 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
+        #                         norm_layer(out_channels),
+        #                         nn.ReLU(True))
+        # self.conv2 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
+        #                         norm_layer(out_channels),
+        #                         nn.ReLU(True))
+        # self.conv3 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
+        #                         norm_layer(out_channels),
+        #                         nn.ReLU(True))
+        # self.conv4 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
+        #                         norm_layer(out_channels),
+        #                         nn.ReLU(True))
 
     def forward(self, x):
         n, c, h, w = x.size()
-        feat1 = self.conv1(self.pool1(x)).view(n, self.out_chs, -1)
-        feat2 = self.conv2(self.pool2(x)).view(n, self.out_chs, -1)
-        feat3 = self.conv3(self.pool3(x)).view(n, self.out_chs, -1)
-        feat4 = self.conv4(self.pool4(x)).view(n, self.out_chs, -1)
+        # feat1 = self.conv1(self.pool1(x)).view(n, self.out_chs, -1)
+        # feat2 = self.conv2(self.pool2(x)).view(n, self.out_chs, -1)
+        # feat3 = self.conv3(self.pool3(x)).view(n, self.out_chs, -1)
+        # feat4 = self.conv4(self.pool4(x)).view(n, self.out_chs, -1)
 
+        feat1 = self.pool1(x)
+        feat2 = self.pool2(x)
+        feat3 = self.pool3(x)
+        feat4 = self.pool4(x)
         y1 = torch.cat((feat1, feat2, feat3, feat4), 2) # 1+4+9+36=50
         return y1
 
 
 class PAM_Module(nn.Module):
     """ Position attention module"""
-    #Ref from SAGAN
+
+    # Ref from SAGAN
     def __init__(self, in_dim, key_dim, value_dim, out_dim, norm_layer):
         super(PAM_Module, self).__init__()
         self.chanel_in = in_dim
-
+        self.pool = nn.MaxPool2d(kernel_size=2)
         self.spp = PyramidPooling(in_dim, in_dim, norm_layer)
-        self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
+
+        self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
+        self.key_conv = nn.Conv1d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
         # self.value_conv = nn.Conv2d(in_channels=value_dim, out_channels=value_dim, kernel_size=1)
-        self.gamma = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=1, kernel_size=1, bias=True), nn.Sigmoid())
+        # self.gamma = nn.Parameter(torch.zeros(1))
+        self.gamma = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=1, kernel_size=1, bias=True),
+                                   nn.Sigmoid())
 
         self.softmax = nn.Softmax(dim=-1)
-
+        # self.fuse_conv = nn.Sequential(nn.Conv2d(value_dim, out_dim, 1, bias=False),
+        #                                norm_layer(out_dim),
+        #                                nn.ReLU(True))
 
     def forward(self, x):
         """
@@ -217,17 +228,55 @@ class PAM_Module(nn.Module):
                 out : attention value + input feature
                 attention: B X (HxW) X (HxW)
         """
-        proj_key = self.spp(x)
+        spp = self.spp(x)
         m_batchsize, C, height, width = x.size()
-        m_batchsize, C, dspp = proj_key.size()
 
-        proj_query = self.query_conv(x).view(m_batchsize, -1, width*height).permute(0, 2, 1)
+        proj_query = self.query_conv(x).view(m_batchsize, -1, width * height).permute(0, 2, 1)
+        proj_key = self.key_conv(spp)
         energy = torch.bmm(proj_query, proj_key)
         attention = self.softmax(energy)
 
-        out = torch.bmm(proj_key, attention.permute(0, 2, 1))
+        out = torch.bmm(spp, attention.permute(0, 2, 1))
         out = out.view(m_batchsize, C, height, width)
 
         gamma = self.gamma(x)
-        out = (1-gamma)*out + gamma*x
+        out = (1 - gamma) * out + gamma * x
         return out
+
+# class PAM_Module(nn.Module):
+#     """ Position attention module"""
+#     #Ref from SAGAN
+#     def __init__(self, in_dim, key_dim, value_dim, out_dim, norm_layer):
+#         super(PAM_Module, self).__init__()
+#         self.chanel_in = in_dim
+#
+#         self.spp = PyramidPooling(in_dim, in_dim, norm_layer)
+#         self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
+#         # self.value_conv = nn.Conv2d(in_channels=value_dim, out_channels=value_dim, kernel_size=1)
+#         self.gamma = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=1, kernel_size=1, bias=True), nn.Sigmoid())
+#
+#         self.softmax = nn.Softmax(dim=-1)
+#
+#
+#     def forward(self, x):
+#         """
+#             inputs :
+#                 x : input feature maps( B X C X H X W)
+#             returns :
+#                 out : attention value + input feature
+#                 attention: B X (HxW) X (HxW)
+#         """
+#         proj_key = self.spp(x)
+#         m_batchsize, C, height, width = x.size()
+#         m_batchsize, C, dspp = proj_key.size()
+#
+#         proj_query = self.query_conv(x).view(m_batchsize, -1, width*height).permute(0, 2, 1)
+#         energy = torch.bmm(proj_query, proj_key)
+#         attention = self.softmax(energy)
+#
+#         out = torch.bmm(proj_key, attention.permute(0, 2, 1))
+#         out = out.view(m_batchsize, C, height, width)
+#
+#         gamma = self.gamma(x)
+#         out = (1-gamma)*out + gamma*x
+#         return out
