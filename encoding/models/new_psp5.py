@@ -170,30 +170,30 @@ class PyramidPooling(nn.Module):
 
 
         # # out_channels = int(in_channels/4)
-        # self.conv1 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
-        #                         norm_layer(out_channels),
-        #                         nn.ReLU(True))
-        # self.conv2 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
-        #                         norm_layer(out_channels),
-        #                         nn.ReLU(True))
-        # self.conv3 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
-        #                         norm_layer(out_channels),
-        #                         nn.ReLU(True))
-        # self.conv4 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
-        #                         norm_layer(out_channels),
-        #                         nn.ReLU(True))
+        self.conv1 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
+                                norm_layer(out_channels),
+                                nn.ReLU(True))
+        self.conv2 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
+                                norm_layer(out_channels),
+                                nn.ReLU(True))
+        self.conv3 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
+                                norm_layer(out_channels),
+                                nn.ReLU(True))
+        self.conv4 = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False),
+                                norm_layer(out_channels),
+                                nn.ReLU(True))
 
     def forward(self, x):
         n, c, h, w = x.size()
-        # feat1 = self.conv1(self.pool1(x)).view(n, self.out_chs, -1)
-        # feat2 = self.conv2(self.pool2(x)).view(n, self.out_chs, -1)
-        # feat3 = self.conv3(self.pool3(x)).view(n, self.out_chs, -1)
-        # feat4 = self.conv4(self.pool4(x)).view(n, self.out_chs, -1)
+        feat1 = self.conv1(self.pool1(x)).view(n, self.out_chs, -1)
+        feat2 = self.conv2(self.pool2(x)).view(n, self.out_chs, -1)
+        feat3 = self.conv3(self.pool3(x)).view(n, self.out_chs, -1)
+        feat4 = self.conv4(self.pool4(x)).view(n, self.out_chs, -1)
 
-        feat1 = self.pool1(x).view(n, self.out_chs, -1)
-        feat2 = self.pool2(x).view(n, self.out_chs, -1)
-        feat3 = self.pool3(x).view(n, self.out_chs, -1)
-        feat4 = self.pool4(x).view(n, self.out_chs, -1)
+        # feat1 = self.pool1(x).view(n, self.out_chs, -1)
+        # feat2 = self.pool2(x).view(n, self.out_chs, -1)
+        # feat3 = self.pool3(x).view(n, self.out_chs, -1)
+        # feat4 = self.pool4(x).view(n, self.out_chs, -1)
         y1 = torch.cat((feat1, feat2, feat3, feat4), 2) # 1+4+9+36=50
         return y1
 
