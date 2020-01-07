@@ -105,15 +105,15 @@ class Options():
             args.epochs = epoches[args.dataset.lower()]
         if args.batch_size is None:
             args.batch_size = 16
-        if args.dataset == 'cityscapes':
-            args.batch_size = 8
+        # if args.dataset == 'cityscapes':
+        #     args.batch_size = 8
             # args.weight_decay=0.0005
         if args.test_batch_size is None:
             args.test_batch_size = args.batch_size
         if args.lr is None:
             lrs = {
                 'coco': 0.01,
-                'cityscapes': 0.01,
+                'cityscapes': 0.015,
                 'pascal_voc': 0.0001,
                 'pascal_aug': 0.001,
                 'pcontext': 0.001,
