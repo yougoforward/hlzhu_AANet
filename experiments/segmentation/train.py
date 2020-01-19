@@ -12,6 +12,8 @@ import torch
 from torch.utils import data
 import torchvision.transforms as transform
 from torch.nn.parallel.scatter_gather import gather
+torch.backends.cudnn.benchmark=True
+torch.backends.cudnn.deterministic=True
 
 import encoding.utils as utils
 from encoding.nn import SegmentationLosses, BatchNorm2d

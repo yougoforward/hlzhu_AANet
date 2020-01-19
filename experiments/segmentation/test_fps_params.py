@@ -2,6 +2,8 @@ import time
 
 import torch
 import encoding
+torch.backends.cudnn.benchmark=True
+torch.backends.cudnn.deterministic=True
 
 from option import Options
 
