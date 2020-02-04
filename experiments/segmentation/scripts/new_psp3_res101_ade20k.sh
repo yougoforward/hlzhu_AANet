@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #train
 python train.py --dataset ade20k \
-    --model new_psp3 --aux --dilated --base-size 520 --crop-size 520 \
+    --model new_psp3 --aux --dilated --base-size 576 --crop-size 576 \
     --backbone resnet101 --checkname new_psp3_res101_ade20k
 
 #test [single-scale]
