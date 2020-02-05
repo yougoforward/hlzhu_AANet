@@ -167,7 +167,7 @@ def get_segmentation_model(name, **kwargs):
         'new_psp5': get_new_psp5net,
         'new_psp6': get_new_psp6net,
         'new_psp3_att': get_new_psp3_attnet,
-        'new_psp3_base': get_new_psp3_base,
+        'new_psp3_base': get_new_psp3_basenet,
 
     }
     return models[name.lower()](**kwargs)
