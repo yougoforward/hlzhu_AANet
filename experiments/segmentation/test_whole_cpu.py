@@ -99,7 +99,7 @@ def test(args):
     for i, (image, dst) in enumerate(tbar):
         if 'val' in args.mode:
             with torch.no_grad():
-                predicts = evaluator.parallel_forward(image)
+                predicts = evaluator.forward(image)
                 metric.update(dst, predicts)
                 pixAcc, mIoU = metric.get()
                 tbar.set_description( 'pixAcc: %.4f, mIoU: %.4f' % (pixAcc, mIoU))
