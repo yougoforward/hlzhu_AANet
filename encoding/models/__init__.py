@@ -84,14 +84,12 @@ from .new_psp2 import *
 from .new_psp3_att import *
 from .new_psp3_noatt import *
 from .new_psp3_base import *
-from .deeplabv3 import *
 def get_segmentation_model(name, **kwargs):
     from .fcn import get_fcn
     models = {
         'fcn': get_fcn,
         'psp': get_psp,
         'encnet': get_encnet,
-        'deeplab': get_deeplab,
         'aanet': get_aanet,
         'aanet_ml': get_aanet_ml,
         'dict_aanet': get_dict_aanet,
