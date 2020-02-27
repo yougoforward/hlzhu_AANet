@@ -116,11 +116,11 @@ class MultiEvalModule(DataParallel):
         # only single image is supported for evaluation
         batch, _, h, w = image.size()
         assert(batch == 1)
-        if len(self.scales) == 1:#single scale
-            stride_rate = 2.0/3.0
-        else:
-            stride_rate = 1.0/2.0
-        # stride_rate = 2.0/3.0
+        # if len(self.scales) == 1:#single scale
+        #     stride_rate = 2.0/3.0
+        # else:
+        #     stride_rate = 1.0/2.0
+        stride_rate = 2.0/3.0
         crop_size = self.crop_size
         stride = int(crop_size * stride_rate)
         with torch.cuda.device_of(image):
