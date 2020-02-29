@@ -167,8 +167,8 @@ class Trainer():
             tbar.set_description(
                 'pixAcc: %.3f, mIoU: %.3f' % (pixAcc, mIoU))
 
-        # new_pred = (pixAcc + mIoU)/2
-        new_pred = mIoU
+        new_pred = (pixAcc + mIoU)/2
+        # new_pred = mIoU
         if new_pred > self.best_pred:
             is_best = True
             self.best_pred = new_pred
