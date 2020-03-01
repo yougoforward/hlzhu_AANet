@@ -6,7 +6,7 @@
 
 # train
 python train.py --dataset cityscapes \
-    --model new_psp3 --aux --dilated --base-size 1024 --crop-size 768 --lr 0.001 --batch-size 8 --epochs 2 \
+    --model new_psp3 --aux --dilated --base-size 1024 --crop-size 768 --lr 0.001 --batch-size 8 --epochs 5 \
     --backbone resnet101 --checkname new_psp3_res101_cityscapes
 
 python train.py --dataset cityscapes \
