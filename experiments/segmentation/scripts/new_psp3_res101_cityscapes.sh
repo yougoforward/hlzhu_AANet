@@ -1,11 +1,11 @@
 # #!/usr/bin/env bash
 # train
-python train.py --dataset cityscapes \
-    --model new_psp3 --aux --dilated --base-size 1024 --crop-size 768 --lr 0.01 --batch-size 8 --epochs 120 \
+python train_city.py --dataset cityscapes \
+    --model new_psp3 --aux --dilated --base-size 1024 --crop-size 768 --lr 0.01 --batch-size 8 --epochs 240 \
     --backbone resnet101 --checkname new_psp3_res101_cityscapes
 
 python train_city.py --dataset cityscapes \
-    --model new_psp3 --aux --dilated --base-size 1024 --crop-size 768 --lr 0.002 --batch-size 8 --epochs 120 \
+    --model new_psp3 --aux --dilated --base-size 1024 --crop-size 768 --lr 0.0001 --batch-size 8 --epochs 240 --lr-scheduler step \
     --resume runs/cityscapes/new_psp3/new_psp3_res101_cityscapes/model_best.pth.tar --ft \
     --backbone resnet101 --checkname new_psp3_res101_cityscapes_finetune
 # #test [single-scale]
