@@ -3,11 +3,19 @@
 #     --model new_psp3 --aux --dilated --base-size 1024 --crop-size 768 --lr 0.01 --batch-size 8 --epochs 240 \
 #     --resume runs/cityscapes/new_psp3/new_psp3_res101_cityscapes/checkpoint.pth.tar --ft \
 #     --backbone resnet101 --checkname new_psp3_res101_cityscapes_trainval
-# train
+# # train
+# python train.py --dataset cityscapes \
+#     --model new_psp3 --aux --dilated --base-size 1024 --crop-size 768 --lr 0.01 --batch-size 8 --epochs 240 \
+#     --backbone resnet101 --checkname new_psp3_res101_cityscapes_trainval --train-split trainval
+
 python train.py --dataset cityscapes \
-    --model new_psp3 --aux --dilated --base-size 1024 --crop-size 768 --lr 0.01 --batch-size 8 --epochs 240 \
+    --model new_psp3 --aux --dilated --base-size 1024 --crop-size 768 --lr 0.001 --batch-size 8 --epochs 2 \
     --backbone resnet101 --checkname new_psp3_res101_cityscapes_trainval --train-split trainval
 
+python train.py --dataset cityscapes \
+    --model new_psp3 --aux --dilated --base-size 1024 --crop-size 768 --lr 0.01 --batch-size 8 --epochs 240 \
+    --resume runs/cityscapes/new_psp3/new_psp3_res101_cityscapes_trainval/checkpoint.pth.tar --ft \
+    --backbone resnet101 --checkname new_psp3_res101_cityscapes_trainval --train-split trainval
 # finetune
 python train_city.py --dataset cityscapes \
     --model new_psp3 --aux --dilated --base-size 1024 --crop-size 768 --lr 0.0001 --epochs 240 --lr-scheduler step \
