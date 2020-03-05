@@ -20,6 +20,8 @@ class Options():
                             False, help='JPU')
         parser.add_argument('--dilated', action='store_true', default=
                             False, help='dilation')
+        parser.add_argument('--multi-grid', action='store_true', default=
+                            False, help='multigrid dilation')
         parser.add_argument('--lateral', action='store_true', default=
                             False, help='employ FPN')
         parser.add_argument('--dataset', type=str, default='ade20k',
