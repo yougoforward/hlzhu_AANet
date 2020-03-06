@@ -73,7 +73,7 @@ def test(args):
         model = get_model(args.model_zoo, pretrained=True)
     else:
         model = get_segmentation_model(args.model, dataset = args.dataset,
-                                       backbone = args.backbone, dilated = args.dilated,
+                                       backbone = args.backbone, dilated = args.dilated, multi_grid =args.multi_grid,
                                        lateral = args.lateral, jpu = args.jpu, aux = args.aux,
                                        se_loss = args.se_loss, norm_layer = BatchNorm2d,
                                        base_size = args.base_size, crop_size = args.crop_size)
