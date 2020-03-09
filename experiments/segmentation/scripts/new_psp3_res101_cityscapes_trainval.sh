@@ -9,7 +9,7 @@
 #     --backbone resnet101 --checkname new_psp3_res101_cityscapes_trainval --train-split trainval
 
 python train.py --dataset cityscapes \
-    --model new_psp3 --aux --dilated --multi-grid --base-size 1024 --crop-size 768 --lr 0.001 --batch-size 8 --epochs 5 \ 
+    --model new_psp3 --aux --dilated --multi-grid --base-size 1024 --crop-size 768 --lr 0.001 --batch-size 8 --epochs 5 \
     --backbone resnet101 --checkname new_psp3_res101_cityscapes_trainval --train-split trainval
 
 python train.py --dataset cityscapes \
