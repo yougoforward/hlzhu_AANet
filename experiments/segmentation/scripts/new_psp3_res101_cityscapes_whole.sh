@@ -51,21 +51,26 @@
 #     --model new_psp3 --aux --dilated --multi-grid --base-size 2048 --crop-size 1024 \
 #     --backbone resnet101 --resume runs/cityscapes/new_psp3/new_psp3_res101_cityscapes_trainval/checkpoint.pth.tar --split test --mode testval --ms --save-folder cityscapes_test
 
-#test [multi-scale]
-python test.py --dataset cityscapes \
-    --model new_psp3 --aux --dilated --multi-grid --base-size 2048 --crop-size 1024 \
-    --backbone resnet101 --resume runs/cityscapes/new_psp3/new_psp3_res101_cityscapes_trainval/checkpoint.pth.tar --split val --mode testval
-#test [multi-scale]
-python test.py --dataset cityscapes \
-    --model new_psp3 --aux --dilated --multi-grid --base-size 2048 --crop-size 1024 \
-    --backbone resnet101 --resume runs/cityscapes/new_psp3/new_psp3_res101_cityscapes_trainval/checkpoint.pth.tar --split trainval --mode testval
+# #test [multi-scale]
+# python test.py --dataset cityscapes \
+#     --model new_psp3 --aux --dilated --multi-grid --base-size 2048 --crop-size 1024 \
+#     --backbone resnet101 --resume runs/cityscapes/new_psp3/new_psp3_res101_cityscapes_trainval/checkpoint.pth.tar --split val --mode testval
+# #test [multi-scale]
+# python test.py --dataset cityscapes \
+#     --model new_psp3 --aux --dilated --multi-grid --base-size 2048 --crop-size 1024 \
+#     --backbone resnet101 --resume runs/cityscapes/new_psp3/new_psp3_res101_cityscapes_trainval/checkpoint.pth.tar --split trainval --mode testval
+
+# #test [multi-scale]
+# python test.py --dataset cityscapes \
+#     --model new_psp3 --aux --dilated --multi-grid --base-size 2048 --crop-size 1024 \
+#     --backbone resnet101 --resume runs/cityscapes/new_psp3/new_psp3_res101_cityscapes_trainval/model_best.pth.tar --split val --mode testval
+
+# #test [multi-scale]
+# python test.py --dataset cityscapes \
+#     --model new_psp3 --aux --dilated --multi-grid --base-size 2048 --crop-size 1024 \
+#     --backbone resnet101 --resume runs/cityscapes/new_psp3/new_psp3_res101_cityscapes_trainval/model_best.pth.tar --split trainval --mode testval
 
 #test [multi-scale]
 python test.py --dataset cityscapes \
     --model new_psp3 --aux --dilated --multi-grid --base-size 2048 --crop-size 1024 \
-    --backbone resnet101 --resume runs/cityscapes/new_psp3/new_psp3_res101_cityscapes_trainval/model_best.pth.tar --split val --mode testval
-
-#test [multi-scale]
-python test.py --dataset cityscapes \
-    --model new_psp3 --aux --dilated --multi-grid --base-size 2048 --crop-size 1024 \
-    --backbone resnet101 --resume runs/cityscapes/new_psp3/new_psp3_res101_cityscapes_trainval/model_best.pth.tar --split trainval --mode testval
+    --backbone resnet101 --resume runs/cityscapes/new_psp3/new_psp3_res101_cityscapes/model_best.pth.tar --split test --mode test --ms --save-folder cityscapes_traintest
