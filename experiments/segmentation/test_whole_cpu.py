@@ -106,7 +106,7 @@ def test(args):
         else:
             with torch.no_grad():
                 outputs = evaluator.forward(image[0].unsqueeze(0))
-                print(outputs.dtype)
+                print(outputs.shape)
                 predicts = [testset.make_pred(torch.max(output, 1)[1].numpy())
                             for output in outputs]
             for predict, impath in zip(predicts, dst):
