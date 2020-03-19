@@ -106,9 +106,10 @@ def test(args):
         else:
             with torch.no_grad():
                 outputs = evaluator.forward(image[0].unsqueeze(0))
-                print(outputs.shape)
-                predicts = [testset.make_pred(torch.max(output, 1)[1].numpy())
-                            for output in outputs]
+                # print(outputs.shape)
+                # predicts = [testset.make_pred(torch.max(output, 1)[1].numpy())
+                #             for output in outputs]
+                predicts = [testset.make_pred(torch.max(output, 1)[1].numpy())]
             for predict, impath in zip(predicts, dst):
                 mask = Image.fromarray(predict.squeeze().astype('uint8'))
                 # if args.dataset=="cityscapes":
