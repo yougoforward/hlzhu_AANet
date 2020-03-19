@@ -138,8 +138,8 @@ class CitySegmentation(BaseDataset):
 
     def make_pred(self, mask):
         values = np.unique(mask)
-        print(values)
-        print(self._indices)
+        # print(values)
+        # print(self._indices)
         for i in range(len(values)):
             assert(values[i] in self._indices)
         index = np.digitize(mask.ravel(), self._indices, right=True)
