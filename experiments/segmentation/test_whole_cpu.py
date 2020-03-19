@@ -109,7 +109,7 @@ def test(args):
                 # print(outputs.shape)
                 # predicts = [testset.make_pred(torch.max(output, 1)[1].numpy())
                 #             for output in outputs]
-                predicts = [testset.make_pred(torch.max(output, 1)[1].numpy())]
+                predicts = [testset.make_pred(torch.max(outputs, 1)[1].numpy())]
             for predict, impath in zip(predicts, dst):
                 mask = Image.fromarray(predict.squeeze().astype('uint8'))
                 # if args.dataset=="cityscapes":
