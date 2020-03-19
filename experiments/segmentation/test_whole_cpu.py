@@ -105,13 +105,13 @@ def test(args):
                 tbar.set_description( 'pixAcc: %.4f, mIoU: %.4f' % (pixAcc, mIoU))
         else:
             with torch.no_grad():
-                outputs = evaluator.parallel_forward(image)
+                outputs = evaluator.forward(image[0].unsqueeze(0))
                 predicts = [testset.make_pred(torch.max(output, 1)[1].cpu().numpy())
                             for output in outputs]
             for predict, impath in zip(predicts, dst):
                 mask = Image.fromarray(predict.squeeze().astype('uint8'))
-                if args.dataset=="cityscapes":
-                    mask = _convert_train_id_to_eval_id(mask, _CITYSCAPES_TRAIN_ID_TO_EVAL_ID)
+                # if args.dataset=="cityscapes":
+                #     mask = _convert_train_id_to_eval_id(mask, _CITYSCAPES_TRAIN_ID_TO_EVAL_ID)
                 # mask = utils.get_mask_pallete(predict, args.dataset)
                 outname = os.path.splitext(impath)[0] + '.png'
                 mask.save(os.path.join(outdir, outname))
