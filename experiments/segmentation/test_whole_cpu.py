@@ -119,5 +119,6 @@ def test(args):
 if __name__ == "__main__":
     args = Options().parse()
     torch.manual_seed(args.seed)
-    args.test_batch_size = torch.cuda.device_count()
+    # args.test_batch_size = torch.cuda.device_count()
+    args.test_batch_size = 1
     test(args)
