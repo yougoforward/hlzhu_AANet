@@ -19,7 +19,7 @@ from torch.utils import data
 
 from encoding.nn import BatchNorm2d
 from encoding.datasets import get_segmentation_dataset, test_batchify_fn
-from encoding.models import get_model, get_segmentation_model, MultiEvalModule, MultiEvalModule_whole
+from encoding.models import get_model, get_segmentation_model, MultiEvalModule, MultiEvalModule_whole_cpu
 
 from option import Options
 
@@ -91,7 +91,7 @@ def test(args):
     # scales = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75]
     if not args.ms:
         scales = [1.0]
-    evaluator = MultiEvalModule_whole(model, testset.num_class, scales=scales, flip=args.ms)
+    evaluator = MultiEvalModule_whole_cpu(model, testset.num_class, scales=scales, flip=args.ms)
     evaluator.eval()
     metric = utils.SegmentationMetric(testset.num_class)
 
