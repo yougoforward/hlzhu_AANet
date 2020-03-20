@@ -267,7 +267,10 @@ class MultiEvalModule_whole(DataParallel):
             scores = image.new().resize_(batch,self.nclass,h,w).zero_().cuda()
         for scale in self.scales:
             # resize image to current size
-            cur_img = F.interpolate(image, None, scale, **self.module._up_kwargs)
+            if scale==1.0:
+                cur_img = image
+            else:
+                cur_img = F.interpolate(image, None, scale, **self.module._up_kwargs)
             outputs = module_inference(self.module, cur_img, self.flip)
             # outputs = module_inference(self.module, cur_img, self.flip)
             score = resize_image(outputs, h, w, **self.module._up_kwargs)
@@ -316,7 +319,10 @@ class MultiEvalModule_whole_cpu(DataParallel):
         #     scores = image.new().resize_(batch,self.nclass,h,w).zero_().cuda()
         for scale in self.scales:
             # resize image to current size
-            cur_img = F.interpolate(image, None, scale, **self.module._up_kwargs)
+            if scale==1.0:
+                cur_img = image
+            else:
+                cur_img = F.interpolate(image, None, scale, **self.module._up_kwargs)
             outputs = module_inference(self.module, cur_img, self.flip)
             # outputs = module_inference(self.module, cur_img, self.flip)
             score = resize_image(outputs, h, w, **self.module._up_kwargs)
