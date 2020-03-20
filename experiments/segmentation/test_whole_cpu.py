@@ -8,8 +8,8 @@ import os
 
 import torch
 import torchvision.transforms as transform
-torch.backends.cudnn.benchmark=True
-torch.backends.cudnn.deterministic=True
+# torch.backends.cudnn.benchmark=True
+# torch.backends.cudnn.deterministic=True
 
 import encoding.utils as utils
 
