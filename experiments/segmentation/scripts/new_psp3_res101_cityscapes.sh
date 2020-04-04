@@ -14,9 +14,14 @@
 #     --resume runs/cityscapes/new_psp3/new_psp3_res101_cityscapes/checkpoint.pth.tar --ft \
 #     --backbone resnet101 --checkname new_psp3_res101_cityscapes
 
+# python train_lovasz.py --dataset cityscapes \
+#     --model new_psp3 --aux --dilated --multi-grid --base-size 1024 --crop-size 768 --lr 0.001 --batch-size 8 --epochs 240 \
+#     --resume runs/cityscapes/new_psp3/new_psp3_res101_cityscapes/model_best.pth.tar --ft \
+#     --backbone resnet101 --checkname new_psp3_res101_cityscapes_finetune
+
 python train_lovasz.py --dataset cityscapes \
-    --model new_psp3 --aux --dilated --multi-grid --base-size 1024 --crop-size 768 --lr 0.001 --batch-size 8 --epochs 240 \
-    --resume runs/cityscapes/new_psp3/new_psp3_res101_cityscapes/model_best.pth.tar --ft \
+    --model new_psp3 --aux --dilated --multi-grid --base-size 1024 --crop-size 768 --lr 0.0004 --batch-size 8 --epochs 90 \
+    --resume runs/cityscapes/new_psp3/new_psp3_res101_cityscapes_finetune/model_best.pth.tar --ft \
     --backbone resnet101 --checkname new_psp3_res101_cityscapes_finetune
 # #test [single-scale]
 # python test_whole_gpu.py --dataset cityscapes \
