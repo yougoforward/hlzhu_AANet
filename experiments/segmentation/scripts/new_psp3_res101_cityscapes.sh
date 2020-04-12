@@ -15,8 +15,7 @@
 #     --backbone resnet101 --checkname new_psp3_res101_cityscapes
 
 python train_lovasz.py --dataset cityscapes \
-    --model new_psp3 --aux --dilated --multi-grid --base-size 1024 --crop-size 768 --lr 0.001 --batch-size 8 --epochs 240 \
-    --resume runs/cityscapes/new_psp3/new_psp3_res101_cityscapes/model_best.pth.tar --ft \
+    --model new_psp3 --aux --dilated --multi-grid --base-size 1024 --crop-size 768 --lr 0.01 --batch-size 8 --epochs 240 \
     --backbone resnet101 --checkname new_psp3_res101_cityscapes_finetune
 
 # python train_lovasz.py --dataset cityscapes \
