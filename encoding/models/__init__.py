@@ -22,6 +22,8 @@ from .new_psp3 import *
 from .new_psp3_att import *
 from .new_psp3_noatt import *
 from .new_psp3_base import *
+from .deeplabv3_att import *
+from .psp_att import *
 def get_segmentation_model(name, **kwargs):
     from .fcn import get_fcn
     models = {
@@ -45,7 +47,7 @@ def get_segmentation_model(name, **kwargs):
         'new_psp3_att': get_new_psp3_attnet,
         'new_psp3_noatt': get_new_psp3_noattnet,
         'new_psp3_base': get_new_psp3_basenet,
-        'deeplabv3': get_deeplabv3,
+        'deeplabv3': get_deeplabv3net,
         'deeplabv3_att': get_deeplabv3_attnet,
         'psp_att': get_psp_attnet,
     }
