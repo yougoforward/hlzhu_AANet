@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from .fcn import FCNHead
 from .base import BaseNet
 
-__all__ = ['DeepLabV3', 'get_deeplabv3net']
+__all__ = ['DeepLabV3', 'get_deeplabv3']
 
 class DeepLabV3(BaseNet):
     def __init__(self, nclass, backbone, aux=True, se_loss=False, norm_layer=nn.BatchNorm2d, **kwargs):
@@ -113,7 +113,7 @@ class ASPP_Module(nn.Module):
         return self.project(y)
 
 
-def get_deeplabv3net(dataset='pascal_voc', backbone='resnet50', pretrained=False,
+def get_deeplabv3(dataset='pascal_voc', backbone='resnet50', pretrained=False,
                 root='~/.encoding/models', **kwargs):
     # infer number of classes
     from ..datasets import datasets

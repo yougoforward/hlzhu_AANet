@@ -47,8 +47,8 @@ def get_segmentation_model(name, **kwargs):
         'new_psp3_att': get_new_psp3_attnet,
         'new_psp3_noatt': get_new_psp3_noattnet,
         'new_psp3_base': get_new_psp3_basenet,
-        'deeplabv3': get_deeplabv3net,
-        'deeplabv3_att': get_deeplabv3_attnet,
-        'psp_att': get_psp_attnet,
+        'deeplabv3': get_deeplabv3,
+        'deeplabv3_att': get_deeplabv3_att,
+        'psp_att': get_psp_att,
     }
     return models[name.lower()](**kwargs)
