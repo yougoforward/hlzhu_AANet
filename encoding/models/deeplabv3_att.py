@@ -46,7 +46,7 @@ class deeplabv3_attHead(nn.Module):
         #     nn.Conv2d(inter_channels, out_channels, 1))
         self.block = nn.Sequential(
             nn.Dropout2d(0.1, False),
-            nn.Conv2d(inter_channels, out_channels, 1))
+            nn.Conv2d(2*inter_channels, out_channels, 1))
 
     def forward(self, x):
         x = self.aspp(x)
@@ -81,6 +81,8 @@ class ASPP_Module(nn.Module):
     def __init__(self, in_channels, atrous_rates, norm_layer, up_kwargs):
         super(ASPP_Module, self).__init__()
         out_channels = in_channels // 8
+        inter_channels = 2*out_channels
+
         rate1, rate2, rate3 = tuple(atrous_rates)
         self.b0 = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, 1, bias=False),
@@ -97,11 +99,11 @@ class ASPP_Module(nn.Module):
         #     nn.ReLU(True),
         #     nn.Dropout2d(0.5, False))
         self.project = nn.Sequential(
-            nn.Conv2d(5*out_channels, out_channels, 1, bias=False),
-            norm_layer(out_channels),
+            nn.Conv2d(5*out_channels, inter_channels, 1, bias=False),
+            norm_layer(inter_channels),
             nn.ReLU(True))
-        
-        self.pam0 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
+
+        self.pam0 = PAM_Module(in_dim=inter_channels, key_dim=inter_channels//8,value_dim=inter_channels,out_dim=inter_channels,norm_layer=norm_layer)
 
     def forward(self, x):
         feat0 = self.b0(x)
