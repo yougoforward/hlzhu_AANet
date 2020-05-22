@@ -26,6 +26,8 @@ from .deeplabv3_att import *
 from .psp_att import *
 from .gsnet import *
 from .gsnet2 import *
+from .gsnet3 import *
+from .gsnet4 import *
 def get_segmentation_model(name, **kwargs):
     from .fcn import get_fcn
     models = {
@@ -54,5 +56,7 @@ def get_segmentation_model(name, **kwargs):
         'psp_att': get_psp_att,
         'gsnet': get_gsnet,
         'gsnet2': get_gsnet2,
+        'gsnet3': get_gsnet3,
+        'gsnet4': get_gsnet4,
     }
     return models[name.lower()](**kwargs)
