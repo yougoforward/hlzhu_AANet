@@ -122,10 +122,18 @@ class gs_Module(nn.Module):
                             nn.Conv2d(in_channels, out_channels, 1, bias=False),
                             norm_layer(out_channels),
                             nn.ReLU(True))
-        self.se = nn.Sequential(
-                            nn.Conv2d(out_channels, 4*out_channels, 1, bias=True),
+        self.se0 = nn.Sequential(
+                            nn.Conv2d(out_channels, out_channels, 1, bias=True),
                             nn.Sigmoid())
-
+        self.se1 = nn.Sequential(
+                            nn.Conv2d(out_channels, out_channels, 1, bias=True),
+                            nn.Sigmoid())
+        self.se2 = nn.Sequential(
+                            nn.Conv2d(out_channels, out_channels, 1, bias=True),
+                            nn.Sigmoid())
+        self.se3 = nn.Sequential(
+                            nn.Conv2d(out_channels, out_channels, 1, bias=True),
+                            nn.Sigmoid())
         self.pam0 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
     def forward(self, x):
         feat0 = self.b0(x)
@@ -135,16 +143,22 @@ class gs_Module(nn.Module):
         n, c, h, w = feat0.size()
         #gp
         gp = self.gap(x)
-        se_att = self.se(gp)
-        se_att_list = torch.split(se_att, c, dim=1)
+        se0 = self.se0(gp)
+        se1 = self.se1(gp)
+        se2 = self.se2(gp)
+        se3 = self.se3(gp)
 
+        feat0 = feat0+feat0*se0
+        feat1 = feat1+feat1*se1
+        feat2 = feat2+feat2*se2
+        feat3 = feat3+feat3*se3
 
         # psaa
         y1 = torch.cat((feat0, feat1, feat2, feat3, gp.expand(n, c, h, w)), 1)
         psaa_att = self.psaa_conv(y1)
         psaa_att_list = torch.split(psaa_att, 1, dim=1)
 
-        y2 = torch.cat((psaa_att_list[0] * (feat0+feat0*se_att_list[0]), psaa_att_list[1] * (feat1+feat1*se_att_list[1]), psaa_att_list[2] * (feat2+feat2*se_att_list[2]), psaa_att_list[3] * (feat3+feat3*se_att_list[3]), gp.expand(n, c, h, w)), 1)
+        y2 = torch.cat((psaa_att_list[0] * feat0, psaa_att_list[1] * feat1, psaa_att_list[2] * feat2, psaa_att_list[3] *feat3, gp.expand(n, c, h, w)), 1)
 
         out = self.project(y2)
         out = self.pam0(out)
