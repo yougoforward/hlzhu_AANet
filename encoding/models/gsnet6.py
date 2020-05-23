@@ -141,7 +141,7 @@ class gs_Module(nn.Module):
 
         # psaa
         y1 = torch.cat((feat0, feat1, feat2, feat3, gp.expand(n, c, h, w)), 1)
-        psaa_att = self.psaa_conv(torch.cat(y1, dim=1))
+        psaa_att = self.psaa_conv(y1)
         psaa_att_list = torch.split(psaa_att, 1, dim=1)
 
         y2 = torch.cat((psaa_att_list[0] * (feat0+feat0*se_att_list[0]), psaa_att_list[1] * (feat1+feat1*se_att_list[1]), psaa_att_list[2] * (feat2+feat2*se_att_list[2]), psaa_att_list[3] * (feat3+feat3*se_att_list[3]), gp.expand(n, c, h, w)), 1)
