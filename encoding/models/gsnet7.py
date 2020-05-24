@@ -8,14 +8,14 @@ from .mask_softmax import Mask_Softmax
 from .fcn import FCNHead
 from .base import BaseNet
 
-__all__ = ['gsnet6', 'get_gsnet6']
+__all__ = ['gsnet7', 'get_gsnet7']
 
 
-class gsnet6(BaseNet):
+class gsnet7(BaseNet):
     def __init__(self, nclass, backbone, aux=True, se_loss=False, norm_layer=nn.BatchNorm2d, **kwargs):
-        super(gsnet6, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
+        super(gsnet7, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
 
-        self.head = gsnet6Head(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
+        self.head = gsnet7Head(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
         if aux:
             self.auxlayer = FCNHead(1024, nclass, norm_layer)
 
@@ -32,10 +32,10 @@ class gsnet6(BaseNet):
         return tuple(x)
 
 
-class gsnet6Head(nn.Module):
+class gsnet7Head(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, se_loss, jpu=False, up_kwargs=None,
                  atrous_rates=(12, 24, 36)):
-        super(gsnet6Head, self).__init__()
+        super(gsnet7Head, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 4
 
@@ -154,11 +154,11 @@ class gs_Module(nn.Module):
         out = self.pam0(out)
         return out, gp
 
-def get_gsnet6(dataset='pascal_voc', backbone='resnet50', pretrained=False,
+def get_gsnet7(dataset='pascal_voc', backbone='resnet50', pretrained=False,
                  root='~/.encoding/models', **kwargs):
     # infer number of classes
     from ..datasets import datasets
-    model = gsnet6(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
+    model = gsnet7(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
     if pretrained:
         raise NotImplementedError
 
