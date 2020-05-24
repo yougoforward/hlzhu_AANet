@@ -30,6 +30,8 @@ from .gsnet3 import *
 from .gsnet4 import *
 from .gsnet5 import *
 from .gsnet6 import *
+from .gsnet7 import *
+from .gsnet8 import *
 def get_segmentation_model(name, **kwargs):
     from .fcn import get_fcn
     models = {
@@ -62,5 +64,7 @@ def get_segmentation_model(name, **kwargs):
         'gsnet4': get_gsnet4,
         'gsnet5': get_gsnet5,
         'gsnet6': get_gsnet6,
+        'gsnet7': get_gsnet7,
+        'gsnet8': get_gsnet8,
     }
     return models[name.lower()](**kwargs)
