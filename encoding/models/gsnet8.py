@@ -122,16 +122,7 @@ class gs_Module(nn.Module):
                             nn.Conv2d(in_channels, out_channels, 1, bias=False),
                             norm_layer(out_channels),
                             nn.ReLU(True))
-        self.se0 = nn.Sequential(
-                            nn.Conv2d(out_channels, out_channels, 1, bias=True),
-                            nn.Sigmoid())
-        self.se1 = nn.Sequential(
-                            nn.Conv2d(out_channels, out_channels, 1, bias=True),
-                            nn.Sigmoid())
-        self.se2 = nn.Sequential(
-                            nn.Conv2d(out_channels, out_channels, 1, bias=True),
-                            nn.Sigmoid())
-        self.se3 = nn.Sequential(
+        self.se = nn.Sequential(
                             nn.Conv2d(out_channels, out_channels, 1, bias=True),
                             nn.Sigmoid())
         self.pam0 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
