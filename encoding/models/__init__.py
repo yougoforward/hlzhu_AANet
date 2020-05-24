@@ -73,6 +73,6 @@ def get_segmentation_model(name, **kwargs):
         'gsnet9': get_gsnet9,
         'gsnet10': get_gsnet10,
         'gsnet11': get_gsnet11,
-        'gsnet12': get_gsnet12，
+        'gsnet12': get_gsnet12,
     }
     return models[name.lower()](**kwargs)
