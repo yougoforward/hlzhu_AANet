@@ -8,14 +8,14 @@ from .mask_softmax import Mask_Softmax
 from .fcn import FCNHead
 from .base import BaseNet
 
-__all__ = ['gsnet11', 'get_gsnet11']
+__all__ = ['gsnet12', 'get_gsnet12']
 
 
-class gsnet11(BaseNet):
+class gsnet12(BaseNet):
     def __init__(self, nclass, backbone, aux=True, se_loss=False, norm_layer=nn.BatchNorm2d, **kwargs):
-        super(gsnet11, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
+        super(gsnet12, self).__init__(nclass, backbone, aux, se_loss, norm_layer=norm_layer, **kwargs)
 
-        self.head = gsnet11Head(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
+        self.head = gsnet12Head(2048, nclass, norm_layer, se_loss, jpu=kwargs['jpu'], up_kwargs=self._up_kwargs)
         if aux:
             self.auxlayer = FCNHead(1024, nclass, norm_layer)
 
@@ -32,10 +32,10 @@ class gsnet11(BaseNet):
         return tuple(x)
 
 
-class gsnet11Head(nn.Module):
+class gsnet12Head(nn.Module):
     def __init__(self, in_channels, out_channels, norm_layer, se_loss, jpu=False, up_kwargs=None,
                  atrous_rates=(12, 24, 36)):
-        super(gsnet11Head, self).__init__()
+        super(gsnet12Head, self).__init__()
         self.se_loss = se_loss
         inter_channels = in_channels // 4
 
@@ -106,13 +106,13 @@ class gs_Module(nn.Module):
         PAM_Module(in_dim=out_channels, key_dim=64,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer))
 
         self._up_kwargs = up_kwargs
-        self.psaa_conv = nn.Sequential(nn.Conv2d(5*out_channels, out_channels, 1, padding=0, bias=False),
+        self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+5*out_channels, out_channels, 1, padding=0, bias=False),
                                     norm_layer(out_channels),
                                     nn.ReLU(True),
                                     nn.Conv2d(out_channels, 4, 1, bias=True),
                                     nn.Sigmoid())  
 
-        self.project = nn.Sequential(nn.Conv2d(in_channels=5*out_channels, out_channels=out_channels,
+        self.project = nn.Sequential(nn.Conv2d(in_channels= 5*out_channels, out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
                       norm_layer(out_channels),
                       nn.ReLU(True))
@@ -137,21 +137,20 @@ class gs_Module(nn.Module):
         se = self.se(gp)
 
         # psaa
-        y1 = torch.cat((feat0, feat1, feat2, feat3, gp.expand(n, c, h, w)), 1)
+        y1 = torch.cat((x, feat0, feat1, feat2, feat3, gp.expand(n, c, h, w)), 1)
         psaa_att = self.psaa_conv(y1)
         psaa_att_list = torch.split(psaa_att, 1, dim=1)
 
         y2 = torch.cat((psaa_att_list[0] * feat0, psaa_att_list[1] * feat1, psaa_att_list[2] * feat2, psaa_att_list[3] *feat3, gp.expand(n, c, h, w)), 1)
-
         out = self.project(y2)
         out = self.pam0(out+se*out)
         return out, gp
 
-def get_gsnet11(dataset='pascal_voc', backbone='resnet50', pretrained=False,
+def get_gsnet12(dataset='pascal_voc', backbone='resnet50', pretrained=False,
                  root='~/.encoding/models', **kwargs):
     # infer number of classes
     from ..datasets import datasets
-    model = gsnet11(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
+    model = gsnet12(datasets[dataset.lower()].NUM_CLASS, backbone=backbone, root=root, **kwargs)
     if pretrained:
         raise NotImplementedError
 
