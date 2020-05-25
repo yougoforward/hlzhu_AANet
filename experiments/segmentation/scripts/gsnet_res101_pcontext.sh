@@ -2,14 +2,14 @@
 # train
 python train.py --dataset pcontext \
     --model gsnet --aux --dilated --base-size 520 --crop-size 520 \
-    --backbone resnet101 --checkname gsnet_res50_pcontext
+    --backbone resnet101 --checkname gsnet_res101_pcontext
 
 #test [single-scale]
 python test.py --dataset pcontext \
     --model gsnet --aux --dilated --base-size 520 --crop-size 520 \
-    --backbone resnet101 --resume runs/pcontext/gsnet/gsnet_res50_pcontext/checkpoint.pth.tar --split val --mode testval
+    --backbone resnet101 --resume runs/pcontext/gsnet/gsnet_res101_pcontext/checkpoint.pth.tar --split val --mode testval
 
 #test [multi-scale]
 python test.py --dataset pcontext \
     --model gsnet --aux --dilated --base-size 520 --crop-size 520 \
-    --backbone resnet101 --resume runs/pcontext/gsnet/gsnet_res50_pcontext/checkpoint.pth.tar --split val --mode testval --ms
+    --backbone resnet101 --resume runs/pcontext/gsnet/gsnet_res101_pcontext/checkpoint.pth.tar --split val --mode testval --ms
