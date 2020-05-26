@@ -109,7 +109,8 @@ class gs_Module(nn.Module):
         self.psaa_conv = nn.Sequential(nn.Conv2d(in_channels+5*out_channels, out_channels, 1, padding=0, bias=False),
                                     norm_layer(out_channels),
                                     nn.ReLU(True),
-                                    nn.Conv2d(out_channels, 5, 1, bias=True))  
+                                    nn.Conv2d(out_channels, 5, 1, bias=True),
+                                    nn.Sigmoid())  
 
         self.project = nn.Sequential(nn.Conv2d(in_channels=5*out_channels, out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
@@ -125,10 +126,6 @@ class gs_Module(nn.Module):
                             nn.Conv2d(out_channels, out_channels, 1, bias=True),
                             nn.Sigmoid())
 
-        # self.project2 = nn.Sequential(nn.Conv2d(in_channels=2*out_channels, out_channels=out_channels,
-        #               kernel_size=1, stride=1, padding=0, bias=False),
-        #               norm_layer(out_channels),
-        #               nn.ReLU(True))
 
         self.pam0 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
     def forward(self, x):
@@ -142,9 +139,8 @@ class gs_Module(nn.Module):
         se = self.se(gp)
 
         # psaa
-        y1 = torch.cat((feat0, feat1, feat2, feat3, gp.expand(n, c, h, w)), 1)
-        psaa_feat = self.psaa_conv(torch.cat([x, y1], dim=1))
-        psaa_att = torch.sigmoid(psaa_feat)
+        y1 = torch.cat((x, feat0, feat1, feat2, feat3, feat4), dim=1)
+        psaa_att = self.psaa_conv(y1)
         psaa_att_list = torch.split(psaa_att, 1, dim=1)
 
         y2 = torch.cat((psaa_att_list[0] * feat0, psaa_att_list[1] * feat1, psaa_att_list[2] * feat2,
