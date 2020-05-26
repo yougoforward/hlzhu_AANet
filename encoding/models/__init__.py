@@ -37,6 +37,7 @@ from .gsnet10 import *
 from .gsnet11 import *
 from .gsnet12 import *
 from .gsnet13 import *
+from .gsnet14 import *
 from .gsnet_noatt import *
 def get_segmentation_model(name, **kwargs):
     from .fcn import get_fcn
@@ -78,5 +79,6 @@ def get_segmentation_model(name, **kwargs):
         'gsnet12': get_gsnet12,
         'gsnet13': get_gsnet13,
         'gsnet_noatt': get_gsnet_noatt,
+        'gsnet14': get_gsnet14,
     }
     return models[name.lower()](**kwargs)
