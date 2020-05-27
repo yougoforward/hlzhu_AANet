@@ -124,7 +124,7 @@ class gs_Module(nn.Module):
         self.se = nn.Sequential(
                             nn.Conv2d(out_channels, out_channels//8, 1, bias=False),
                             norm_layer(out_channels//8),
-                            nn.ReLU(True)
+                            nn.ReLU(True),
                             nn.Conv2d(out_channels//8, out_channels, 1, bias=True),
                             nn.Sigmoid())
 
