@@ -134,7 +134,8 @@ class gs_Module(nn.Module):
         n, c, h, w = feat0.size()
         #gp
         gp = self.gap(x)
-        feat4 = F.interpolate(gp, (h,w), **self._up_kwargs)
+        # feat4 = F.interpolate(gp, (h,w), **self._up_kwargs)
+        feat4 = gp.expand(n, c, h, w)
         se = self.se(gp)
         # psaa
         y1 = torch.cat((x, feat0, feat1, feat2, feat3, feat4), dim=1)
