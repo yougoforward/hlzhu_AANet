@@ -122,12 +122,8 @@ class gs_Module(nn.Module):
                             norm_layer(out_channels),
                             nn.ReLU(True))
         self.se = nn.Sequential(
-                            nn.Conv2d(out_channels, out_channels//8, 1, bias=False),
-                            norm_layer(out_channels//8),
-                            nn.ReLU(True),
-                            nn.Conv2d(out_channels//8, out_channels, 1, bias=True),
+                            nn.Conv2d(out_channels, out_channels, 1, bias=True),
                             nn.Sigmoid())
-
 
         self.pam0 = PAM_Module(in_dim=out_channels, key_dim=out_channels//8,value_dim=out_channels,out_dim=out_channels,norm_layer=norm_layer)
     def forward(self, x):
@@ -140,7 +136,6 @@ class gs_Module(nn.Module):
         gp = self.gap(x)
         feat4 = F.interpolate(gp, (h,w), **self._up_kwargs)
         se = self.se(gp)
-
         # psaa
         y1 = torch.cat((x, feat0, feat1, feat2, feat3, feat4), dim=1)
         psaa_att = self.psaa_conv(y1)
