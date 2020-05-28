@@ -142,7 +142,6 @@ class gs_Module(nn.Module):
         gp = self.gap(x)
         feat4 = F.interpolate(gp, (h,w), **self._up_kwargs)
         se = self.se(gp)
-        sec = self.sec(gp)
 
         # psaa
         y1 = torch.cat((x, feat0, feat1, feat2, feat3, feat4), dim=1)
@@ -152,8 +151,7 @@ class gs_Module(nn.Module):
 
         # non local context
         out = self.project(y2)
-        out = self.pam0(out)
-        out = torch.cat([out+se*out, sec.expand(n, c, h, w)], dim=1)
+        out = self.pam0(out+se*out)
         return out, gp
 
 def get_gsnet(dataset='pascal_voc', backbone='resnet50', pretrained=False,
