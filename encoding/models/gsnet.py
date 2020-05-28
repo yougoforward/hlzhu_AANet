@@ -135,7 +135,8 @@ class gs_Module(nn.Module):
 
         #gp
         gp = self.gap(x)
-        feat4 = F.interpolate(gp, (h,w), **self._up_kwargs)
+        # feat4 = F.interpolate(gp, (h,w), **self._up_kwargs)
+        feat4 = gp.expand(n, c, h, w)
         se = self.se(gp)
 
         # psaa
@@ -171,8 +172,8 @@ class PAM_Module(nn.Module):
         self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
         self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=key_dim, kernel_size=1)
         # self.value_conv = nn.Conv2d(in_channels=value_dim, out_channels=value_dim, kernel_size=1)
-        self.gamma = nn.Parameter(torch.zeros(1))
-        # self.gamma = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=1, kernel_size=1, bias=True), nn.Sigmoid())
+        self.alpha = nn.Parameter(torch.zeros(1))
+        self.gamma = nn.Sequential(nn.Conv2d(in_channels=in_dim, out_channels=1, kernel_size=1, bias=True), nn.Sigmoid())
 
         self.softmax = nn.Softmax(dim=-1)
         # self.fuse_conv = nn.Sequential(nn.Conv2d(value_dim, out_dim, 1, bias=False),
@@ -201,7 +202,8 @@ class PAM_Module(nn.Module):
         out = out.view(m_batchsize, C, height, width)
         # out = F.interpolate(out, (height, width), mode="bilinear", align_corners=True)
 
-        # gamma = self.gamma(x)
-        # out = (1-gamma)*out + gamma*x
+        out = x+self.alpha*out
+        gamma = self.gamma(x)
+        out = (1-gamma)*out + gamma*x
         # out = self.fuse_conv(out)
-        return x+self.gamma*out
+        return out
